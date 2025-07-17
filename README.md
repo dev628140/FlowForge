@@ -18,6 +18,17 @@ FlowForge is an intelligent daily productivity system that goes far beyond a tra
 - **Learning Planner**: Describe a skill or topic, get a customized learning path.
 - **Progress Journal**: Reflect on what you've completed for motivation.
 - **Productivity DNA**: Discover your best working patterns and times.
+## 📸 Screenshots
+
+### ✨ Home Screen
+![Home Screen](assets/ai-task-planner.png)
+
+### 🧠 AI Task Planner
+![AI Powered Features](assets/ai-help.png)
+
+### 🧠 AI Week Scheduler
+![AI Powered Week Scheduler](assets/ai-week-scheduler.png)
+
 
 ### 🧩 Future Smart Integrations (coming soon)
 - Google Calendar, Notion, GitHub, Slack, Gmail, Telegram.
