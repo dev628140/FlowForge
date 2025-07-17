@@ -6,7 +6,7 @@ import type { Task } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, writeBatch, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface AppContextType {
@@ -66,17 +66,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
   const handleToggleTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
-    
+
     let taskToToggle: Task | null = null;
     let parentTask: Task | null = null;
-    
+
     if (parentId) {
-      parentTask = findTaskById(tasks, parentId);
+      parentTask = tasks.find(t => t.id === parentId) || null;
       if (parentTask && parentTask.subtasks) {
         taskToToggle = parentTask.subtasks.find(t => t.id === id) || null;
       }
     } else {
-      taskToToggle = findTaskById(tasks, id);
+      taskToToggle = tasks.find(t => t.id === id) || null;
     }
 
     if (!taskToToggle) return;
@@ -88,18 +88,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (parentTask) {
         const parentTaskRef = doc(db, 'tasks', parentId);
-        const updatedSubtasks = parentTask.subtasks?.map(sub => 
-          sub.id === id 
-            ? { ...sub, completed: isCompleting, completedAt: isCompleting ? new Date().toISOString() : undefined } 
-            : sub
-        );
+        const updatedSubtasks = parentTask.subtasks?.map(sub => {
+          if (sub.id === id) {
+            const updatedSubtask: Partial<Task> = {
+              ...sub,
+              completed: isCompleting,
+            };
+            if (isCompleting) {
+              updatedSubtask.completedAt = new Date().toISOString();
+            } else {
+              delete updatedSubtask.completedAt; // Remove field
+            }
+            return updatedSubtask as Task;
+          }
+          return sub;
+        });
         batch.update(parentTaskRef, { subtasks: updatedSubtasks });
       } else {
         const taskRef = doc(db, 'tasks', id);
-        batch.update(taskRef, { 
-          completed: isCompleting,
-          completedAt: isCompleting ? new Date().toISOString() : undefined,
-        });
+        const updateData: Partial<Task> = {
+          completed: isCompleting
+        };
+        if (isCompleting) {
+          updateData.completedAt = new Date().toISOString();
+        } else {
+          delete updateData.completedAt; // Remove field
+        }
+        batch.update(taskRef, updateData);
       }
       
       await batch.commit();
@@ -143,9 +158,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user || !db) return;
     try {
       const taskRef = doc(db, 'tasks', taskId);
-      const batch = writeBatch(db);
-      batch.update(taskRef, updates);
-      await batch.commit();
+      await updateDoc(taskRef, updates);
     } catch (error) {
       console.error("Error updating task:", error);
       toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
@@ -163,8 +176,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
        }
        const parentTask = docSnap.data() as Task;
 
-       const batch = writeBatch(db);
-       
        const newSubtasks: Task[] = subtasks.map(sub => ({
           id: uuidv4(),
           title: sub.title,
@@ -175,9 +186,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
        }));
 
        const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
-       batch.update(parentTaskRef, { subtasks: updatedSubtasks });
-
-       await batch.commit();
+       await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
+       
      } catch (error) {
        console.error("Error adding subtasks:", error);
        toast({ title: "Error", description: "Could not add subtasks.", variant: "destructive" });
@@ -211,17 +221,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error("Error deleting task:", error);
       toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
     }
-  };
-
-  const findTaskById = (tasks: Task[], id: string): Task | null => {
-    for (const task of tasks) {
-      if (task.id === id) return task;
-      if (task.subtasks) {
-        const found = findTaskById(task.subtasks, id);
-        if (found) return found;
-      }
-    }
-    return null;
   };
 
   return (
