@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, GitGraph, LayoutDashboard, LogOut, Settings } from 'lucide-react';
+import { Calendar, GitGraph, LayoutDashboard, LogOut, Settings, ListTodo } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -97,6 +97,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuButton isActive={pathname === '/'}>
                   <LayoutDashboard />
                   <span>Dashboard</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/all-tasks">
+                <SidebarMenuButton isActive={pathname === '/all-tasks'}>
+                  <ListTodo />
+                  <span>All Tasks</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
