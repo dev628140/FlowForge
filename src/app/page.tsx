@@ -99,6 +99,9 @@ export default function DashboardPage() {
     defaultValues: { title: '', description: '', scheduledTime: '' },
   });
   
+  // Dummy form for components that need Form context but don't submit
+  const dummyForm = useForm();
+  
   const handleGeneralAddTaskSubmit = (values: GeneralTaskFormValues) => {
     handleAddTasks([{ 
       title: values.title, 
@@ -177,35 +180,37 @@ export default function DashboardPage() {
             mood: selectedMood?.label || 'Neutral',
         },
         children: (
-            <div className="space-y-4">
-                 <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select your role..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {userRoles.map(role => (
-                            <SelectItem key={role} value={role}>{role}</SelectItem>
-                        ))}
-                      </SelectContent>
-                </Select>
-                <div>
-                  <FormLabel className="text-sm font-medium">How are you feeling?</FormLabel>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {moods.map(mood => (
-                      <Button 
-                        key={mood.label} 
-                        variant={selectedMood?.label === mood.label ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSelectedMood(mood)}
-                        className="flex-grow"
-                      >
-                        <span className="mr-2">{mood.emoji}</span>
-                        {mood.label}
-                      </Button>
-                    ))}
+            <Form {...dummyForm}>
+              <div className="space-y-4">
+                  <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select your role..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {userRoles.map(role => (
+                              <SelectItem key={role} value={role}>{role}</SelectItem>
+                          ))}
+                        </SelectContent>
+                  </Select>
+                  <div>
+                    <FormLabel className="text-sm font-medium">How are you feeling?</FormLabel>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {moods.map(mood => (
+                        <Button 
+                          key={mood.label} 
+                          variant={selectedMood?.label === mood.label ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedMood(mood)}
+                          className="flex-grow"
+                        >
+                          <span className="mr-2">{mood.emoji}</span>
+                          {mood.label}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-            </div>
+              </div>
+            </Form>
         )
     },
     {
@@ -524,5 +529,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
