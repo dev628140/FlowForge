@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 export default function DynamicSuggestions() {
   const { tasks } = useAppContext();
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(true); // Start with loading true
   const { toast } = useToast();
 
   const fetchSuggestions = React.useCallback(async () => {
@@ -44,6 +44,11 @@ export default function DynamicSuggestions() {
       setLoading(false);
     }
   }, [tasks, toast]);
+
+  React.useEffect(() => {
+    // Fetch suggestions automatically when component mounts or tasks change
+    fetchSuggestions();
+  }, [fetchSuggestions]);
   
   return (
     <Card>
