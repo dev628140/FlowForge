@@ -13,9 +13,11 @@ export interface Task {
 
 export type UserRole = 'Student' | 'Developer' | 'Founder' | 'Freelancer';
 
-export type MoodLabel = 'High Energy' | 'Neutral' | 'Low Energy' | 'Motivated' | 'Calm' | 'Stressed';
+export type MoodLabel = 'High Energy' | 'Motivated' | 'Calm' | 'Stressed' | 'Low Energy';
 
 export interface Mood {
   emoji: string;
   label: MoodLabel;
 }
+
+    

@@ -141,6 +141,13 @@ export default function DashboardPage() {
   );
   
   const userRoles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
+  const moods: Mood[] = [
+    { emoji: '⚡', label: 'High Energy' },
+    { emoji: '😊', label: 'Motivated' },
+    { emoji: '😌', label: 'Calm' },
+    { emoji: '😵', label: 'Stressed' },
+    { emoji: '🫠', label: 'Low Energy' },
+  ];
 
   const agentConfigs: AgentConfig[] = [
     {
@@ -170,16 +177,35 @@ export default function DashboardPage() {
             mood: selectedMood?.label || 'Neutral',
         },
         children: (
-             <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
-                  <SelectTrigger className="w-full mt-2">
-                    <SelectValue placeholder="Select your role..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userRoles.map(role => (
-                        <SelectItem key={role} value={role}>{role}</SelectItem>
-                    ))}
-                  </SelectContent>
+            <div className="space-y-4">
+                 <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select your role..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {userRoles.map(role => (
+                            <SelectItem key={role} value={role}>{role}</SelectItem>
+                        ))}
+                      </SelectContent>
                 </Select>
+                <div>
+                  <FormLabel className="text-sm font-medium">How are you feeling?</FormLabel>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {moods.map(mood => (
+                      <Button 
+                        key={mood.label} 
+                        variant={selectedMood?.label === mood.label ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedMood(mood)}
+                        className="flex-grow"
+                      >
+                        <span className="mr-2">{mood.emoji}</span>
+                        {mood.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+            </div>
         )
     },
     {
@@ -498,3 +524,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
