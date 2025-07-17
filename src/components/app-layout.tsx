@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -60,7 +61,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/" legacyBehavior passHref>
+              <Link href="/">
                 <SidebarMenuButton isActive={pathname === '/'}>
                   <LayoutDashboard />
                   <span>Dashboard</span>
@@ -68,7 +69,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/integrations" legacyBehavior passHref>
+              <Link href="/integrations">
                 <SidebarMenuButton isActive={pathname === '/integrations'}>
                   <GitGraph />
                   <span>Integrations</span>
