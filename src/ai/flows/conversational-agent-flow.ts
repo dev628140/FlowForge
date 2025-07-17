@@ -171,7 +171,8 @@ ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
                 delay *= 2; // Exponential backoff
             } else {
                 // For any other error, throw it immediately
-                throw error;
+                console.error("Unhandled AI Error:", error);
+                throw new Error("An unexpected error occurred with the AI service.");
             }
         }
     }

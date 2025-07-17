@@ -17,7 +17,7 @@ interface DynamicSuggestionCardProps {
 
 export default function DynamicSuggestionCard({ tasks, role }: DynamicSuggestionCardProps) {
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = React.useState(0);
   const { toast } = useToast();
 
@@ -30,11 +30,14 @@ export default function DynamicSuggestionCard({ tasks, role }: DynamicSuggestion
       });
       setSuggestions(result.suggestions || []);
       setCurrentSuggestionIndex(0);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch dynamic suggestions:", error);
+      const errorMessage = error.message.includes('429') 
+        ? "AI daily limit reached. Please try again tomorrow." 
+        : "Could not load a suggestion. Please try again.";
       toast({
         title: "AI Suggestion Failed",
-        description: "Could not load a suggestion. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       setSuggestions([]);
@@ -42,11 +45,6 @@ export default function DynamicSuggestionCard({ tasks, role }: DynamicSuggestion
       setLoading(false);
     }
   }, [tasks, role, toast]);
-
-  React.useEffect(() => {
-    fetchSuggestions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleNextSuggestion = () => {
     setCurrentSuggestionIndex((prev) => (prev + 1) % suggestions.length);
@@ -76,10 +74,10 @@ export default function DynamicSuggestionCard({ tasks, role }: DynamicSuggestion
              ) : hasSuggestions ? (
                 <p>"{currentSuggestion}"</p>
              ) : (
-                <p>No suggestions right now. Complete a task or add a new one!</p>
+                <p>Click the refresh icon to get a new suggestion from the AI.</p>
              )}
         </div>
-         {suggestions.length > 1 && (
+         {suggestions.length > 1 && !loading && (
             <div className="text-right mt-2">
                  <Button variant="link" size="sm" onClick={handleNextSuggestion}>
                      Next suggestion
