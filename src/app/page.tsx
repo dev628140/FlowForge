@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, Zap, Calendar, AlertTriangle, Trash2 } from 'lucide-react';
+import { PlusCircle, Zap, Calendar, AlertTriangle, Trash2, LayoutDashboard } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -155,7 +155,7 @@ export default function DashboardPage() {
               <DialogHeader>
                 <DialogTitle>Add a new task</DialogTitle>
                 <DialogDescription>
-                  What do you want to accomplish? Add details and optionally schedule it.
+                  What do you want to accomplish? Add it to your inbox and schedule it later.
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
