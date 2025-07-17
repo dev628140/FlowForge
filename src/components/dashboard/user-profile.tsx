@@ -21,11 +21,18 @@ export default function UserProfile({ user }: UserProfileProps) {
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return <UserIcon className="w-5 h-5" />;
-    const parts = name.split(' ');
-    if (parts.length > 1) {
-      return parts[0][0] + parts[parts.length - 1][0];
+    
+    // Check if the name is an email address
+    if (name.includes('@')) {
+        const emailPrefix = name.split('@')[0];
+        return emailPrefix.substring(0, 2).toUpperCase();
     }
-    return name.substring(0, 2);
+    
+    const parts = name.split(' ').filter(Boolean); // split by space and remove any empty strings
+    if (parts.length > 1) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
   }
 
   return (
@@ -35,7 +42,7 @@ export default function UserProfile({ user }: UserProfileProps) {
               <Avatar className="w-8 h-8">
                   <AvatarImage src={user?.photoURL || undefined} alt={displayName || 'User Avatar'} />
                   <AvatarFallback>
-                      {getInitials(user?.displayName || user?.email)}
+                      {getInitials(user?.displayName)}
                   </AvatarFallback>
               </Avatar>
               <div className="text-left hidden md:block">
