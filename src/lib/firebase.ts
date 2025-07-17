@@ -13,13 +13,13 @@ const firebaseConfig: FirebaseOptions = {
 };
 
 // Check if all required environment variables are set
-const isFirebaseConfigured = firebaseConfig.apiKey &&
-  firebaseConfig.authDomain &&
-  firebaseConfig.projectId;
+export const isFirebaseConfigured = !!firebaseConfig.apiKey &&
+  !!firebaseConfig.authDomain &&
+  !!firebaseConfig.projectId;
 
 const app = isFirebaseConfigured ? (getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()) : null;
-const auth = app ? getAuth(app) : null;
-const db = app ? getFirestore(app) : null;
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;
 
 // Connect to emulators in development
 if (process.env.NODE_ENV === 'development' && auth && db) {
@@ -28,4 +28,4 @@ if (process.env.NODE_ENV === 'development' && auth && db) {
     // connectFirestoreEmulator(db, 'localhost', 8080);
 }
 
-export { app, auth, db, isFirebaseConfigured };
+export { app };
