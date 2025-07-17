@@ -54,6 +54,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import ConversationalAICard, { type AgentConfig } from '@/components/dashboard/conversational-ai-card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
 
 
 const taskFormSchema = z.object({
@@ -257,6 +258,8 @@ export default function DashboardPage() {
           </CardTitle>
         </div>
         
+        <DailyProgressBar tasks={todaysTasks} />
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
