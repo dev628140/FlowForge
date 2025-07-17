@@ -31,6 +31,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { Badge } from '../ui/badge';
 import { Calendar } from '../ui/calendar';
+import { Input } from '../ui/input';
 
 interface TaskItemProps {
   task: Task;
@@ -47,6 +48,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const [isBreakingDown, setIsBreakingDown] = React.useState(false);
   const [isSchedulePopoverOpen, setIsSchedulePopoverOpen] = React.useState(false);
+  const [newTime, setNewTime] = React.useState(task.scheduledTime || '');
   const { toast } = useToast();
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
 
@@ -119,11 +121,21 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
   const handleDateSelect = async (date: Date | undefined) => {
     if (date && onUpdateTask) {
         await onUpdateTask(task.id, { scheduledDate: format(date, 'yyyy-MM-dd') });
-        setIsSchedulePopoverOpen(false);
         toast({
             title: 'Task Scheduled',
             description: `"${task.title}" has been scheduled for ${format(date, 'PPP')}.`,
         });
+    }
+  };
+
+  const handleTimeUpdate = async () => {
+    if (onUpdateTask) {
+      await onUpdateTask(task.id, { scheduledTime: newTime });
+      setIsSchedulePopoverOpen(false);
+      toast({
+        title: 'Time Updated',
+        description: `Time for "${task.title}" has been updated.`,
+      });
     }
   };
 
@@ -167,6 +179,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
             {task.scheduledDate && (
                 <Badge variant="outline" className="text-xs">
                     {format(parseISO(task.scheduledDate), 'MMM d')}
+                    {task.scheduledTime && ` at ${task.scheduledTime}`}
                 </Badge>
             )}
         </div>
@@ -182,16 +195,14 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
              </Button>
            </CollapsibleTrigger>
         )}
-        {!task.scheduledDate && onUpdateTask && (
+        {onUpdateTask && (
             <Popover open={isSchedulePopoverOpen} onOpenChange={setIsSchedulePopoverOpen}>
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <PopoverTrigger asChild>
-                                <Button variant="ghost" size="icon" aria-label={`Schedule task ${task.title}`}>
-                                    <CalendarPlus className="h-4 w-4" />
-                                </Button>
-                            </PopoverTrigger>
+                            <Button variant="ghost" size="icon" aria-label={`Schedule task ${task.title}`}>
+                                <CalendarPlus className="h-4 w-4" />
+                            </Button>
                         </TooltipTrigger>
                         <TooltipContent>
                             <p>Schedule Task</p>
@@ -200,6 +211,13 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
                 </TooltipProvider>
                 <PopoverContent className="w-auto p-0">
                     <Calendar mode="single" selected={task.scheduledDate ? parseISO(task.scheduledDate) : undefined} onSelect={handleDateSelect} initialFocus />
+                    <div className="p-2 border-t">
+                      <div className="space-y-2">
+                        <label htmlFor="time" className="text-xs font-medium">Time (optional)</label>
+                        <Input id="time" type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
+                      </div>
+                      <Button onClick={handleTimeUpdate} size="sm" className="w-full mt-2">Set Time</Button>
+                    </div>
                 </PopoverContent>
             </Popover>
         )}

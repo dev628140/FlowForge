@@ -6,6 +6,7 @@ export interface Task {
   subtasks?: Task[];
   completedAt?: string;
   scheduledDate?: string; // YYYY-MM-DD
+  scheduledTime?: string; // HH:mm
   userId: string;
   createdAt?: string;
 }
