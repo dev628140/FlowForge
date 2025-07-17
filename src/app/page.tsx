@@ -57,6 +57,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
 import { Badge } from '@/components/ui/badge';
 import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-card';
+import VisualTaskSnapCard from '@/components/dashboard/visual-task-snap-card';
 
 
 const taskFormSchema = z.object({
@@ -516,6 +517,7 @@ export default function DashboardPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <VisualTaskSnapCard />
           {agentConfigs.map((config) => (
              <ConversationalAICard key={config.title} config={config} />
           ))}
