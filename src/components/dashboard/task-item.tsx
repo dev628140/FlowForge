@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,6 +33,31 @@ import { Badge } from '../ui/badge';
 import { Calendar } from '../ui/calendar';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogDescription,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar as CalendarIcon } from 'lucide-react';
+
+const editTaskFormSchema = z.object({
+  title: z.string().min(1, 'Title is required.'),
+  description: z.string().optional(),
+  scheduledDate: z.date().optional(),
+  scheduledTime: z.string().optional(),
+});
+
+type EditTaskFormValues = z.infer<typeof editTaskFormSchema>;
 
 interface TaskItemProps {
   task: Task;
@@ -49,12 +74,49 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const [isBreakingDown, setIsBreakingDown] = React.useState(false);
   const [isSchedulePopoverOpen, setIsSchedulePopoverOpen] = React.useState(false);
-  
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+
   const [newDate, setNewDate] = React.useState<Date | undefined>(task.scheduledDate ? parseISO(task.scheduledDate) : undefined);
   const [newTime, setNewTime] = React.useState(task.scheduledTime || '');
 
   const { toast } = useToast();
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+
+  const form = useForm<EditTaskFormValues>({
+    resolver: zodResolver(editTaskFormSchema),
+    defaultValues: {
+      title: task.title,
+      description: task.description || '',
+      scheduledDate: task.scheduledDate ? parseISO(task.scheduledDate) : undefined,
+      scheduledTime: task.scheduledTime || '',
+    },
+  });
+
+  React.useEffect(() => {
+    form.reset({
+      title: task.title,
+      description: task.description || '',
+      scheduledDate: task.scheduledDate ? parseISO(task.scheduledDate) : undefined,
+      scheduledTime: task.scheduledTime || '',
+    });
+  }, [task, form, isEditDialogOpen]);
+
+  const handleEditSubmit = async (values: EditTaskFormValues) => {
+    if (!onUpdateTask) return;
+    const updates: Partial<Task> = {
+      title: values.title,
+      description: values.description,
+      scheduledDate: values.scheduledDate ? format(values.scheduledDate, 'yyyy-MM-dd') : undefined,
+      scheduledTime: values.scheduledTime || undefined,
+    };
+
+    await onUpdateTask(task.id, updates);
+    setIsEditDialogOpen(false);
+    toast({
+      title: 'Task Updated',
+      description: `"${values.title}" has been successfully updated.`,
+    });
+  };
 
   const handleToggleSubtask = (subtaskId: string) => {
     onToggle(subtaskId, task.id);
@@ -245,6 +307,107 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label={`Edit task ${task.title}`} disabled={isSubtask}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Task</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Task</DialogTitle>
+              <DialogDescription>Make changes to your task here. Click save when you're done.</DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleEditSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Title</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex gap-4">
+                  <FormField
+                    control={form.control}
+                    name="scheduledDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col w-1/2">
+                        <FormLabel>Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                              >
+                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="scheduledTime"
+                    render={({ field }) => (
+                      <FormItem className="w-1/2">
+                        <FormLabel>Time</FormLabel>
+                        <FormControl>
+                          <Input type="time" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="ghost">Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit">Save Changes</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
 
         <Popover onOpenChange={() => setSummary(null)}>
           <TooltipProvider>
