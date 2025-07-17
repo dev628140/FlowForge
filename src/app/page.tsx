@@ -101,7 +101,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                   <Calendar className="w-6 h-6" />
                   Today's Tasks
                 </CardTitle>
@@ -147,7 +147,7 @@ export default function DashboardPage() {
                             <FormLabel>Description (optional)</FormLabel>
                             <FormControl>
                               <Textarea
-                                placeholder="Add any extra details..."
+                                placeholder="Add any extra details for the AI to summarize..."
                                 {...field}
                               />
                             </FormControl>
