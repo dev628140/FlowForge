@@ -160,7 +160,7 @@ ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
               },
             });
 
-            const output = response.output();
+            const output = response.output;
             
             if (!output) {
               return { response: "I'm sorry, I couldn't generate a response. Please try again." };
