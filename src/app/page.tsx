@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppContext } from '@/context/app-context';
-import { format, isToday, isFuture, parseISO } from 'date-fns';
+import { format, isFuture, parseISO, isToday } from 'date-fns';
 
 import AITaskPlanner from '@/components/dashboard/ai-task-planner';
 import RoleProductivity from '@/components/dashboard/role-productivity';
@@ -42,7 +42,8 @@ import ProgressJournal from '@/components/dashboard/progress-journal';
 import ProductivityDNATracker from '@/components/dashboard/productivity-dna-tracker';
 import VisualTaskSnap from '@/components/dashboard/visual-task-snap';
 import LearningPlanner from '@/components/dashboard/learning-planner';
-import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/context/auth-context';
+import { Icons } from '@/components/icons';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -59,6 +60,7 @@ export default function DashboardPage() {
     handleAddTasks,
   } = useAppContext();
 
+  const { loading: authLoading } = useAuth();
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedMood, setSelectedMood] = React.useState<Mood | null>({ emoji: '😊', label: 'Motivated' });
@@ -81,11 +83,17 @@ export default function DashboardPage() {
     setFocusTask(task);
   };
 
-  const today = format(new Date(), 'yyyy-MM-dd');
-  
-  const todaysTasks = tasks.filter(task => task.scheduledDate && task.scheduledDate === today);
+  const todaysTasks = tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate)));
   const upcomingTasks = tasks.filter(task => task.scheduledDate && isFuture(parseISO(task.scheduledDate)));
   const unscheduledTasks = tasks.filter(task => !task.scheduledDate);
+
+  if (authLoading) {
+     return (
+      <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
+        <Icons.logo className="w-12 h-12 animate-pulse text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen w-full">

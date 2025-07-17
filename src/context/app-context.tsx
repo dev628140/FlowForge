@@ -4,7 +4,10 @@
 import * as React from 'react';
 import type { Task } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { useAuth } from './auth-context';
+import { db } from '@/lib/firebase';
+import { collection, doc, getDocs, writeBatch, query, where, onSnapshot } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 interface AppContextType {
   tasks: Task[];
@@ -16,28 +19,43 @@ interface AppContextType {
   xpToNextLevel: number;
   showConfetti: boolean;
   handleToggleTask: (id: string) => void;
-  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed'>>[]) => void;
-  handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => void;
-  handleDeleteTask: (id: string) => void;
-  updateTask: (taskId: string, updates: Partial<Task>) => void;
+  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => Promise<void>;
+  handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
+  handleDeleteTask: (id: string) => Promise<void>;
+  updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [xp, setXp] = React.useState(0);
   const [level, setLevel] = React.useState(1);
   const [showConfetti, setShowConfetti] = React.useState(false);
-
-  React.useEffect(() => {
-    // Start with an empty list of tasks
-    setTasks([]);
-    setXp(0);
-    setLevel(1);
-  }, []);
-
   const xpToNextLevel = level * 50;
+
+  // Listen for task changes in Firestore
+  React.useEffect(() => {
+    if (user && db) {
+      const q = query(collection(db, "tasks"), where("userId", "==", user.uid));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const userTasks: Task[] = [];
+        querySnapshot.forEach((doc) => {
+          userTasks.push({ id: doc.id, ...doc.data() } as Task);
+        });
+        setTasks(userTasks);
+      }, (error) => {
+        console.error("Error listening to tasks:", error);
+        toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
+      });
+
+      return () => unsubscribe();
+    } else {
+      setTasks([]); // Clear tasks if user logs out
+    }
+  }, [user, toast]);
 
   React.useEffect(() => {
     if (xp >= xpToNextLevel) {
@@ -46,104 +64,122 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [xp, xpToNextLevel]);
   
-  const handleToggleTask = (id: string) => {
-    let isCompleting = false;
-
-    const toggleRecursively = (tasks: Task[]): Task[] => {
-      return tasks.map(task => {
-        if (task.id === id) {
-          if (!task.completed) {
-            isCompleting = true;
-          }
-          const isNowCompleted = !task.completed;
-          return { 
-            ...task, 
-            completed: isNowCompleted,
-            completedAt: isNowCompleted ? new Date().toISOString() : undefined
-          };
-        }
-        if (task.subtasks) {
-          return { ...task, subtasks: toggleRecursively(task.subtasks) };
-        }
-        return task;
-      });
-    };
+  const handleToggleTask = async (id: string) => {
+    if (!user || !db) return;
     
-    setTasks(prevTasks => toggleRecursively(prevTasks));
+    const taskRef = doc(db, 'tasks', id);
+    const taskToToggle = findTaskById(tasks, id);
 
-    if (isCompleting) {
-      new Audio('/sounds/success.mp3').play().catch(e => console.error("Audio play failed", e));
-      setShowConfetti(true);
-      setXp(prev => prev + 10);
-      setTimeout(() => setShowConfetti(false), 5000);
+    if (!taskToToggle) return;
+
+    const isCompleting = !taskToToggle.completed;
+    
+    try {
+      const batch = writeBatch(db);
+      batch.update(taskRef, { 
+        completed: isCompleting,
+        completedAt: isCompleting ? new Date().toISOString() : undefined,
+      });
+      await batch.commit();
+
+      if (isCompleting) {
+        new Audio('/sounds/success.mp3').play().catch(e => console.error("Audio play failed", e));
+        setShowConfetti(true);
+        setXp(prev => prev + 10);
+        setTimeout(() => setShowConfetti(false), 5000);
+      }
+    } catch (error) {
+      console.error("Error toggling task:", error);
+      toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
     }
   };
   
-  const handleAddTasks = (newTasks: Partial<Omit<Task, 'id' | 'completed'>>[]) => {
-    const tasksToAdd: Task[] = newTasks.map(task => ({
-      id: uuidv4(),
-      title: task.title || 'Untitled Task',
-      description: task.description || '',
-      completed: false,
-      scheduledDate: task.scheduledDate,
-    }));
-    setTasks(prev => [...tasksToAdd, ...prev]);
+  const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed'>>[]) => {
+    if (!user || !db) return;
+    
+    try {
+      const batch = writeBatch(db);
+      newTasks.forEach(task => {
+        const taskId = uuidv4();
+        const taskRef = doc(db, 'tasks', taskId);
+        batch.set(taskRef, {
+          ...task,
+          id: taskId,
+          userId: user.uid,
+          completed: false,
+          createdAt: new Date().toISOString(),
+        });
+      });
+      await batch.commit();
+    } catch (error) {
+       console.error("Error adding tasks:", error);
+       toast({ title: "Error", description: "Could not add tasks.", variant: "destructive" });
+    }
   };
 
-  const updateTask = (taskId: string, updates: Partial<Task>) => {
-    const updateRecursively = (tasks: Task[]): Task[] => {
-      return tasks.map(task => {
-        if (task.id === taskId) {
-          return { ...task, ...updates };
-        }
-        if (task.subtasks) {
-          return { ...task, subtasks: updateRecursively(task.subtasks) };
-        }
-        return task;
-      });
-    };
-    setTasks(prevTasks => updateRecursively(prevTasks));
+  const updateTask = async (taskId: string, updates: Partial<Task>) => {
+    if (!user || !db) return;
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      const batch = writeBatch(db);
+      batch.update(taskRef, updates);
+      await batch.commit();
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
+    }
   };
 
+  const handleAddSubtasks = async (parentId: string, subtasks: { title: string; description?: string }[]) => {
+     if (!user || !db) return;
+     try {
+       const parentTaskRef = doc(db, 'tasks', parentId);
+       const parentTask = findTaskById(tasks, parentId);
+       if (!parentTask) return;
 
-  const handleAddSubtasks = (parentId: string, subtasks: { title: string; description?: string }[]) => {
-    const newSubtasks: Task[] = subtasks.map(sub => ({
-      id: uuidv4(),
-      title: sub.title,
-      description: sub.description || '',
-      completed: false,
-    }));
+       const batch = writeBatch(db);
+       
+       const newSubtasks: Task[] = subtasks.map(sub => ({
+          id: uuidv4(),
+          title: sub.title,
+          description: sub.description || '',
+          completed: false,
+          userId: user.uid,
+          createdAt: new Date().toISOString(),
+       }));
 
-    const addRecursively = (tasks: Task[]): Task[] => {
-      return tasks.map(task => {
-        if (task.id === parentId) {
-          const existingSubtasks = task.subtasks || [];
-          return { ...task, subtasks: [...existingSubtasks, ...newSubtasks] };
-        }
-        if (task.subtasks) {
-          return { ...task, subtasks: addRecursively(task.subtasks) };
-        }
-        return task;
-      });
-    };
+       const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
+       batch.update(parentTaskRef, { subtasks: updatedSubtasks });
 
-    setTasks(prevTasks => addRecursively(prevTasks));
+       await batch.commit();
+     } catch (error) {
+       console.error("Error adding subtasks:", error);
+       toast({ title: "Error", description: "Could not add subtasks.", variant: "destructive" });
+     }
   };
   
-  const handleDeleteTask = (id: string) => {
-    const deleteRecursively = (tasks: Task[], taskId: string): Task[] => {
-      return tasks.filter(task => {
-        if (task.id === taskId) {
-          return false;
-        }
-        if (task.subtasks) {
-          task.subtasks = deleteRecursively(task.subtasks, taskId);
-        }
-        return true;
-      });
-    };
+  const handleDeleteTask = async (id: string) => {
+    if (!user || !db) return;
+    try {
+      const taskRef = doc(db, 'tasks', id);
+      const batch = writeBatch(db);
+      batch.delete(taskRef);
+      await batch.commit();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
+    }
+  };
 
-    setTasks(prevTasks => deleteRecursively(prevTasks, id));
+  const findTaskById = (tasks: Task[], id: string): Task | null => {
+    for (const task of tasks) {
+      if (task.id === id) return task;
+      if (task.subtasks) {
+        const found = findTaskById(task.subtasks, id);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   return (

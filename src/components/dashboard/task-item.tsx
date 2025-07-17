@@ -39,12 +39,31 @@ interface TaskItemProps {
 }
 
 export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = false }: TaskItemProps) {
-  const { handleAddSubtasks, handleDeleteTask } = useAppContext();
+  const { handleAddSubtasks, handleDeleteTask, updateTask } = useAppContext();
   const [summary, setSummary] = React.useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const [isBreakingDown, setIsBreakingDown] = React.useState(false);
   const { toast } = useToast();
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+
+  const handleToggleSubtask = (subtaskId: string) => {
+    const updatedSubtasks = task.subtasks?.map(sub => 
+      sub.id === subtaskId 
+        ? { ...sub, completed: !sub.completed, completedAt: !sub.completed ? new Date().toISOString() : undefined } 
+        : sub
+    );
+    updateTask(task.id, { subtasks: updatedSubtasks });
+  };
+  
+  const handleStartFocusSubtask = (subtask: Task) => {
+    // We can't start focus mode on a subtask directly in this component
+    // a more complex state management would be needed.
+    // For now, we can show a toast or disable the button.
+     toast({
+      title: "Focus Mode",
+      description: "Focus mode can only be started on main tasks.",
+    });
+  }
 
   const handleSummarize = async () => {
     if (!task.description) {
@@ -77,7 +96,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
     try {
       const result = await breakdownTask({ taskTitle: task.title });
       if (result.subtasks && result.subtasks.length > 0) {
-        handleAddSubtasks(task.id, result.subtasks.map(title => ({ title })));
+        await handleAddSubtasks(task.id, result.subtasks.map(title => ({ title })));
         toast({
           title: 'Task broken down!',
           description: 'Subtasks have been added.',
@@ -101,8 +120,8 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
     }
   }
 
-  const onDelete = () => {
-    handleDeleteTask(task.id);
+  const onDelete = async () => {
+    await handleDeleteTask(task.id);
     toast({
       title: 'Task deleted',
       description: `"${task.title}" has been removed.`,
@@ -145,7 +164,10 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
             )}
         </div>
       </div>
-      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className={cn(
+          "flex items-center transition-opacity", 
+          isSubtask ? "opacity-0 group-hover:opacity-100" : ""
+      )}>
         {hasSubtasks && (
            <CollapsibleTrigger asChild>
              <Button variant="ghost" size="icon" aria-label="Toggle subtasks">
@@ -161,7 +183,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
                 size="icon"
                 onClick={() => onStartFocus(task)}
                 aria-label={`Start focus session for ${task.title}`}
-                disabled={task.completed}
+                disabled={task.completed || isSubtask}
               >
                 <Zap className="h-4 w-4" />
               </Button>
@@ -181,7 +203,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
                     variant="ghost"
                     size="icon"
                     aria-label={`AI actions for ${task.title}`}
-                    disabled={task.completed}
+                    disabled={task.completed || isSubtask}
                   >
                     <MessageSquarePlus className="h-4 w-4" />
                   </Button>
@@ -286,11 +308,11 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
       <Collapsible>
         {itemContent}
         <CollapsibleContent>
-          <div className="pl-6">
+          <div className="pl-6 border-l-2 border-dashed ml-4">
             <TaskList
               tasks={task.subtasks!}
-              onToggle={onToggle}
-              onStartFocus={onStartFocus}
+              onToggle={handleToggleSubtask}
+              onStartFocus={handleStartFocusSubtask}
               isSubtaskList={true}
             />
           </div>

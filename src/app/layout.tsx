@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AppLayout } from '@/components/app-layout';
 import { AppProvider } from '@/context/app-context';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/context/auth-context';
 
 export const metadata: Metadata = {
   title: 'FlowForge - The AI-Powered Task Execution Companion',
@@ -29,11 +30,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AppProvider>
-            <AppLayout>
-              {children}
-            </AppLayout>
-          </AppProvider>
+          <AuthProvider>
+            <AppProvider>
+              <AppLayout>
+                {children}
+              </AppLayout>
+            </AppProvider>
+          </AuthProvider>
           <Toaster />
         </ThemeProvider>
       </body>

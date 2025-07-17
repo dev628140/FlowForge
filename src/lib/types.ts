@@ -6,6 +6,8 @@ export interface Task {
   subtasks?: Task[];
   completedAt?: string;
   scheduledDate?: string; // YYYY-MM-DD
+  userId?: string;
+  createdAt?: string;
 }
 
 export type UserRole = 'Student' | 'Developer' | 'Founder' | 'Freelancer';
