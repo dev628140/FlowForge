@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Pause, Play, RotateCcw, X, Brain, Coffee, Music, Loader2, SkipBack, SkipForward } from 'lucide-react';
+import { Pause, Play, RotateCcw, X, Brain, Coffee, Music, Loader2 } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -11,7 +11,6 @@ import { Switch } from '@/components/ui/switch';
 import { generateFocusPlaylist, FocusPlaylistOutput } from '@/ai/flows/focus-playlist-flow';
 import { Skeleton } from '../ui/skeleton';
 import { Separator } from '../ui/separator';
-import { Card, CardContent } from '../ui/card';
 
 interface FocusModeProps {
   task: Task;
@@ -40,13 +39,11 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   
   const [playlist, setPlaylist] = React.useState<FocusPlaylistOutput | null>(null);
   const [playlistLoading, setPlaylistLoading] = React.useState(false);
-  const [currentTrackIndex, setCurrentTrackIndex] = React.useState(0);
 
 
   const fetchPlaylist = async () => {
     setPlaylistLoading(true);
     setPlaylist(null);
-    setCurrentTrackIndex(0);
     try {
       const result = await generateFocusPlaylist({ taskTitle: task.title });
       setPlaylist(result);
@@ -73,29 +70,24 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
       interval = setInterval(() => {
         setTimeLeft(time => time - 1);
       }, 1000);
-    } else if (timeLeft === 0) {
-      setIsActive(false);
+    } else if (timeLeft === 0 && isActive) {
+      // Timer reached zero while active
       const sound = isBreak ? '/sounds/success.mp3' : '/sounds/bell.mp3';
       new Audio(sound).play().catch(e => console.error("Audio play failed", e));
       
-      const nextIsBreak = !isBreak;
-      setIsBreak(nextIsBreak);
-
-      if (nextIsBreak) { // Focus session just ended
-        setCyclesCompleted(c => c + 1);
-        if (autoStartBreaks) {
-          setTimeLeft(breakDuration);
-          setIsActive(true);
-        } else {
-          setTimeLeft(breakDuration);
+      if (isBreak) { // Break just ended
+        setIsBreak(false);
+        setTimeLeft(focusDuration);
+        if (!autoStartFocus) {
+          setIsActive(false);
         }
-      } else { // Break session just ended
-         if (autoStartFocus) {
-           setTimeLeft(focusDuration);
-           setIsActive(true);
-         } else {
-           setTimeLeft(focusDuration);
-         }
+      } else { // Focus session just ended
+        setIsBreak(true);
+        setCyclesCompleted(c => c + 1);
+        setTimeLeft(breakDuration);
+        if (!autoStartBreaks) {
+          setIsActive(false);
+        }
       }
     }
     return () => {
@@ -120,20 +112,6 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
     const secs = seconds % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
-  
-  const handleNextTrack = () => {
-    if (playlist) {
-      setCurrentTrackIndex((prevIndex) => (prevIndex + 1) % playlist.playlist.length);
-    }
-  };
-
-  const handlePrevTrack = () => {
-    if (playlist) {
-      setCurrentTrackIndex((prevIndex) => (prevIndex - 1 + playlist.playlist.length) % playlist.playlist.length);
-    }
-  };
-
-  const currentTrack = playlist?.playlist[currentTrackIndex];
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
