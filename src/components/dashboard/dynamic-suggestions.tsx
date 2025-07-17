@@ -5,22 +5,21 @@ import * as React from 'react';
 import { Lightbulb, Loader2, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 import { useAppContext } from '@/context/app-context';
 import { getDynamicSuggestions } from '@/ai/flows/dynamic-suggestions-flow';
 import { cn } from '@/lib/utils';
 
+const SESSION_STORAGE_KEY = 'initialSuggestionsFetched';
+
 export default function DynamicSuggestions() {
   const { tasks } = useAppContext();
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
-  const [loading, setLoading] = React.useState(true); // Start with loading true
-  const { toast } = useToast();
+  const [loading, setLoading] = React.useState(true);
 
-  const fetchSuggestions = React.useCallback(async () => {
+  const fetchSuggestions = React.useCallback(async (isManualRefresh = false) => {
     setLoading(true);
     try {
-      // For now, we'll hardcode a role. This could be a user setting later.
       const userRole = 'Developer';
       const result = await getDynamicSuggestions({
         tasks: tasks.map(({ title, completed, description, createdAt }) => ({ title, completed, description, createdAt })),
@@ -30,21 +29,29 @@ export default function DynamicSuggestions() {
       if (result.suggestions && result.suggestions.length > 0) {
         setSuggestions(result.suggestions);
       } else {
-        setSuggestions([]);
+        setSuggestions(isManualRefresh ? [] : ["Add some tasks to get personalized suggestions!"]);
       }
     } catch (error) {
       console.error('Error getting dynamic suggestions:', error);
-      // Removed the toast notification to prevent error messages for API rate limits.
-      setSuggestions([]);
+      setSuggestions([]); // Clear suggestions on error
     } finally {
       setLoading(false);
     }
-  }, [tasks, toast]);
+  }, [tasks]);
 
   React.useEffect(() => {
-    // Fetch suggestions automatically when component mounts or tasks change
-    fetchSuggestions();
+    const hasFetched = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!hasFetched) {
+      fetchSuggestions();
+      sessionStorage.setItem(SESSION_STORAGE_KEY, 'true');
+    } else {
+        setLoading(false); // If already fetched, don't show loading spinner
+    }
   }, [fetchSuggestions]);
+  
+  const handleManualRefresh = () => {
+    fetchSuggestions(true);
+  }
   
   return (
     <Card>
@@ -53,7 +60,7 @@ export default function DynamicSuggestions() {
             <CardTitle>For You</CardTitle>
             <CardDescription>AI-powered next best actions.</CardDescription>
         </div>
-        <Button variant="ghost" size="icon" onClick={fetchSuggestions} disabled={loading}>
+        <Button variant="ghost" size="icon" onClick={handleManualRefresh} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </CardHeader>
