@@ -67,6 +67,10 @@ export default function SettingsPage() {
     defaultValues: { password: '', confirmPassword: '' },
   });
 
+  React.useEffect(() => {
+    profileForm.reset({ displayName: user?.displayName || '' });
+  }, [user, profileForm]);
+
   const handleProfileUpdate = async (values: ProfileFormValues) => {
     setProfileLoading(true);
     try {
@@ -107,97 +111,85 @@ export default function SettingsPage() {
       setPasswordLoading(false);
     }
   };
-
+  
   const processImageFile = async (file: File) => {
     setPictureLoading(true);
     try {
-      // Create an image element to get dimensions
+      // Create an image element to load the file
       const image = new Image();
       const imageUrl = URL.createObjectURL(file);
       
-      image.onload = () => {
-        // Now that the image is loaded, we can draw it to the canvas
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 512;
-        const MAX_HEIGHT = 512;
-        let width = image.width;
-        let height = image.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          throw new Error('Could not get canvas context');
-        }
-        ctx.drawImage(image, 0, 0, width, height);
-
-        // Convert canvas to blob, which is more efficient
-        canvas.toBlob(async (blob) => {
-          if (!blob) {
-            throw new Error('Canvas to Blob conversion failed');
-          }
-          const optimizedFile = new File([blob], file.name, {
-            type: 'image/jpeg',
-            lastModified: Date.now(),
-          });
-          
-          try {
-            await updateUserProfilePicture(optimizedFile);
-            toast({
-              title: 'Profile Picture Updated',
-              description: 'Your new avatar has been saved.',
-            });
-          } catch(uploadError: any) {
-            toast({
-              title: 'Upload Failed',
-              description: uploadError.message,
-              variant: 'destructive',
-            });
-          } finally {
-            setPictureLoading(false);
-             URL.revokeObjectURL(imageUrl); // Clean up the object URL
-          }
-
-        }, 'image/jpeg', 0.9); // 90% quality
-      };
+      const loadedImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+        image.onload = () => resolve(image);
+        image.onerror = (err) => reject(err);
+        image.src = imageUrl;
+      });
       
-      image.onerror = () => {
-         setPictureLoading(false);
-         URL.revokeObjectURL(imageUrl);
-         toast({
-            title: 'Image Load Error',
-            description: 'Could not load the selected image file.',
-            variant: 'destructive',
-        });
+      URL.revokeObjectURL(imageUrl); // Clean up immediately after loading
+
+      // Now that the image is loaded, we can draw it to the canvas
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 512;
+      const MAX_HEIGHT = 512;
+      let { width, height } = loadedImage;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
       }
-      
-      image.src = imageUrl;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+      ctx.drawImage(loadedImage, 0, 0, width, height);
 
+      // Convert canvas to blob, which is more efficient
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+      
+      if (!blob) {
+        throw new Error('Canvas to Blob conversion failed');
+      }
+
+      const optimizedFile = new File([blob], file.name, {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+      
+      await updateUserProfilePicture(optimizedFile);
+      toast({
+        title: 'Profile Picture Updated',
+        description: 'Your new avatar has been saved.',
+      });
+      
     } catch (error: any) {
-      setPictureLoading(false);
       toast({
         title: 'Upload Failed',
-        description: error.message,
+        description: error.message || 'Could not process the image.',
         variant: 'destructive',
       });
+    } finally {
+      setPictureLoading(false);
     }
   };
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       processImageFile(file);
+    }
+    // Reset file input to allow re-uploading the same file
+    if(event.target) {
+        event.target.value = '';
     }
   };
 
@@ -213,10 +205,10 @@ export default function SettingsPage() {
             canvas.toBlob(async (blob) => {
                 if (blob) {
                     const file = new File([blob], "profile-photo.jpg", { type: "image/jpeg" });
+                    setIsCameraDialogOpen(false); // Close dialog first
                     await processImageFile(file);
                 }
             }, 'image/jpeg');
-            setIsCameraDialogOpen(false);
         }
     }
   };
@@ -338,7 +330,9 @@ export default function SettingsPage() {
                                  <DialogClose asChild>
                                     <Button type="button" variant="ghost">Cancel</Button>
                                 </DialogClose>
-                                <Button onClick={handleSnap} disabled={!hasCameraPermission}>Snap Photo</Button>
+                                <Button onClick={handleSnap} disabled={!hasCameraPermission || pictureLoading}>
+                                  {pictureLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Snap Photo' }
+                                </Button>
                             </div>
                         </DialogFooter>
                     </DialogContent>
