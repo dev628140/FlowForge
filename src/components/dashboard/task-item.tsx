@@ -81,6 +81,9 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
 
   const { toast } = useToast();
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+  
+  const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0;
+  const totalSubtasks = task.subtasks?.length || 0;
 
   const form = useForm<EditTaskFormValues>({
     resolver: zodResolver(editTaskFormSchema),
@@ -249,6 +252,11 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
             )}>
                 {task.description}
             </p>
+            )}
+             {hasSubtasks && (
+              <Badge variant="secondary" className="text-xs font-mono">
+                {completedSubtasks}/{totalSubtasks}
+              </Badge>
             )}
             {task.scheduledDate && (
                 <Badge variant="outline" className="text-xs">
