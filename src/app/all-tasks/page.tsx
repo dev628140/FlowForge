@@ -14,7 +14,7 @@ import { parseISO } from 'date-fns';
 type SortOption = 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
 
 export default function AllTasksPage() {
-  const { tasks, handleToggleTask } = useAppContext();
+  const { tasks, handleToggleTask, updateTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [sortBy, setSortBy] = React.useState<SortOption>('scheduledDate');
@@ -97,7 +97,7 @@ export default function AllTasksPage() {
                         <CardDescription>Tasks that have an assigned date.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <TaskList tasks={scheduledTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="No scheduled tasks." />
+                        <TaskList tasks={scheduledTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No scheduled tasks." />
                     </CardContent>
                 </Card>
                 <Card>
@@ -106,7 +106,7 @@ export default function AllTasksPage() {
                         <CardDescription>Tasks that need to be scheduled.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <TaskList tasks={unscheduledTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="Your inbox is clear!" />
+                        <TaskList tasks={unscheduledTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="Your inbox is clear!" />
                     </CardContent>
                 </Card>
             </div>

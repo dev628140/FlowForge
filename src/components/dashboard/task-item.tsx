@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2 } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,20 +30,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
 import { Badge } from '../ui/badge';
+import { Calendar } from '../ui/calendar';
 
 interface TaskItemProps {
   task: Task;
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
+  onUpdateTask?: (taskId: string, updates: Partial<Task>) => Promise<void>;
   isSubtask?: boolean;
   parentId?: string;
 }
 
-export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = false, parentId }: TaskItemProps) {
+export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, isSubtask = false, parentId }: TaskItemProps) {
   const { handleAddSubtasks, handleDeleteTask } = useAppContext();
   const [summary, setSummary] = React.useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const [isBreakingDown, setIsBreakingDown] = React.useState(false);
+  const [isSchedulePopoverOpen, setIsSchedulePopoverOpen] = React.useState(false);
   const { toast } = useToast();
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
 
@@ -113,6 +116,17 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
     }
   }
 
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (date && onUpdateTask) {
+        await onUpdateTask(task.id, { scheduledDate: format(date, 'yyyy-MM-dd') });
+        setIsSchedulePopoverOpen(false);
+        toast({
+            title: 'Task Scheduled',
+            description: `"${task.title}" has been scheduled for ${format(date, 'PPP')}.`,
+        });
+    }
+  };
+
   const onDelete = async () => {
     await handleDeleteTask(task.id, parentId);
     toast({
@@ -167,6 +181,27 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:-rotate-180" />
              </Button>
            </CollapsibleTrigger>
+        )}
+        {!task.scheduledDate && onUpdateTask && (
+            <Popover open={isSchedulePopoverOpen} onOpenChange={setIsSchedulePopoverOpen}>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" aria-label={`Schedule task ${task.title}`}>
+                                    <CalendarPlus className="h-4 w-4" />
+                                </Button>
+                            </PopoverTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Schedule Task</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={task.scheduledDate ? parseISO(task.scheduledDate) : undefined} onSelect={handleDateSelect} initialFocus />
+                </PopoverContent>
+            </Popover>
         )}
         <TooltipProvider>
           <Tooltip>
@@ -306,6 +341,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
               tasks={task.subtasks!}
               onToggle={handleToggleSubtask}
               onStartFocus={handleStartFocusSubtask}
+              onUpdateTask={onUpdateTask}
               isSubtaskList={true}
               parentId={task.id}
             />

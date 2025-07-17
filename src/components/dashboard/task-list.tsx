@@ -9,12 +9,13 @@ interface TaskListProps {
   tasks: Task[];
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
+  onUpdateTask?: (taskId: string, updates: Partial<Task>) => Promise<void>;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;
 }
 
-export default function TaskList({ tasks, onToggle, onStartFocus, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
+export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
   const incompleteTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
 
@@ -31,7 +32,8 @@ export default function TaskList({ tasks, onToggle, onStartFocus, isSubtaskList 
       key={task.id} 
       task={task} 
       onToggle={onToggle} 
-      onStartFocus={onStartFocus} 
+      onStartFocus={onStartFocus}
+      onUpdateTask={onUpdateTask}
       isSubtask={isSubtaskList}
       parentId={parentId}
     />
