@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -13,16 +14,10 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { autoSchedule } from '@/ai/flows/auto-schedule-flow';
 
-type ScheduledTask = {
-    taskId: string;
-    date: string;
-}
-
 export default function SchedulePage() {
-    const { tasks } = useAppContext();
+    const { tasks, updateTask } = useAppContext();
     const { toast } = useToast();
     const [date, setDate] = React.useState<Date | undefined>(new Date());
-    const [scheduledTasks, setScheduledTasks] = React.useState<ScheduledTask[]>([]);
     const [loading, setLoading] = React.useState(false);
 
     const weekStartsOn = 1; // Monday
@@ -31,12 +26,24 @@ export default function SchedulePage() {
     const handleAutoSchedule = async () => {
         setLoading(true);
         try {
+            const unscheduledTasks = tasks.filter(t => !t.completed && !t.scheduledDate);
+            if (unscheduledTasks.length === 0) {
+                toast({
+                    title: 'No Unscheduled Tasks',
+                    description: 'All your tasks are already on the schedule.',
+                });
+                return;
+            }
+
             const result = await autoSchedule({
-                tasks: tasks.filter(t => !t.completed),
+                tasks: unscheduledTasks,
                 startDate: format(selectedWeekStart, 'yyyy-MM-dd'),
             });
+
             if (result.schedule) {
-                setScheduledTasks(result.schedule);
+                 result.schedule.forEach(scheduledTask => {
+                    updateTask(scheduledTask.taskId, { scheduledDate: scheduledTask.date });
+                 });
                 toast({
                     title: 'Schedule Generated!',
                     description: 'Your tasks have been scheduled for the week.',
@@ -54,13 +61,12 @@ export default function SchedulePage() {
         }
     };
     
-    const tasksByDate = scheduledTasks.reduce((acc, scheduledTask) => {
-        const dateStr = format(new Date(scheduledTask.date), 'yyyy-MM-dd');
-        if (!acc[dateStr]) {
-            acc[dateStr] = [];
-        }
-        const task = tasks.find(t => t.id === scheduledTask.taskId);
-        if (task) {
+    const tasksByDate = tasks.reduce((acc, task) => {
+        if (task.scheduledDate) {
+            const dateStr = format(new Date(task.scheduledDate), 'yyyy-MM-dd');
+            if (!acc[dateStr]) {
+                acc[dateStr] = [];
+            }
             acc[dateStr].push(task);
         }
         return acc;
@@ -73,7 +79,7 @@ export default function SchedulePage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold font-headline mb-1">Weekly Schedule</h1>
-                    <p className="text-muted-foreground">View and manage your tasks for the week.</p>
+                    <p className="text-muted-foreground">View and manage your tasks for the week. Only unscheduled tasks will be added.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Popover>
@@ -119,7 +125,7 @@ export default function SchedulePage() {
                         <CardContent className="p-4 pt-0">
                             <div className="space-y-2">
                                 {tasksByDate[format(day, 'yyyy-MM-dd')]?.map(task => (
-                                    <div key={task.id} className="text-xs p-2 rounded-md bg-muted text-muted-foreground">
+                                    <div key={task.id} className={cn("text-xs p-2 rounded-md bg-muted text-muted-foreground", task.completed && "line-through opacity-50")}>
                                         {task.title}
                                     </div>
                                 )) || <p className="text-xs text-muted-foreground/50">No tasks.</p>}

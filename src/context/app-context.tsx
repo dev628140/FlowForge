@@ -4,6 +4,7 @@
 import * as React from 'react';
 import type { Task } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
 
 interface AppContextType {
   tasks: Task[];
@@ -15,9 +16,10 @@ interface AppContextType {
   xpToNextLevel: number;
   showConfetti: boolean;
   handleToggleTask: (id: string) => void;
-  handleAddTasks: (newTasks: { title: string; description?: string }[]) => void;
+  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed'>>[]) => void;
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => void;
   handleDeleteTask: (id: string) => void;
+  updateTask: (taskId: string, updates: Partial<Task>) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -77,15 +79,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const handleAddTasks = (newTasks: { title: string; description?: string }[]) => {
+  const handleAddTasks = (newTasks: Partial<Omit<Task, 'id' | 'completed'>>[]) => {
     const tasksToAdd: Task[] = newTasks.map(task => ({
       id: uuidv4(),
-      title: task.title,
+      title: task.title || 'Untitled Task',
       description: task.description || '',
       completed: false,
+      scheduledDate: task.scheduledDate,
     }));
     setTasks(prev => [...tasksToAdd, ...prev]);
   };
+
+  const updateTask = (taskId: string, updates: Partial<Task>) => {
+    const updateRecursively = (tasks: Task[]): Task[] => {
+      return tasks.map(task => {
+        if (task.id === taskId) {
+          return { ...task, ...updates };
+        }
+        if (task.subtasks) {
+          return { ...task, subtasks: updateRecursively(task.subtasks) };
+        }
+        return task;
+      });
+    };
+    setTasks(prevTasks => updateRecursively(prevTasks));
+  };
+
 
   const handleAddSubtasks = (parentId: string, subtasks: { title: string; description?: string }[]) => {
     const newSubtasks: Task[] = subtasks.map(sub => ({
@@ -137,7 +156,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleToggleTask,
       handleAddTasks,
       handleAddSubtasks,
-      handleDeleteTask
+      handleDeleteTask,
+      updateTask
     }}>
       {children}
     </AppContext.Provider>

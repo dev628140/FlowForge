@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -9,12 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
+import { useAppContext } from '@/context/app-context';
 
-interface AITaskPlannerProps {
-  onAddTasks: (tasks: { title: string }[]) => void;
-}
-
-export default function AITaskPlanner({ onAddTasks }: AITaskPlannerProps) {
+export default function AITaskPlanner() {
+  const { handleAddTasks } = useAppContext();
   const [goal, setGoal] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const { toast } = useToast();
@@ -33,7 +32,7 @@ export default function AITaskPlanner({ onAddTasks }: AITaskPlannerProps) {
     try {
       const result = await naturalLanguageTaskPlanning({ goal });
       if (result.tasks && result.tasks.length > 0) {
-        onAddTasks(result.tasks.map(title => ({ title })));
+        handleAddTasks(result.tasks);
         toast({
           title: 'Tasks generated!',
           description: 'Your new tasks have been added to the list.',
@@ -58,16 +57,16 @@ export default function AITaskPlanner({ onAddTasks }: AITaskPlannerProps) {
     <Card>
       <CardHeader>
         <CardTitle>AI Task Planner</CardTitle>
-        <CardDescription>Describe a goal, and let AI break it down into actionable tasks.</CardDescription>
+        <CardDescription>Describe a goal, and let AI break it down into actionable tasks. You can also ask it to schedule tasks over a period.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Textarea
-            placeholder="e.g., 'Get fit this month' or 'Launch my side project in 30 days'"
+            placeholder="e.g., 'Schedule these 3 tasks for the next 45 days: Solve 30 DSA problems, Complete 3 folders of Delta web development, Watch 1 Love Babbar video'"
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
             disabled={loading}
-            rows={3}
+            rows={4}
           />
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? (

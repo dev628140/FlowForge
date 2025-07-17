@@ -27,7 +27,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { format, parseISO } from 'date-fns';
+import { Badge } from '../ui/badge';
 
 interface TaskItemProps {
   task: Task;
@@ -108,13 +110,13 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
   }
 
   const itemContent = (
-    <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
-      {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 text-muted-foreground" />}
-      <Checkbox
+    <div className={cn("flex items-start group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
+      {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 mt-1.5 text-muted-foreground" />}
+       <Checkbox
         id={`task-${task.id}`}
         checked={task.completed}
         onCheckedChange={() => onToggle(task.id)}
-        className="w-5 h-5 mr-4"
+        className="w-5 h-5 mr-4 mt-1"
         aria-label={`Mark task ${task.title} as ${task.completed ? 'incomplete' : 'complete'}`}
       />
       <div className="flex-1">
@@ -127,14 +129,21 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
         >
           {task.title}
         </label>
-        {task.description && (
-          <p className={cn(
-            "text-xs text-muted-foreground transition-colors",
-            task.completed && "line-through"
-          )}>
-            {task.description}
-          </p>
-        )}
+        <div className="flex items-center gap-2">
+            {task.description && (
+            <p className={cn(
+                "text-xs text-muted-foreground transition-colors",
+                task.completed && "line-through"
+            )}>
+                {task.description}
+            </p>
+            )}
+            {task.scheduledDate && (
+                <Badge variant="outline" className="text-xs">
+                    {format(parseISO(task.scheduledDate), 'MMM d')}
+                </Badge>
+            )}
+        </div>
       </div>
       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
         {hasSubtasks && (

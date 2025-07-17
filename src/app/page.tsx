@@ -1,12 +1,13 @@
+
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, Zap } from 'lucide-react';
+import { PlusCircle, Zap, Calendar, Forward } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppContext } from '@/context/app-context';
-import { v4 as uuidv4 } from 'uuid';
+import { format, isToday, isFuture, parseISO } from 'date-fns';
 
 import AITaskPlanner from '@/components/dashboard/ai-task-planner';
 import RoleProductivity from '@/components/dashboard/role-productivity';
@@ -14,7 +15,7 @@ import TaskList from '@/components/dashboard/task-list';
 import MoodTracker from '@/components/dashboard/mood-tracker';
 import type { Task, Mood } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Confetti from '@/components/confetti';
 import FocusMode from '@/components/dashboard/focus-mode';
 import {
@@ -41,6 +42,7 @@ import ProgressJournal from '@/components/dashboard/progress-journal';
 import ProductivityDNATracker from '@/components/dashboard/productivity-dna-tracker';
 import VisualTaskSnap from '@/components/dashboard/visual-task-snap';
 import LearningPlanner from '@/components/dashboard/learning-planner';
+import { Separator } from '@/components/ui/separator';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -79,6 +81,12 @@ export default function DashboardPage() {
     setFocusTask(task);
   };
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+  
+  const todaysTasks = tasks.filter(task => task.scheduledDate && task.scheduledDate === today);
+  const upcomingTasks = tasks.filter(task => task.scheduledDate && isFuture(parseISO(task.scheduledDate)));
+  const unscheduledTasks = tasks.filter(task => !task.scheduledDate);
+
   return (
     <div className="relative min-h-screen w-full">
       <Confetti active={showConfetti} />
@@ -86,7 +94,13 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Today's Tasks</CardTitle>
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-6 h-6" />
+                  Today's Tasks
+                </CardTitle>
+                <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
+              </div>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="ghost">
@@ -98,7 +112,7 @@ export default function DashboardPage() {
                   <DialogHeader>
                     <DialogTitle>Add a new task</DialogTitle>
                     <DialogDescription>
-                      What do you want to accomplish?
+                      What do you want to accomplish? This will be added as an unscheduled task.
                     </DialogDescription>
                   </DialogHeader>
                   <Form {...form}>
@@ -147,10 +161,24 @@ export default function DashboardPage() {
               </Dialog>
             </CardHeader>
             <CardContent>
-              <TaskList tasks={tasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} />
+              <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="No tasks for today. Enjoy your break or schedule some!" />
             </CardContent>
           </Card>
-          <AITaskPlanner onAddTasks={handleAddTasks} />
+          
+          <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Forward className="w-6 h-6" />
+                  Upcoming & Unscheduled
+                </CardTitle>
+                <CardDescription>Tasks that are planned for the future or have no due date.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <TaskList tasks={[...upcomingTasks, ...unscheduledTasks]} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="No upcoming or unscheduled tasks."/>
+            </CardContent>
+          </Card>
+
+          <AITaskPlanner />
           <LearningPlanner />
         </div>
         <div className="lg:col-span-1 space-y-6">

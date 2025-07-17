@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -9,16 +10,17 @@ interface TaskListProps {
   onToggle: (id: string) => void;
   onStartFocus: (task: Task) => void;
   isSubtaskList?: boolean;
+  emptyMessage?: string;
 }
 
-export default function TaskList({ tasks, onToggle, onStartFocus, isSubtaskList = false }: TaskListProps) {
+export default function TaskList({ tasks, onToggle, onStartFocus, isSubtaskList = false, emptyMessage }: TaskListProps) {
   const incompleteTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
 
   if (tasks.length === 0 && !isSubtaskList) {
     return (
       <div className="text-center py-10 text-muted-foreground">
-        <p>No tasks yet. Add one or use the AI planner!</p>
+        <p>{emptyMessage || "No tasks yet. Add one or use the AI planner!"}</p>
       </div>
     );
   }
