@@ -72,7 +72,6 @@ type GeneralTaskFormValues = z.infer<typeof generalTaskFormSchema>;
 const todayTaskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
   description: z.string().optional(),
-  scheduledDate: z.date().optional(),
   scheduledTime: z.string().optional(),
 });
 type TodayTaskFormValues = z.infer<typeof todayTaskFormSchema>;
@@ -101,7 +100,7 @@ export default function DashboardPage() {
   
   const todayForm = useForm<TodayTaskFormValues>({
     resolver: zodResolver(todayTaskFormSchema),
-    defaultValues: { title: '', description: '', scheduledDate: new Date() },
+    defaultValues: { title: '', description: '', scheduledTime: '' },
   });
   
   const handleGeneralAddTaskSubmit = (values: GeneralTaskFormValues) => {
@@ -119,10 +118,10 @@ export default function DashboardPage() {
     handleAddTasks([{ 
       title: values.title, 
       description: values.description,
-      scheduledDate: format(values.scheduledDate || new Date(), 'yyyy-MM-dd'),
+      scheduledDate: format(new Date(), 'yyyy-MM-dd'),
       scheduledTime: values.scheduledTime || undefined,
     }]);
-    todayForm.reset({ title: '', description: '', scheduledDate: new Date() });
+    todayForm.reset({ title: '', description: '', scheduledTime: '' });
     setIsTodayAddDialogOpen(false);
   };
   
@@ -333,49 +332,11 @@ export default function DashboardPage() {
                         )}
                       />
                        <div className="flex gap-4">
-                        <FormField
-                            control={todayForm.control}
-                            name="scheduledDate"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-col w-1/2">
-                                <FormLabel>Date (optional)</FormLabel>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <FormControl>
-                                      <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                          "pl-3 text-left font-normal",
-                                          !field.value && "text-muted-foreground"
-                                        )}
-                                      >
-                                        {field.value ? (
-                                          format(field.value, "PPP")
-                                        ) : (
-                                          <span>Pick a date</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                      </Button>
-                                    </FormControl>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <CalendarPicker
-                                      mode="single"
-                                      selected={field.value}
-                                      onSelect={field.onChange}
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
                           <FormField
                               control={todayForm.control}
                               name="scheduledTime"
                               render={({ field }) => (
-                                <FormItem className="w-1/2">
+                                <FormItem className="w-full">
                                   <FormLabel>Time (optional)</FormLabel>
                                   <FormControl>
                                     <Input type="time" {...field} />
