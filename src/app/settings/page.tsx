@@ -16,6 +16,7 @@ import { generateAvatar } from '@/ai/flows/generate-avatar-flow';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User as UserIcon } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters.').optional(),
@@ -292,7 +293,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2 pt-4 border-t">
-                    <FormLabel>AI Avatar Generator</FormLabel>
+                    <Label className="text-sm font-medium">AI Avatar Generator</Label>
                      <div className="flex flex-col sm:flex-row gap-2">
                         <Input 
                             placeholder="e.g., A cute robot reading a book, studio lighting"
@@ -342,4 +343,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
