@@ -10,10 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { Loader2, Sparkles, Wand2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateAvatar } from '@/ai/flows/generate-avatar-flow';
 import Image from 'next/image';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { User as UserIcon } from 'lucide-react';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters.').optional(),
@@ -30,7 +32,7 @@ const passwordFormSchema = z.object({
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 export default function SettingsPage() {
-  const { user, updateUserProfile, updateUserPassword, updateUserProfilePicture } = useAuth();
+  const { user, updateUserProfile, updateUserPassword, updateUserProfilePicture, removeUserProfilePicture } = useAuth();
   const { toast } = useToast();
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [passwordLoading, setPasswordLoading] = React.useState(false);
@@ -139,6 +141,40 @@ export default function SettingsPage() {
         setUpdatingPicture(false);
     }
   };
+  
+  const handleRemovePicture = async () => {
+    setUpdatingPicture(true);
+    try {
+      await removeUserProfilePicture();
+      toast({
+        title: 'Profile Picture Removed',
+        description: 'Your avatar has been reset to the default.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error Removing Picture',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingPicture(false);
+    }
+  }
+  
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return <UserIcon className="w-5 h-5" />;
+    
+    if (name.includes('@')) {
+        const emailPrefix = name.split('@')[0];
+        return emailPrefix.substring(0, 2).toUpperCase();
+    }
+    
+    const parts = name.split(' ').filter(Boolean);
+    if (parts.length > 1) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
 
 
   return (
@@ -226,25 +262,53 @@ export default function SettingsPage() {
         
         <Card className="md:col-span-2">
             <CardHeader>
-                <CardTitle>AI Avatar Generator</CardTitle>
-                <CardDescription>Describe your desired avatar and let AI create it for you.</CardDescription>
+                <CardTitle>AI Avatar</CardTitle>
+                <CardDescription>Generate a custom avatar or manage your current one.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <Input 
-                        placeholder="e.g., A cute robot reading a book, studio lighting"
-                        value={avatarPrompt}
-                        onChange={(e) => setAvatarPrompt(e.target.value)}
-                        disabled={generating || updatingPicture}
-                    />
-                    <Button onClick={handleGenerateAvatar} disabled={generating || updatingPicture} className="w-full sm:w-auto">
-                        {generating ? (
-                            <Loader2 className="mr-2 animate-spin" />
-                        ) : (
-                            <Wand2 className="mr-2" />
+                <div className="flex items-center gap-4">
+                    <Avatar className="w-20 h-20 border-2">
+                        <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || 'User Avatar'} />
+                        <AvatarFallback className="text-3xl">
+                            {getInitials(user?.displayName)}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-grow">
+                        <p className="font-semibold">Current Avatar</p>
+                        <p className="text-sm text-muted-foreground">This is how you appear across the app.</p>
+                        {user?.photoURL && (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="mt-2"
+                                onClick={handleRemovePicture}
+                                disabled={updatingPicture}
+                            >
+                                {updatingPicture ? <Loader2 className="mr-2 animate-spin" /> : <Trash2 className="mr-2"/>}
+                                Remove Picture
+                            </Button>
                         )}
-                        Generate
-                    </Button>
+                    </div>
+                </div>
+
+                <div className="space-y-2 pt-4 border-t">
+                    <FormLabel>AI Avatar Generator</FormLabel>
+                     <div className="flex flex-col sm:flex-row gap-2">
+                        <Input 
+                            placeholder="e.g., A cute robot reading a book, studio lighting"
+                            value={avatarPrompt}
+                            onChange={(e) => setAvatarPrompt(e.target.value)}
+                            disabled={generating || updatingPicture}
+                        />
+                        <Button onClick={handleGenerateAvatar} disabled={generating || updatingPicture} className="w-full sm:w-auto">
+                            {generating ? (
+                                <Loader2 className="mr-2 animate-spin" />
+                            ) : (
+                                <Wand2 className="mr-2" />
+                            )}
+                            Generate
+                        </Button>
+                    </div>
                 </div>
                 
                 {generating && (
@@ -278,3 +342,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

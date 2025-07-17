@@ -42,7 +42,7 @@ export default function UserProfile({ user }: UserProfileProps) {
               <Avatar className="w-8 h-8">
                   <AvatarImage src={user?.photoURL || undefined} alt={displayName || 'User Avatar'} />
                   <AvatarFallback>
-                      {getInitials(user?.displayName)}
+                      {getInitials(user?.displayName || user?.email)}
                   </AvatarFallback>
               </Avatar>
               <div className="text-left hidden md:block">

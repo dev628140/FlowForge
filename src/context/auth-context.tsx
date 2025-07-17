@@ -26,6 +26,7 @@ interface AuthContextType {
   updateUserPassword: (password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updateUserProfilePicture: (photoFile: File) => Promise<void>;
+  removeUserProfilePicture: () => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -73,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUserProfile = async (profile: { displayName?: string }) => {
     if (!auth || !auth.currentUser) throw new Error("User not authenticated");
     await updateProfile(auth.currentUser, profile);
-    // Force re-render with new data by creating a new object
     setUser(auth.currentUser ? { ...auth.currentUser } : null);
   };
   
@@ -99,6 +99,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(auth.currentUser ? { ...auth.currentUser } : null);
   };
 
+  const removeUserProfilePicture = async () => {
+    if (!auth || !auth.currentUser) throw new Error("User not authenticated");
+    await updateProfile(auth.currentUser, { photoURL: "" });
+    setUser(auth.currentUser ? { ...auth.currentUser } : null);
+  };
+
+
   const value = { 
     user, 
     loading, 
@@ -109,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateUserPassword,
     sendPasswordReset,
     updateUserProfilePicture,
+    removeUserProfilePicture,
   };
 
   return (
