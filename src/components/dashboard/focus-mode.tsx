@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Pause, Play, RotateCcw, X, Brain, Coffee, Music, Loader2 } from 'lucide-react';
+import { Pause, Play, RotateCcw, X, Brain, Coffee, Music, Loader2, SkipBack, SkipForward } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { generateFocusPlaylist, FocusPlaylistOutput } from '@/ai/flows/focus-playlist-flow';
 import { Skeleton } from '../ui/skeleton';
 import { Separator } from '../ui/separator';
+import { Card, CardContent } from '../ui/card';
 
 interface FocusModeProps {
   task: Task;
@@ -39,10 +40,13 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   
   const [playlist, setPlaylist] = React.useState<FocusPlaylistOutput | null>(null);
   const [playlistLoading, setPlaylistLoading] = React.useState(false);
+  const [currentTrackIndex, setCurrentTrackIndex] = React.useState(0);
+
 
   const fetchPlaylist = async () => {
     setPlaylistLoading(true);
     setPlaylist(null);
+    setCurrentTrackIndex(0);
     try {
       const result = await generateFocusPlaylist({ taskTitle: task.title });
       setPlaylist(result);
@@ -116,6 +120,20 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
     const secs = seconds % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
+  
+  const handleNextTrack = () => {
+    if (playlist) {
+      setCurrentTrackIndex((prevIndex) => (prevIndex + 1) % playlist.playlist.length);
+    }
+  };
+
+  const handlePrevTrack = () => {
+    if (playlist) {
+      setCurrentTrackIndex((prevIndex) => (prevIndex - 1 + playlist.playlist.length) % playlist.playlist.length);
+    }
+  };
+
+  const currentTrack = playlist?.playlist[currentTrackIndex];
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -205,13 +223,26 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
                     <Skeleton className="h-4 w-2/3" />
                 </div>
             ) : playlist && playlist.playlist.length > 0 ? (
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                    {playlist.playlist.map((song, index) => (
-                        <li key={index}>
-                            <span className="font-medium text-card-foreground">{song.title}</span> by {song.artist}
-                        </li>
-                    ))}
-                </ul>
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4">
+                      <div className="text-center">
+                          <p className="font-bold text-card-foreground">{currentTrack?.title}</p>
+                          <p className="text-sm text-muted-foreground">{currentTrack?.artist}</p>
+                      </div>
+                       <div className="flex items-center justify-center gap-4 mt-4">
+                           <Button variant="ghost" size="icon" onClick={handlePrevTrack}>
+                               <SkipBack />
+                           </Button>
+                           <Button variant="ghost" size="icon" disabled>
+                               <Play />
+                           </Button>
+                           <Button variant="ghost" size="icon" onClick={handleNextTrack}>
+                               <SkipForward />
+                           </Button>
+                       </div>
+                  </CardContent>
+                </Card>
+
             ) : (
                  <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-2">
