@@ -22,6 +22,7 @@ import { Icons } from './icons';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { useAppContext } from '@/context/app-context';
+import { ThemeToggle } from './theme-toggle';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -67,10 +68,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarFooter>
           <div className="p-2 space-y-2">
             <Separator />
-            <Button variant="ghost" className="w-full justify-start gap-2">
-              <Settings className="w-4 h-4" />
-              <span>Settings</span>
-            </Button>
+            <div className="flex items-center justify-between p-2">
+               <div className="flex items-center gap-2 text-sm">
+                 <Settings className="w-4 h-4" />
+                 <span>Settings</span>
+               </div>
+               <ThemeToggle />
+            </div>
           </div>
         </SidebarFooter>
       </Sidebar>

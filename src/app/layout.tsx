@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AppLayout } from '@/components/app-layout';
 import { AppProvider } from '@/context/app-context';
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'FlowForge - The AI-Powered Task Execution Companion',
@@ -22,12 +23,19 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AppProvider>
-          <AppLayout>
-            {children}
-          </AppLayout>
-        </AppProvider>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AppProvider>
+            <AppLayout>
+              {children}
+            </AppLayout>
+          </AppProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
