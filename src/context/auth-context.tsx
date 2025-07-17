@@ -2,7 +2,17 @@
 'use client';
 
 import * as React from 'react';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut,
+  updateProfile,
+  updateEmail,
+  updatePassword,
+  sendPasswordResetEmail,
+  type User 
+} from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,6 +22,10 @@ interface AuthContextType {
   signup: (email: string, pass: string) => Promise<any>;
   login: (email: string, pass: string) => Promise<any>;
   logout: () => Promise<any>;
+  updateUserProfile: (displayName: string) => Promise<void>;
+  updateUserEmail: (email: string) => Promise<void>;
+  updateUserPassword: (password: string) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -56,7 +70,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return signOut(auth);
   };
 
-  const value = { user, loading, signup, login, logout };
+  const updateUserProfile = async (displayName: string) => {
+    if (!auth || !auth.currentUser) throw new Error("User not authenticated");
+    await updateProfile(auth.currentUser, { displayName });
+    // Force a re-render to show the new name
+    setUser(auth.currentUser);
+  };
+
+  const updateUserEmail = async (email: string) => {
+    if (!auth || !auth.currentUser) throw new Error("User not authenticated");
+    await updateEmail(auth.currentUser, email);
+    setUser(auth.currentUser);
+  };
+  
+  const updateUserPassword = async (password: string) => {
+    if (!auth || !auth.currentUser) throw new Error("User not authenticated");
+    await updatePassword(auth.currentUser, password);
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    if (!auth) throw new Error("Firebase not configured");
+    await sendPasswordResetEmail(auth, email);
+  };
+
+  const value = { 
+    user, 
+    loading, 
+    signup, 
+    login, 
+    logout,
+    updateUserProfile,
+    updateUserEmail,
+    updateUserPassword,
+    sendPasswordReset,
+  };
 
   return (
     <AuthContext.Provider value={value}>

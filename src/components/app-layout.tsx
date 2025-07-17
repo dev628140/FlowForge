@@ -67,8 +67,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, pathname, router]);
 
-  // Don't render the layout on the login page.
-  if (pathname === '/login') {
+  // Don't render the layout on the login or settings page if not logged in.
+  if (pathname === '/login' || (!user && pathname.startsWith('/settings'))) {
     return <>{children}</>;
   }
 
@@ -116,6 +116,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/settings">
+                <SidebarMenuButton isActive={pathname === '/settings'}>
+                  <Settings />
+                  <span>Settings</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
@@ -139,7 +147,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
                     <AlertDialogDescription>
                       You will be returned to the login page.
-                    </AlertDialogDescription>
+                    </d_AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -153,7 +161,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="flex items-center justify-between p-4 border-b">
           <SidebarTrigger />
-          <UserProfile level={level} xp={xp} xpToNextLevel={xpToNextLevel} userEmail={user?.email} />
+          <UserProfile level={level} xp={xp} xpToNextLevel={xpToNextLevel} user={user} />
         </header>
         <main>{children}</main>
       </SidebarInset>

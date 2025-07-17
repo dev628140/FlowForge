@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Icons } from '@/components/icons';
@@ -15,6 +15,7 @@ import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 const loginFormSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
@@ -24,10 +25,11 @@ const loginFormSchema = z.object({
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginPage() {
-  const { user, signup, login } = useAuth();
+  const { user, signup, login, sendPasswordReset } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -51,6 +53,27 @@ export default function LoginPage() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    const email = form.getValues('email');
+    if (!email) {
+      form.setError('email', { type: 'manual', message: 'Please enter your email to reset the password.' });
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await sendPasswordReset(email);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: 'Check your inbox for instructions to reset your password.',
+      });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   React.useEffect(() => {
     if (user) {
       router.push('/');
@@ -63,7 +86,7 @@ export default function LoginPage() {
         <Alert variant="destructive" className="max-w-md">
           <AlertTitle>Firebase Not Configured</AlertTitle>
           <AlertDescription>
-            Authentication features are disabled. Please configure your Firebase environment variables in a 
+            Authentication features are disabled. Please configure your Firebase environment variables in a
             <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold">
               .env.local
             </code> file to enable login and signup.
@@ -127,6 +150,11 @@ export default function LoginPage() {
             </form>
           </Form>
         </CardContent>
+        <CardFooter className="justify-center">
+            <Button variant="link" size="sm" onClick={handlePasswordReset} disabled={loading}>
+              Forgot Password?
+            </Button>
+        </CardFooter>
       </Card>
     </div>
   );
