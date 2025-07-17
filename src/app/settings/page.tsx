@@ -112,107 +112,72 @@ export default function SettingsPage() {
     }
   };
   
-  const processImageFile = async (file: File) => {
-    setPictureLoading(true);
-    try {
-      const image = new Image();
-      const imageUrl = URL.createObjectURL(file);
-      
-      const loadedImage = await new Promise<HTMLImageElement>((resolve, reject) => {
-        image.onload = () => resolve(image);
-        image.onerror = (err) => reject(new Error('Image failed to load.'));
-        image.src = imageUrl;
-      });
-      
-      URL.revokeObjectURL(imageUrl);
-
-      const canvas = document.createElement('canvas');
-      const MAX_WIDTH = 512;
-      const MAX_HEIGHT = 512;
-      let { width, height } = loadedImage;
-
-      if (width > height) {
-        if (width > MAX_WIDTH) {
-          height *= MAX_WIDTH / width;
-          width = MAX_WIDTH;
-        }
-      } else {
-        if (height > MAX_HEIGHT) {
-          width *= MAX_HEIGHT / height;
-          height = MAX_HEIGHT;
-        }
-      }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Could not get canvas context');
-      }
-      ctx.drawImage(loadedImage, 0, 0, width, height);
-
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-      
-      if (!blob) {
-        throw new Error('Canvas to Blob conversion failed');
-      }
-
-      const optimizedFile = new File([blob], "profile-photo.jpg", {
-        type: 'image/jpeg',
-        lastModified: Date.now(),
-      });
-      
-      await updateUserProfilePicture(optimizedFile);
-      toast({
-        title: 'Profile Picture Updated',
-        description: 'Your new avatar has been saved.',
-      });
-      
-    } catch (error: any) {
-      toast({
-        title: 'Upload Failed',
-        description: error.message || 'Could not process the image.',
-        variant: 'destructive',
-      });
-    } finally {
-      setPictureLoading(false);
-    }
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      processImageFile(file);
+      setPictureLoading(true);
+      try {
+        await updateUserProfilePicture(file);
+        toast({
+          title: 'Profile Picture Updated',
+          description: 'Your new avatar has been saved.',
+        });
+      } catch (error: any) {
+        toast({
+          title: 'Upload Failed',
+          description: error.message || 'Could not upload the image.',
+          variant: 'destructive',
+        });
+      } finally {
+        setPictureLoading(false);
+      }
     }
-    if(event.target) {
-        event.target.value = '';
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
   const handleSnap = async () => {
-    if (videoRef.current && canvasRef.current) {
-        setPictureLoading(true);
-        setIsCameraDialogOpen(false); // Close dialog first to provide feedback
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext('2d');
-        if (context) {
-            context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-            canvas.toBlob(async (blob) => {
-                if (blob) {
-                    const file = new File([blob], "profile-photo.jpg", { type: "image/jpeg" });
-                    await processImageFile(file); // This will set loading to false
-                } else {
-                    setPictureLoading(false);
-                    toast({ title: "Capture Failed", description: "Could not create an image from the camera.", variant: "destructive" });
-                }
-            }, 'image/jpeg');
-        } else {
-           setPictureLoading(false);
-           toast({ title: "Capture Failed", description: "Could not get canvas context.", variant: "destructive" });
-        }
+    if (!videoRef.current || !canvasRef.current) return;
+    
+    setPictureLoading(true);
+    setIsCameraDialogOpen(false); 
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+        setPictureLoading(false);
+        toast({ title: "Capture Failed", description: "Could not get canvas context.", variant: "destructive" });
+        return;
     }
+
+    context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+    canvas.toBlob(async (blob) => {
+        if (blob) {
+            const file = new File([blob], "profile-photo.jpg", { type: "image/jpeg" });
+            try {
+              await updateUserProfilePicture(file);
+              toast({
+                title: 'Profile Picture Updated',
+                description: 'Your new avatar has been saved.',
+              });
+            } catch (error: any) {
+              toast({
+                title: 'Upload Failed',
+                description: error.message || 'Could not upload the image from camera.',
+                variant: 'destructive',
+              });
+            } finally {
+              setPictureLoading(false);
+            }
+        } else {
+            setPictureLoading(false);
+            toast({ title: "Capture Failed", description: "Could not create an image from the camera.", variant: "destructive" });
+        }
+    }, 'image/jpeg');
   };
 
   React.useEffect(() => {
@@ -220,7 +185,7 @@ export default function SettingsPage() {
       if (!isCameraDialogOpen) return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        stream.getTracks().forEach(track => track.stop()); // Stop immediately, just needed for permission
+        stream.getTracks().forEach(track => track.stop()); 
         setHasCameraPermission(true);
 
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -342,8 +307,8 @@ export default function SettingsPage() {
                                  <DialogClose asChild>
                                     <Button type="button" variant="ghost">Cancel</Button>
                                 </DialogClose>
-                                <Button onClick={handleSnap} disabled={!hasCameraPermission}>
-                                  Snap Photo
+                                <Button onClick={handleSnap} disabled={!hasCameraPermission || pictureLoading}>
+                                  {pictureLoading ? <Loader2 className="animate-spin" /> : 'Snap Photo'}
                                 </Button>
                             </div>
                         </DialogFooter>
@@ -435,4 +400,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
