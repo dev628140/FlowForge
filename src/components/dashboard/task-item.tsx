@@ -48,7 +48,10 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const [isBreakingDown, setIsBreakingDown] = React.useState(false);
   const [isSchedulePopoverOpen, setIsSchedulePopoverOpen] = React.useState(false);
+  
+  const [newDate, setNewDate] = React.useState<Date | undefined>(task.scheduledDate ? parseISO(task.scheduledDate) : undefined);
   const [newTime, setNewTime] = React.useState(task.scheduledTime || '');
+
   const { toast } = useToast();
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
 
@@ -117,27 +120,32 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
       setIsBreakingDown(false);
     }
   }
+  
+  const handleScheduleSave = async () => {
+    if (onUpdateTask) {
+        if (!newDate) {
+            toast({
+                title: "No Date Selected",
+                description: "Please select a date to schedule the task.",
+                variant: 'destructive'
+            });
+            return;
+        }
 
-  const handleDateSelect = async (date: Date | undefined) => {
-    if (date && onUpdateTask) {
-        await onUpdateTask(task.id, { scheduledDate: format(date, 'yyyy-MM-dd') });
+        const updates: Partial<Task> = {
+            scheduledDate: format(newDate, 'yyyy-MM-dd'),
+            scheduledTime: newTime || undefined, // Send undefined to clear time
+        };
+
+        await onUpdateTask(task.id, updates);
+        setIsSchedulePopoverOpen(false);
         toast({
             title: 'Task Scheduled',
-            description: `"${task.title}" has been scheduled for ${format(date, 'PPP')}.`,
+            description: `"${task.title}" has been scheduled.`,
         });
     }
   };
 
-  const handleTimeUpdate = async () => {
-    if (onUpdateTask) {
-      await onUpdateTask(task.id, { scheduledTime: newTime });
-      setIsSchedulePopoverOpen(false);
-      toast({
-        title: 'Time Updated',
-        description: `Time for "${task.title}" has been updated.`,
-      });
-    }
-  };
 
   const onDelete = async () => {
     await handleDeleteTask(task.id, parentId);
@@ -212,13 +220,13 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
                 </TooltipProvider>
               </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={task.scheduledDate ? parseISO(task.scheduledDate) : undefined} onSelect={handleDateSelect} initialFocus />
-                    <div className="p-2 border-t">
-                      <div className="space-y-2">
-                        <label htmlFor="time" className="text-xs font-medium">Time (optional)</label>
+                    <Calendar mode="single" selected={newDate} onSelect={setNewDate} initialFocus />
+                    <div className="p-2 border-t space-y-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="time" className="text-xs font-medium">Time (optional)</Label>
                         <Input id="time" type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
                       </div>
-                      <Button onClick={handleTimeUpdate} size="sm" className="w-full mt-2">Set Time</Button>
+                      <Button onClick={handleScheduleSave} size="sm" className="w-full">Save</Button>
                     </div>
                 </PopoverContent>
             </Popover>
