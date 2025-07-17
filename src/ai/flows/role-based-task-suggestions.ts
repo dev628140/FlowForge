@@ -31,14 +31,12 @@ const RoleBasedTaskSuggestionsOutputSchema = z.object({
   timeboxingSuggestions: z
     .string()
     .describe(
-      'Suggestions for timeboxing the tasks based on the user role and task.
-'
+      'Suggestions for timeboxing the tasks based on the user role and task.'
     ),
   motivationalNudges: z
     .string()
     .describe(
-      'Motivational nudges tailored to the user role to encourage task completion.
-'
+      'Motivational nudges tailored to the user role to encourage task completion.'
     ),
 });
 export type RoleBasedTaskSuggestionsOutput = z.infer<
@@ -61,15 +59,7 @@ timeboxing advice, and motivational nudges tailored to a user's role.
 Role: {{{role}}}
 User Task: {{{userTask}}}
 
-Provide a list of suggested tasks, timeboxing suggestions, and motivational nudges specific to the user's role to help them accomplish their task.
-
-Output in JSON format:
-{
-  "suggestedTasks": ["task1", "task2", ...],
-  "timeboxingSuggestions": "Suggestions for timeboxing",
-  "motivationalNudges": "Motivational nudges"
-}
-`,
+Provide a list of suggested tasks, timeboxing suggestions, and motivational nudges specific to the user's role to help them accomplish their task.`,
 });
 
 const roleBasedTaskSuggestionsFlow = ai.defineFlow(

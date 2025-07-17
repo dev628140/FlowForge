@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { Wand2 } from 'lucide-react';
-import { useActions } from '@genkit-ai/next/use-actions';
 
 import { naturalLanguageTaskPlanning } from '@/ai/flows/natural-language-task-planning';
 import { Button } from '@/components/ui/button';
@@ -17,8 +16,8 @@ interface AITaskPlannerProps {
 
 export default function AITaskPlanner({ onAddTasks }: AITaskPlannerProps) {
   const [goal, setGoal] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
   const { toast } = useToast();
-  const { run: planTasks, loading } = useActions(naturalLanguageTaskPlanning);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +29,9 @@ export default function AITaskPlanner({ onAddTasks }: AITaskPlannerProps) {
       });
       return;
     }
+    setLoading(true);
     try {
-      const result = await planTasks({ goal });
+      const result = await naturalLanguageTaskPlanning({ goal });
       if (result.tasks && result.tasks.length > 0) {
         onAddTasks(result.tasks.map(title => ({ title })));
         toast({
@@ -49,6 +49,8 @@ export default function AITaskPlanner({ onAddTasks }: AITaskPlannerProps) {
         description: 'Failed to generate tasks. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 

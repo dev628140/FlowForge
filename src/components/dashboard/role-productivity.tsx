@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { Sparkles } from 'lucide-react';
-import { useActions } from '@genkit-ai/next/use-actions';
 
 import { getRoleBasedTaskSuggestions, RoleBasedTaskSuggestionsOutput } from '@/ai/flows/role-based-task-suggestions';
 import { Button } from '@/components/ui/button';
@@ -19,8 +18,8 @@ export default function RoleProductivity() {
   const [role, setRole] = React.useState<UserRole>('Developer');
   const [task, setTask] = React.useState('');
   const [suggestions, setSuggestions] = React.useState<RoleBasedTaskSuggestionsOutput | null>(null);
+  const [loading, setLoading] = React.useState(false);
   const { toast } = useToast();
-  const { run: getSuggestions, loading } = useActions(getRoleBasedTaskSuggestions);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +31,10 @@ export default function RoleProductivity() {
       });
       return;
     }
+    setLoading(true);
+    setSuggestions(null);
     try {
-      const result = await getSuggestions({ role, userTask: task });
+      const result = await getRoleBasedTaskSuggestions({ role, userTask: task });
       setSuggestions(result);
     } catch (error) {
       console.error('Error getting suggestions:', error);
@@ -42,6 +43,8 @@ export default function RoleProductivity() {
         description: 'Failed to get suggestions. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -83,6 +86,18 @@ export default function RoleProductivity() {
             )}
           </Button>
         </form>
+
+        {loading && (
+          <div className="mt-6 space-y-4">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-4 w-4/5" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        )}
 
         {suggestions && !loading && (
           <div className="mt-6 space-y-4 animate-in fade-in-50">
