@@ -1,7 +1,9 @@
+
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -20,6 +22,7 @@ export const isFirebaseConfigured = !!firebaseConfig.apiKey &&
 const app = isFirebaseConfigured ? (getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()) : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
+export const storage = app ? getStorage(app) : null;
 
 if (db) {
   enableIndexedDbPersistence(db)

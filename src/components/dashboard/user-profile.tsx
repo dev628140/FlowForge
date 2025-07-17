@@ -27,7 +27,7 @@ export default function UserProfile({ user }: UserProfileProps) {
               <div className="font-semibold text-sm">{displayName}</div>
             </div>
             <Avatar>
-              <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${user?.email}`} alt="User" />
+              <AvatarImage src={user?.photoURL || undefined} alt="User profile picture" />
               <AvatarFallback>{fallback}</AvatarFallback>
             </Avatar>
           </div>
