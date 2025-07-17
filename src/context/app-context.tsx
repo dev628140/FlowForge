@@ -23,7 +23,6 @@ interface AppContextType {
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  shareTask: (taskId: string, email: string) => Promise<void>;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -40,10 +39,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Listen for task changes in Firestore
   React.useEffect(() => {
     if (user && db) {
-      // Query for tasks owned by the user OR shared with the user
+      // Query for tasks owned by the user
       const q = query(
         collection(db, "tasks"), 
-        where("memberEmails", "array-contains", user.email)
+        where("userId", "==", user.uid)
       );
 
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -115,6 +114,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         };
         if (isCompleting) {
           updateData.completedAt = new Date().toISOString();
+        } else {
+            // Firestore does not allow `undefined` values. 
+            // To remove a field, you can either omit it or use deleteField()
+            // but for simplicity, we just won't include it in the update.
         }
         batch.update(taskRef, updateData);
       }
@@ -134,7 +137,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
   
   const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed'>>[]) => {
-    if (!user || !db || !user.email) return;
+    if (!user || !db) return;
     
     try {
       const batch = writeBatch(db);
@@ -145,9 +148,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ...task,
           id: taskId,
           userId: user.uid,
-          ownerEmail: user.email,
-          sharedWith: [user.email], // Initially shared only with the owner
-          memberEmails: [user.email], // For querying
           completed: false,
           createdAt: new Date().toISOString(),
         });
@@ -170,21 +170,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const shareTask = async (taskId: string, email: string) => {
-    if (!user || !db) return;
-    try {
-        const taskRef = doc(db, 'tasks', taskId);
-        await updateDoc(taskRef, {
-            sharedWith: arrayUnion(email),
-            memberEmails: arrayUnion(email)
-        });
-        toast({ title: "Task Shared!", description: `Successfully shared with ${email}` });
-    } catch (error) {
-        console.error("Error sharing task:", error);
-        toast({ title: "Error", description: "Could not share the task.", variant: "destructive" });
-    }
-  };
-
   const handleAddSubtasks = async (parentId: string, subtasks: { title: string; description?: string }[]) => {
      if (!user || !db) return;
      try {
@@ -203,7 +188,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completed: false,
           userId: user.uid,
           createdAt: new Date().toISOString(),
-          ownerEmail: user.email!,
        }));
 
        const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
@@ -255,8 +239,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleAddTasks,
       handleAddSubtasks,
       handleDeleteTask,
-      updateTask,
-      shareTask
+      updateTask
     }}>
       {children}
     </AppContext.Provider>

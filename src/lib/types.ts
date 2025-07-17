@@ -8,8 +8,6 @@ export interface Task {
   scheduledDate?: string; // YYYY-MM-DD
   userId: string;
   createdAt?: string;
-  ownerEmail?: string;
-  sharedWith?: string[]; // Array of user emails
 }
 
 export type UserRole = 'Student' | 'Developer' | 'Founder' | 'Freelancer';

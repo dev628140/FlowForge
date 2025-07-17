@@ -1,21 +1,10 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Users can only read and write their own tasks.
     match /tasks/{taskId} {
-      // Allow a user to read a task (get or list) if their email is in the memberEmails array.
-      // This is the key rule that enables collaboration.
-      allow read: if request.auth.token.email in resource.data.memberEmails;
-
-      // Allow a user to create a task if they are logged in and the task's userId matches their own uid.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-
-      // Allow a user to update a task if they are a member of that task.
-      allow update: if request.auth.token.email in resource.data.memberEmails;
-
-      // Only allow the original owner to delete a task to prevent accidental data loss by collaborators.
-      allow delete: if request.auth.uid == resource.data.userId;
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
     }
   }
 }
