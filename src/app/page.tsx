@@ -2,12 +2,12 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, Zap, Calendar, Forward } from 'lucide-react';
+import { PlusCircle, Zap, Calendar } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppContext } from '@/context/app-context';
-import { format, isFuture, parseISO, isToday } from 'date-fns';
+import { format, isToday, parseISO } from 'date-fns';
 
 import AITaskPlanner from '@/components/dashboard/ai-task-planner';
 import RoleProductivity from '@/components/dashboard/role-productivity';
@@ -84,8 +84,6 @@ export default function DashboardPage() {
   };
 
   const todaysTasks = tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate)));
-  const upcomingTasks = tasks.filter(task => task.scheduledDate && isFuture(parseISO(task.scheduledDate)));
-  const unscheduledTasks = tasks.filter(task => !task.scheduledDate);
 
   if (authLoading) {
      return (
@@ -170,19 +168,6 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="No tasks for today. Enjoy your break or schedule some!" />
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Forward className="w-6 h-6" />
-                  Upcoming & Unscheduled
-                </CardTitle>
-                <CardDescription>Tasks that are planned for the future or have no due date.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <TaskList tasks={[...upcomingTasks, ...unscheduledTasks]} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="No upcoming or unscheduled tasks."/>
             </CardContent>
           </Card>
 
