@@ -61,15 +61,19 @@ import { cn } from '@/lib/utils';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
-
-const taskFormSchema = z.object({
+const generalTaskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
   description: z.string().optional(),
-  scheduledDate: z.date().optional(),
+  scheduledDate: z.date({ required_error: 'A date is required.' }),
   scheduledTime: z.string().optional(),
 });
+type GeneralTaskFormValues = z.infer<typeof generalTaskFormSchema>;
 
-type TaskFormValues = z.infer<typeof taskFormSchema>;
+const todayTaskFormSchema = z.object({
+  title: z.string().min(1, 'Title is required.'),
+  description: z.string().optional(),
+});
+type TodayTaskFormValues = z.infer<typeof todayTaskFormSchema>;
 
 export default function DashboardPage() {
   const { 
@@ -84,28 +88,39 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const { loading: authLoading } = useAuth();
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
-  const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
+  const [isGeneralAddDialogOpen, setIsGeneralAddDialogOpen] = React.useState(false);
+  const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
   const [selectedMood, setSelectedMood] = React.useState<Mood | null>({ emoji: '😊', label: 'Motivated' });
 
-  const form = useForm<TaskFormValues>({
-    resolver: zodResolver(taskFormSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      scheduledDate: undefined,
-      scheduledTime: '',
-    },
+  const generalForm = useForm<GeneralTaskFormValues>({
+    resolver: zodResolver(generalTaskFormSchema),
+    defaultValues: { title: '', description: '' },
   });
   
-  const handleAddTaskSubmit = (values: TaskFormValues) => {
+  const todayForm = useForm<TodayTaskFormValues>({
+    resolver: zodResolver(todayTaskFormSchema),
+    defaultValues: { title: '', description: '' },
+  });
+  
+  const handleGeneralAddTaskSubmit = (values: GeneralTaskFormValues) => {
     handleAddTasks([{ 
       title: values.title, 
       description: values.description,
-      scheduledDate: values.scheduledDate ? format(values.scheduledDate, 'yyyy-MM-dd') : undefined,
+      scheduledDate: format(values.scheduledDate, 'yyyy-MM-dd'),
       scheduledTime: values.scheduledTime || undefined,
     }]);
-    form.reset();
-    setIsAddDialogOpen(false);
+    generalForm.reset();
+    setIsGeneralAddDialogOpen(false);
+  };
+  
+  const handleTodayAddTaskSubmit = (values: TodayTaskFormValues) => {
+    handleAddTasks([{ 
+      title: values.title, 
+      description: values.description,
+      scheduledDate: format(new Date(), 'yyyy-MM-dd'),
+    }]);
+    todayForm.reset();
+    setIsTodayAddDialogOpen(false);
   };
   
   const handleStartFocus = (task: Task) => {
@@ -144,27 +159,27 @@ export default function DashboardPage() {
             <LayoutDashboard className="w-8 h-8" />
             Dashboard
           </CardTitle>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isGeneralAddDialogOpen} onOpenChange={setIsGeneralAddDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Add Task
+                Add New Task
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add a new task</DialogTitle>
                 <DialogDescription>
-                  What do you want to accomplish? Add it to your inbox and schedule it later.
+                  What do you want to accomplish? Add it to your schedule.
                 </DialogDescription>
               </DialogHeader>
-              <Form {...form}>
+              <Form {...generalForm}>
                 <form
-                  onSubmit={form.handleSubmit(handleAddTaskSubmit)}
+                  onSubmit={generalForm.handleSubmit(handleGeneralAddTaskSubmit)}
                   className="space-y-4"
                 >
                   <FormField
-                    control={form.control}
+                    control={generalForm.control}
                     name="title"
                     render={({ field }) => (
                       <FormItem>
@@ -177,7 +192,7 @@ export default function DashboardPage() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={generalForm.control}
                     name="description"
                     render={({ field }) => (
                       <FormItem>
@@ -194,11 +209,11 @@ export default function DashboardPage() {
                   />
                   <div className="flex gap-4">
                      <FormField
-                        control={form.control}
+                        control={generalForm.control}
                         name="scheduledDate"
                         render={({ field }) => (
                           <FormItem className="flex flex-col w-1/2">
-                            <FormLabel>Date (optional)</FormLabel>
+                            <FormLabel>Date</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
@@ -232,7 +247,7 @@ export default function DashboardPage() {
                         )}
                       />
                        <FormField
-                          control={form.control}
+                          control={generalForm.control}
                           name="scheduledTime"
                           render={({ field }) => (
                             <FormItem className="w-1/2">
@@ -258,15 +273,75 @@ export default function DashboardPage() {
         </div>
         
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-6 h-6" />
-              Today's Tasks
-            </CardTitle>
-            <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-6 h-6" />
+                Today's Tasks
+              </CardTitle>
+              <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
+            </div>
+            <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add for Today
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add a task for today</DialogTitle>
+                    <DialogDescription>
+                      This task will be automatically scheduled for today.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...todayForm}>
+                    <form
+                      onSubmit={todayForm.handleSubmit(handleTodayAddTaskSubmit)}
+                      className="space-y-4"
+                    >
+                      <FormField
+                        control={todayForm.control}
+                        name="title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Title</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., Go for a 30-min walk" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={todayForm.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (optional)</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Add any extra details..."
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <DialogClose asChild>
+                           <Button type="button" variant="ghost">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit">Add Task</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent>
-            <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks for today. Enjoy your break or schedule some!" />
+            <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks for today. Add one to get started!" />
           </CardContent>
         </Card>
         

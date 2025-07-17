@@ -63,8 +63,6 @@ export default function AllTasksPage() {
     });
   }, [tasks, sortBy]);
 
-  const unscheduledTasks = sortedTasks.filter(task => !task.scheduledDate);
-  const scheduledTasks = sortedTasks.filter(task => task.scheduledDate);
 
   return (
      <div className="relative min-h-screen w-full">
@@ -90,26 +88,15 @@ export default function AllTasksPage() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Scheduled</CardTitle>
-                        <CardDescription>Tasks that have an assigned date.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <TaskList tasks={scheduledTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No scheduled tasks." />
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Inbox / Unscheduled</CardTitle>
-                        <CardDescription>Tasks that need to be scheduled.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <TaskList tasks={unscheduledTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="Your inbox is clear!" />
-                    </CardContent>
-                </Card>
-            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Your Tasks</CardTitle>
+                    <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks found." />
+                </CardContent>
+            </Card>
         </div>
         {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={handleCompleteFocus}/>}
     </div>
