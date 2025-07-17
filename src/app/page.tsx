@@ -130,142 +130,139 @@ export default function DashboardPage() {
   return (
     <div className="relative min-h-screen w-full">
       <Confetti active={showConfetti} />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-6 h-6" />
-                  Today's Tasks
-                </CardTitle>
-                <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
-              </div>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="ghost" className="mt-4 sm:mt-0">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Task
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add a new task for today</DialogTitle>
-                    <DialogDescription>
-                      What do you want to accomplish? This will be automatically scheduled for today.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <Form {...form}>
-                    <form
-                      onSubmit={form.handleSubmit(handleAddTaskSubmit)}
-                      className="space-y-4"
-                    >
-                      <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Title</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g., Read a chapter of a book" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description (optional)</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Add any extra details for the AI to summarize..."
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <DialogFooter>
-                        <DialogClose asChild>
-                           <Button type="button" variant="ghost">Cancel</Button>
-                        </DialogClose>
-                        <Button type="submit">Add Task</Button>
-                      </DialogFooter>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
+      <div className="p-4 md:p-6 space-y-6">
+        <Card>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-6 h-6" />
+                Today's Tasks
+              </CardTitle>
+              <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
+            </div>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="ghost" className="mt-4 sm:mt-0">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add a new task for today</DialogTitle>
+                  <DialogDescription>
+                    What do you want to accomplish? This will be automatically scheduled for today.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                  <form
+                    onSubmit={form.handleSubmit(handleAddTaskSubmit)}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Title</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., Read a chapter of a book" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description (optional)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Add any extra details for the AI to summarize..."
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                      <DialogClose asChild>
+                         <Button type="button" variant="ghost">Cancel</Button>
+                      </DialogClose>
+                      <Button type="submit">Add Task</Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="No tasks for today. Enjoy your break or schedule some!" />
+          </CardContent>
+        </Card>
+        
+        {overdueTasks.length > 0 && (
+          <Card className="border-destructive/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="w-6 h-6" />
+                Pending Tasks
+              </CardTitle>
+              <CardDescription>Tasks that are past their due date.</CardDescription>
             </CardHeader>
             <CardContent>
-              <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="No tasks for today. Enjoy your break or schedule some!" />
+              <div className="space-y-2">
+                {overdueTasks.map(task => {
+                  const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
+                  return (
+                     <div key={task.id} className={cn("flex items-start group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
+                        <div className="flex-1">
+                          <span className={cn("font-medium transition-colors", task.completed ? "text-muted-foreground line-through" : "text-card-foreground")}>
+                            {task.title}
+                          </span>
+                          <p className="text-xs text-destructive">
+                            {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
+                          </p>
+                        </div>
+                        <div className={cn("flex items-center transition-opacity", "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="hover:bg-destructive/10 hover:text-destructive"
+                                  aria-label={`Delete task ${task.title}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the task "{task.title}".
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                     </div>
+                  )
+                })}
+              </div>
             </CardContent>
           </Card>
-          
-          {overdueTasks.length > 0 && (
-            <Card className="border-destructive/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive">
-                  <AlertTriangle className="w-6 h-6" />
-                  Pending Tasks
-                </CardTitle>
-                <CardDescription>Tasks that are past their due date.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {overdueTasks.map(task => {
-                    const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
-                    return (
-                       <div key={task.id} className={cn("flex items-start group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
-                          <div className="flex-1">
-                            <span className={cn("font-medium transition-colors", task.completed ? "text-muted-foreground line-through" : "text-card-foreground")}>
-                              {task.title}
-                            </span>
-                            <p className="text-xs text-destructive">
-                              {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
-                            </p>
-                          </div>
-                          <div className={cn("flex items-center transition-opacity", "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="hover:bg-destructive/10 hover:text-destructive"
-                                    aria-label={`Delete task ${task.title}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This action cannot be undone. This will permanently delete the task "{task.title}".
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                          </div>
-                       </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        )}
 
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AITaskPlanner />
-        </div>
-
-        <div className="lg:col-span-1 space-y-6">
           <DynamicSuggestions />
           <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
           <RoleProductivity mood={selectedMood?.label || 'Neutral'} />
