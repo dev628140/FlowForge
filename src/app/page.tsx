@@ -63,7 +63,7 @@ import VisualTaskSnapCard from '@/components/dashboard/visual-task-snap-card';
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
   description: z.string().optional(),
-  scheduledDate: z.date({ required_error: 'A date is required.' }),
+  scheduledDate: z.date().optional(),
   scheduledTime: z.string().optional(),
 });
 type TaskFormValues = z.infer<typeof taskFormSchema>;
@@ -109,7 +109,7 @@ export default function DashboardPage() {
     handleAddTasks([{ 
       title: values.title, 
       description: values.description,
-      scheduledDate: format(values.scheduledDate, 'yyyy-MM-dd'),
+      scheduledDate: values.scheduledDate ? format(values.scheduledDate, 'yyyy-MM-dd') : undefined,
       scheduledTime: values.scheduledTime || undefined,
     }]);
     form.reset({ title: '', description: '' });

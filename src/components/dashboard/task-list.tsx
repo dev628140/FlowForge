@@ -9,7 +9,7 @@ interface TaskListProps {
   tasks: Task[];
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
-  onUpdateTask?: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;

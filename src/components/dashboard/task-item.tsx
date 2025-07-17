@@ -63,7 +63,7 @@ interface TaskItemProps {
   task: Task;
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
-  onUpdateTask?: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   isSubtask?: boolean;
   parentId?: string;
 }
@@ -105,8 +105,6 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
   }, [task, form, isEditDialogOpen]);
 
   const handleEditSubmit = async (values: EditTaskFormValues) => {
-    if (!onUpdateTask) return;
-    
     const updates: Partial<Task> = {
         title: values.title,
     };
@@ -117,9 +115,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
     if (values.scheduledDate) {
         updates.scheduledDate = format(values.scheduledDate, 'yyyy-MM-dd');
     }
-    if (values.scheduledTime) {
-        updates.scheduledTime = values.scheduledTime;
-    }
+    updates.scheduledTime = values.scheduledTime || undefined;
 
     await onUpdateTask(task.id, updates);
     setIsEditDialogOpen(false);
@@ -191,28 +187,26 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
   }
   
   const handleScheduleSave = async () => {
-    if (onUpdateTask) {
-        if (!newDate) {
-            toast({
-                title: "No Date Selected",
-                description: "Please select a date to schedule the task.",
-                variant: 'destructive'
-            });
-            return;
-        }
+      if (!newDate) {
+          toast({
+              title: "No Date Selected",
+              description: "Please select a date to schedule the task.",
+              variant: 'destructive'
+          });
+          return;
+      }
 
-        const updates: Partial<Task> = {
-            scheduledDate: format(newDate, 'yyyy-MM-dd'),
-            scheduledTime: newTime || undefined,
-        };
+      const updates: Partial<Task> = {
+          scheduledDate: format(newDate, 'yyyy-MM-dd'),
+          scheduledTime: newTime || undefined,
+      };
 
-        await onUpdateTask(task.id, updates);
-        setIsSchedulePopoverOpen(false);
-        toast({
-            title: 'Task Scheduled',
-            description: `"${task.title}" has been scheduled.`,
-        });
-    }
+      await onUpdateTask(task.id, updates);
+      setIsSchedulePopoverOpen(false);
+      toast({
+          title: 'Task Scheduled',
+          description: `"${task.title}" has been scheduled.`,
+      });
   };
 
 
@@ -277,7 +271,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
              </Button>
            </CollapsibleTrigger>
         )}
-        {onUpdateTask && !task.scheduledDate && (
+        {!task.scheduledDate && !isSubtask && (
             <Popover open={isSchedulePopoverOpen} onOpenChange={setIsSchedulePopoverOpen}>
               <PopoverTrigger asChild>
                 <TooltipProvider>
