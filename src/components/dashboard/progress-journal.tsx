@@ -31,7 +31,11 @@ export default function ProgressJournal({ tasks }: ProgressJournalProps) {
         completed.push(task.title);
       }
       if (task.subtasks) {
-        completed = completed.concat(getCompletedTasks(task.subtasks));
+         task.subtasks.forEach(subtask => {
+            if(subtask.completed) {
+                completed.push(subtask.title);
+            }
+         });
       }
     });
     return completed;
