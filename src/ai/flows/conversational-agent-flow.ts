@@ -158,9 +158,9 @@ ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
 
         } catch (error: any) {
              const errorMessage = error.message || '';
-            // Check for specific error types
-            if (errorMessage.includes('429 Too Many Requests') || errorMessage.includes('exceeded your current quota')) {
-                 throw new Error("You've exceeded the daily limit for the AI. Please try again tomorrow or consider upgrading your API plan.");
+            // Check for specific error types that are retryable or user-facing
+            if (errorMessage.includes('429') || errorMessage.includes('exceeded your current quota')) {
+                 throw new Error("You've exceeded the daily limit for the AI. The quota will reset at midnight PT. Please try again tomorrow.");
             }
             if (errorMessage.includes('503 Service Unavailable')) {
                 retries--;

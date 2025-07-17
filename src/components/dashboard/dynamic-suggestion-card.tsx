@@ -45,7 +45,8 @@ export default function DynamicSuggestionCard({ tasks, role }: DynamicSuggestion
 
   React.useEffect(() => {
     fetchSuggestions();
-  }, [fetchSuggestions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNextSuggestion = () => {
     setCurrentSuggestionIndex((prev) => (prev + 1) % suggestions.length);
