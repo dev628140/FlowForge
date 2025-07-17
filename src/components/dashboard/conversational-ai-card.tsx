@@ -14,6 +14,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export interface AgentConfig {
   title: string;
@@ -56,19 +57,9 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       const modelMessage: Message = { role: 'model', content: result.response };
       setMessages(prev => [...prev, modelMessage]);
 
-      // This logic is now removed as the AI is not expected to return tasks directly.
-      // The user must explicitly ask the AI to use a tool to add tasks.
-      // if (result.tasksToAdd && result.tasksToAdd.length > 0) {
-      //   await handleAddTasks(result.tasksToAdd);
-      //   toast({
-      //     title: 'Tasks Added!',
-      //     description: `The AI has added ${result.tasksToAdd.length} task(s) to your list.`,
-      //   });
-      // }
-
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Error in ${config.title}:`, err);
-      const errorMessage = "I'm sorry, something went wrong. Please try again.";
+      const errorMessage = err.message || "I'm sorry, something went wrong. Please try again.";
       const modelErrorMessage: Message = { role: 'model', content: errorMessage };
       setMessages(prev => [...prev, modelErrorMessage]);
       setError(errorMessage);
