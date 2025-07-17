@@ -3,7 +3,6 @@
 
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Progress } from '@/components/ui/progress';
 import { type User } from 'firebase/auth';
 import Link from 'next/link';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
@@ -11,15 +10,11 @@ import { LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
 interface UserProfileProps {
-  level: number;
-  xp: number;
-  xpToNextLevel: number;
   user: User | null;
 }
 
-export default function UserProfile({ level, xp, xpToNextLevel, user }: UserProfileProps) {
+export default function UserProfile({ user }: UserProfileProps) {
   const { logout } = useAuth();
-  const progressPercentage = xpToNextLevel > 0 ? (xp / xpToNextLevel) * 100 : 0;
   
   const displayName = user?.displayName || user?.email;
   const fallback = displayName ? displayName.charAt(0).toUpperCase() : 'U';
@@ -30,8 +25,6 @@ export default function UserProfile({ level, xp, xpToNextLevel, user }: UserProf
           <div className="flex items-center gap-4 cursor-pointer">
             <div className="text-right">
               <div className="font-semibold text-sm">{displayName}</div>
-              <div className="text-xs text-muted-foreground">Level {level} &middot; {xp} / {xpToNextLevel} XP</div>
-              <Progress value={progressPercentage} className="w-24 h-1.5 mt-1" />
             </div>
             <Avatar>
               <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${user?.email}`} alt="User" />

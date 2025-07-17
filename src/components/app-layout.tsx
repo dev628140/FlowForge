@@ -21,7 +21,6 @@ import UserProfile from '@/components/dashboard/user-profile';
 import { Icons } from './icons';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { useAppContext } from '@/context/app-context';
 import { ThemeToggle } from './theme-toggle';
 import { useAuth } from '@/context/auth-context';
 import { isFirebaseConfigured } from '@/lib/firebase';
@@ -40,7 +39,6 @@ import {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { level, xp, xpToNextLevel } = useAppContext();
   const { user, loading, logout } = useAuth();
 
   // If Firebase is not configured, we only ever render the login page,
@@ -171,7 +169,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="flex items-center justify-between p-4 border-b">
           <SidebarTrigger />
-          <UserProfile level={level} xp={xp} xpToNextLevel={xpToNextLevel} user={user} />
+          <UserProfile user={user} />
         </header>
         <main>{children}</main>
       </SidebarInset>

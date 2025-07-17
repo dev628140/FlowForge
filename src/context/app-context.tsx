@@ -8,15 +8,10 @@ import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { differenceInDays, isBefore, isToday, startOfToday, parseISO } from 'date-fns';
 
 interface AppContextType {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
-  xp: number;
-  totalXp: number;
-  level: number;
-  xpToNextLevel: number;
   showConfetti: boolean;
   handleToggleTask: (id: string, parentId?: string) => Promise<void>;
   handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => Promise<void>;
@@ -27,66 +22,13 @@ interface AppContextType {
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
-const XP_PER_LEVEL = 50;
-
-/**
- * Recursively counts active and completed tasks, including subtasks.
- */
-const countTasks = (allTasks: Task[]): { active: number; completed: number; total: number } => {
-  let active = 0;
-  let completed = 0;
-
-  allTasks.forEach(task => {
-    if (task.completed) {
-      completed++;
-    } else {
-      active++;
-    }
-    if (task.subtasks && task.subtasks.length > 0) {
-      const subtaskCounts = countTasks(task.subtasks);
-      active += subtaskCounts.active;
-      completed += subtaskCounts.completed;
-    }
-  });
-
-  return { active, completed, total: active + completed };
-};
-
-/**
- * Calculates the total XP based on the user's defined rules.
- * @param tasks The full list of tasks.
- * @returns The calculated total XP.
- */
-const calculateTotalXp = (tasks: Task[]): number => {
-    const { completed, total } = countTasks(tasks);
-
-    if (total === 0) {
-        return 0;
-    }
-
-    // If 5 or fewer tasks, 10xp per completed task.
-    if (total <= 5) {
-        return completed * 10;
-    }
-
-    // If more than 5 tasks, use proportional XP out of 50.
-    const xpPerTask = XP_PER_LEVEL / total;
-    return Math.round(completed * xpPerTask);
-};
-
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [totalXp, setTotalXp] = React.useState(0);
   const [showConfetti, setShowConfetti] = React.useState(false);
   
-  // Derived state for level and current XP
-  const level = Math.floor(totalXp / XP_PER_LEVEL) + 1;
-  const xp = totalXp % XP_PER_LEVEL;
-  const xpToNextLevel = XP_PER_LEVEL;
-
   // Listen for task changes in Firestore
   React.useEffect(() => {
     if (user && db) {
@@ -100,12 +42,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         querySnapshot.forEach((doc) => {
           userTasks.push({ id: doc.id, ...doc.data() } as Task);
         });
-        
-        // This is the core of the new logic:
-        // Always set the tasks list first, then calculate XP from that single source of truth.
         setTasks(userTasks);
-        setTotalXp(calculateTotalXp(userTasks));
-
       }, (error) => {
         console.error("Error listening to tasks:", error);
         toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
@@ -114,7 +51,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return () => unsubscribe();
     } else {
       setTasks([]);
-      setTotalXp(0);
     }
   }, [user, toast]);
 
@@ -123,15 +59,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     let taskToToggle: Task | null = null;
     let parentTask: Task | null = null;
-    const currentTasks = tasks; // Work with the current state
 
     if (parentId) {
-      parentTask = currentTasks.find(t => t.id === parentId) || null;
+      parentTask = tasks.find(t => t.id === parentId) || null;
       if (parentTask && parentTask.subtasks) {
         taskToToggle = parentTask.subtasks.find(t => t.id === id) || null;
       }
     } else {
-      taskToToggle = currentTasks.find(t => t.id === id) || null;
+      taskToToggle = tasks.find(t => t.id === id) || null;
     }
 
     if (!taskToToggle) return;
@@ -165,8 +100,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 5000);
       }
-      // Firestore listener will automatically update the tasks and trigger the XP recalculation in the useEffect hook.
-
     } catch (error) {
       console.error("Error toggling task:", error);
       toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
@@ -203,7 +136,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         batch.set(taskRef, newTaskData);
       });
       await batch.commit();
-      // Firestore listener will update state and recalculate XP.
     } catch (error) {
        console.error("Error adding tasks:", error);
        toast({ title: "Error", description: "Could not add tasks.", variant: "destructive" });
@@ -213,12 +145,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     if (!user || !db) return;
     try {
-      const taskRef = doc(db, 'tasks', taskId);
-      await updateDoc(taskRef, updates);
-      // Firestore listener will update state and recalculate XP.
+        // Find the task, whether it's a main task or a subtask
+        let taskFound = false;
+        const newTasks = tasks.map(t => {
+            if (t.id === taskId) {
+                taskFound = true;
+                return { ...t, ...updates };
+            }
+            if (t.subtasks) {
+                let subtaskUpdated = false;
+                const newSubtasks = t.subtasks.map(st => {
+                    if (st.id === taskId) {
+                        subtaskUpdated = true;
+                        return { ...st, ...updates };
+                    }
+                    return st;
+                });
+                if (subtaskUpdated) {
+                    taskFound = true;
+                    return { ...t, subtasks: newSubtasks };
+                }
+            }
+            return t;
+        });
+
+        if (taskFound) {
+            const taskRef = doc(db, 'tasks', taskId);
+            await updateDoc(taskRef, updates);
+        } else {
+             console.warn("Task to update not found in main tasks, checking subtasks...");
+             // This part handles updating subtasks that might be nested
+             for (const task of tasks) {
+                 if (task.subtasks?.some(st => st.id === taskId)) {
+                     const parentTaskRef = doc(db, 'tasks', task.id);
+                     const updatedSubtasks = task.subtasks.map(st => st.id === taskId ? {...st, ...updates} : st);
+                     await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
+                     break;
+                 }
+             }
+        }
     } catch (error) {
-      console.error("Error updating task:", error);
-      toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
+        console.error("Error updating task:", error);
+        toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
     }
   };
 
@@ -244,8 +212,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
        const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
        await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
-       // Firestore listener will update state and recalculate XP.
-       
      } catch (error) {
        console.error("Error adding subtasks:", error);
        toast({ title: "Error", description: "Could not add subtasks.", variant: "destructive" });
@@ -269,7 +235,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const taskRef = doc(db, 'tasks', id);
         await deleteDoc(taskRef);
       }
-      // Firestore listener will update state and recalculate XP.
     } catch (error) {
       console.error("Error deleting task:", error);
       toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
@@ -279,10 +244,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       tasks, setTasks,
-      xp,
-      totalXp,
-      level,
-      xpToNextLevel,
       showConfetti,
       handleToggleTask,
       handleAddTasks,
