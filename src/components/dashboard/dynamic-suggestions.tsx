@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 import { useAppContext } from '@/context/app-context';
 import { getDynamicSuggestions } from '@/ai/flows/dynamic-suggestions-flow';
+import { cn } from '@/lib/utils';
 
 export default function DynamicSuggestions() {
   const { tasks } = useAppContext();
