@@ -8,6 +8,9 @@ import { AuthProvider } from '@/context/auth-context';
 export const metadata: Metadata = {
   title: 'FlowForge - The AI-Powered Task Execution Companion',
   description: 'FlowForge is an AI-powered task execution companion that helps you plan, execute, and achieve your goals.',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
