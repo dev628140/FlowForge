@@ -1,1 +1,7 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/natural-language-task-planning.ts';
+import '@/ai/flows/summarize-task.ts';
+import '@/ai/flows/progress-reflection-journal.ts';
+import '@/ai/flows/role-based-task-suggestions.ts';

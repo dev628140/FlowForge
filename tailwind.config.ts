@@ -11,7 +11,7 @@ export default {
     extend: {
       fontFamily: {
         body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        headline: ['"Space Grotesk"', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -88,10 +88,21 @@ export default {
             height: '0',
           },
         },
+        'confetti-fall': {
+          from: {
+            transform: 'translateY(-10vh) rotate(0deg)',
+            opacity: '1',
+          },
+          to: {
+            transform: 'translateY(110vh) rotate(720deg)',
+            opacity: '0',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'confetti-fall': 'confetti-fall 3s linear forwards'
       },
     },
   },
