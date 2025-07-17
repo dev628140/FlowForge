@@ -195,8 +195,9 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
              </Button>
            </CollapsibleTrigger>
         )}
-        {onUpdateTask && (
+        {onUpdateTask && !task.scheduledDate && (
             <Popover open={isSchedulePopoverOpen} onOpenChange={setIsSchedulePopoverOpen}>
+              <PopoverTrigger asChild>
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -209,6 +210,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
+              </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                     <Calendar mode="single" selected={task.scheduledDate ? parseISO(task.scheduledDate) : undefined} onSelect={handleDateSelect} initialFocus />
                     <div className="p-2 border-t">
