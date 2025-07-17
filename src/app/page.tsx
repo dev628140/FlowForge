@@ -56,6 +56,7 @@ import ConversationalAICard, { type AgentConfig } from '@/components/dashboard/c
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
 import { Badge } from '@/components/ui/badge';
+import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-card';
 
 
 const taskFormSchema = z.object({
@@ -168,16 +169,6 @@ export default function DashboardPage() {
         taskContext: null,
     },
     {
-        title: 'For You',
-        description: 'Get AI-powered suggestions on what to do next based on your current tasks.',
-        initialContext: "You are a proactive AI productivity assistant. Your goal is to provide a 'Next Best Action' feed for the user. Analyze their task list for today and generate relevant suggestions.",
-        initialPrompt: 'What should I do next?',
-        taskContext: {
-            role: selectedRole,
-            tasks: todaysTasks.map(t => ({ title: t.title, completed: t.completed })),
-        }
-    },
-    {
         title: 'Emotion-Adaptive Assistant',
         description: 'Feeling stuck? Get suggestions tailored to your role and mood.',
         initialContext: "You are an empathetic AI productivity assistant. Your goal is to provide task suggestions, timeboxing advice, and motivational nudges tailored to a user's role and mood.",
@@ -268,6 +259,9 @@ export default function DashboardPage() {
         </div>
         
         <DailyProgressBar tasks={todaysTasks} />
+        
+        <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
+
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

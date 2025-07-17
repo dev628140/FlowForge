@@ -14,7 +14,6 @@ import { getRoleBasedTaskSuggestions } from './role-based-task-suggestions';
 import { generateLearningPlan } from './learning-plan-flow';
 import { analyzeProductivity } from './productivity-dna-tracker';
 import { progressReflectionJournal } from './progress-reflection-journal';
-import { getDynamicSuggestions } from './dynamic-suggestions-flow';
 import { visualTaskSnap } from './visual-task-snap';
 import { breakdownTask } from './breakdown-task-flow';
 import {
@@ -75,16 +74,6 @@ const progressJournalTool = ai.defineTool(
     async (input) => progressReflectionJournal(input)
 );
 
-const dynamicSuggestionsTool = ai.defineTool(
-    {
-        name: 'getDynamicSuggestions',
-        description: "Provides 'next best action' suggestions based on the user's current tasks and role. Use this when the user asks 'what should I do next?' or wants recommendations.",
-        inputSchema: z.object({ tasks: z.array(z.object({ title: z.string(), completed: z.boolean() })), role: z.string() }),
-        outputSchema: z.any(),
-    },
-    async (input) => getDynamicSuggestions(input)
-);
-
 const visualTaskSnapTool = ai.defineTool(
     {
         name: 'visualTaskSnap',
@@ -127,7 +116,6 @@ const conversationalAgentFlow = ai.defineFlow(
         learningPlanTool,
         productivityAnalysisTool,
         progressJournalTool,
-        dynamicSuggestionsTool,
         visualTaskSnapTool,
         breakdownTaskTool,
     ];
