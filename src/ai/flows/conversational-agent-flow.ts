@@ -168,18 +168,20 @@ ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
             return output;
 
         } catch (error: any) {
-            // Check if the error is a 503 service unavailable
-            if (error.message && error.message.includes('503 Service Unavailable')) {
+             const errorMessage = error.message || '';
+            // Check for specific error types
+            if (errorMessage.includes('429 Too Many Requests')) {
+                 throw new Error("You've exceeded the daily limit for the AI. Please try again tomorrow or consider upgrading your API plan.");
+            }
+            if (errorMessage.includes('503 Service Unavailable')) {
                 retries--;
                 if (retries === 0) {
-                    // If no retries left, re-throw the error to be caught by the client
                     throw new Error("The AI model is currently overloaded. Please try again in a few moments.");
                 }
-                // Wait for the delay period before retrying
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2; // Exponential backoff
             } else {
-                // If it's another type of error, throw it immediately
+                // For any other error, throw it immediately
                 throw error;
             }
         }
