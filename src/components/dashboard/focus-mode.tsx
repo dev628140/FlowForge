@@ -1,9 +1,13 @@
+
 'use client';
 
 import * as React from 'react';
-import { Pause, Play, RotateCcw, X } from 'lucide-react';
+import { Pause, Play, RotateCcw, X, Brain, Coffee } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 interface FocusModeProps {
   task: Task;
@@ -11,32 +15,75 @@ interface FocusModeProps {
   onComplete: () => void;
 }
 
-const FOCUS_DURATION = 25 * 60; // 25 minutes
+const MIN_FOCUS = 10;
+const MAX_FOCUS = 60;
+const MIN_BREAK = 5;
+const MAX_BREAK = 30;
+const DEFAULT_FOCUS = 25;
+const DEFAULT_BREAK = 5;
+
 
 export default function FocusMode({ task, onClose, onComplete }: FocusModeProps) {
-  const [timeLeft, setTimeLeft] = React.useState(FOCUS_DURATION);
+  const [focusDuration, setFocusDuration] = React.useState(DEFAULT_FOCUS * 60);
+  const [breakDuration, setBreakDuration] = React.useState(DEFAULT_BREAK * 60);
+  const [timeLeft, setTimeLeft] = React.useState(focusDuration);
   const [isActive, setIsActive] = React.useState(false);
+  const [isBreak, setIsBreak] = React.useState(false);
+  
+  const [autoStartBreaks, setAutoStartBreaks] = React.useState(false);
+  const [autoStartFocus, setAutoStartFocus] = React.useState(false);
+  const [cyclesCompleted, setCyclesCompleted] = React.useState(0);
+
+  // Update timeLeft when duration settings are changed while paused
+  React.useEffect(() => {
+    if (!isActive) {
+      setTimeLeft(isBreak ? breakDuration : focusDuration);
+    }
+  }, [focusDuration, breakDuration, isBreak, isActive]);
 
   React.useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
+    
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(time => time - 1);
       }, 1000);
     } else if (timeLeft === 0) {
-      // Handle timer completion
-      new Audio('/sounds/bell.mp3').play().catch(e => console.log("Audio play failed", e));
       setIsActive(false);
+      const sound = isBreak ? '/sounds/success.mp3' : '/sounds/bell.mp3';
+      new Audio(sound).play().catch(e => console.error("Audio play failed", e));
+      
+      const nextIsBreak = !isBreak;
+      setIsBreak(nextIsBreak);
+
+      if (nextIsBreak) { // Focus session just ended
+        setCyclesCompleted(c => c + 1);
+        if (autoStartBreaks) {
+          setTimeLeft(breakDuration);
+          setIsActive(true);
+        } else {
+          setTimeLeft(breakDuration);
+        }
+      } else { // Break session just ended
+         if (autoStartFocus) {
+           setTimeLeft(focusDuration);
+           setIsActive(true);
+         } else {
+           setTimeLeft(focusDuration);
+         }
+      }
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, isBreak, autoStartBreaks, autoStartFocus, breakDuration, focusDuration]);
 
   const toggleTimer = () => setIsActive(!isActive);
+  
   const resetTimer = () => {
     setIsActive(false);
-    setTimeLeft(FOCUS_DURATION);
+    setIsBreak(false);
+    setTimeLeft(focusDuration);
   };
   
   const handleComplete = () => {
@@ -50,32 +97,77 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-md m-4 p-8 text-center flex flex-col items-center">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-lg m-4 p-8 text-center flex flex-col items-center relative">
         <Button variant="ghost" size="icon" className="absolute top-4 right-4" onClick={onClose}>
             <X className="h-5 w-5" />
             <span className="sr-only">Close Focus Mode</span>
         </Button>
-        <h2 className="text-sm font-semibold text-primary mb-2">FOCUSING ON</h2>
-        <h1 className="text-2xl font-bold font-headline mb-8 text-card-foreground">{task.title}</h1>
         
-        <div className="font-mono font-bold text-7xl text-card-foreground mb-8">
+        <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-primary">
+            {isBreak ? <Coffee className="h-5 w-5"/> : <Brain className="h-5 w-5" />}
+            <span>{isBreak ? 'BREAK TIME' : 'FOCUSING ON'}</span>
+        </div>
+
+        {!isBreak && <h1 className="text-2xl font-bold font-headline mb-6 text-card-foreground">{task.title}</h1>}
+        
+        <div className="font-mono font-bold text-7xl md:text-8xl text-card-foreground my-6">
           {formatTime(timeLeft)}
         </div>
         
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" onClick={resetTimer}>
             <RotateCcw className="w-5 h-5" />
+            <span className="sr-only">Reset Timer</span>
           </Button>
-          <Button size="lg" className="w-32 h-16 rounded-full text-lg" onClick={toggleTimer}>
+          <Button size="lg" className="w-32 h-16 rounded-full text-lg shadow-lg" onClick={toggleTimer}>
             {isActive ? <Pause className="w-8 h-8"/> : <Play className="w-8 h-8"/>}
+            <span className="sr-only">{isActive ? 'Pause timer' : 'Start timer'}</span>
           </Button>
            <div className="w-12 h-12" /> {/* Spacer */}
         </div>
 
-        <Button onClick={handleComplete} variant="secondary" className="w-full">
+        <div className="w-full space-y-6 mb-8">
+            <div className="space-y-3">
+              <Label htmlFor="focus-duration">Focus Duration: {focusDuration / 60} mins</Label>
+              <Slider
+                id="focus-duration"
+                min={MIN_FOCUS}
+                max={MAX_FOCUS}
+                step={5}
+                value={[focusDuration / 60]}
+                onValueChange={(value) => setFocusDuration(value[0] * 60)}
+                disabled={isActive}
+              />
+            </div>
+             <div className="space-y-3">
+              <Label htmlFor="break-duration">Break Duration: {breakDuration / 60} mins</Label>
+              <Slider
+                id="break-duration"
+                min={MIN_BREAK}
+                max={MAX_BREAK}
+                step={5}
+                value={[breakDuration / 60]}
+                onValueChange={(value) => setBreakDuration(value[0] * 60)}
+                disabled={isActive}
+              />
+            </div>
+             <div className="flex justify-around items-center">
+                <div className="flex items-center space-x-2">
+                    <Switch id="auto-start-breaks" checked={autoStartBreaks} onCheckedChange={setAutoStartBreaks} />
+                    <Label htmlFor="auto-start-breaks">Auto-start Breaks</Label>
+                </div>
+                 <div className="flex items-center space-x-2">
+                    <Switch id="auto-start-focus" checked={autoStartFocus} onCheckedChange={setAutoStartFocus} />
+                    <Label htmlFor="auto-start-focus">Auto-start Focus</Label>
+                </div>
+            </div>
+        </div>
+
+        <Button onClick={handleComplete} variant="secondary" className="w-full mb-4">
           Mark as Complete
         </Button>
+        <p className="text-sm text-muted-foreground">Cycles completed: {cyclesCompleted}</p>
       </div>
     </div>
   );
