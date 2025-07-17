@@ -140,10 +140,9 @@ const conversationalAgentFlow = ai.defineFlow(
             const response = await ai.generate({
               model: 'googleai/gemini-1.5-flash-latest',
               system: `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
-The user is providing you with their current task list as context.
-You can use the available tools to help the user manage their tasks, get suggestions, and analyze their productivity.
-If you use the 'naturalLanguageTaskPlanning' tool, the user wants you to create tasks for them.
-After a tool returns tasks, confirm with the user and then format your final response as a JSON object containing both your text response and the list of tasks to be added under the 'tasksToAdd' key.
+You are a helpful assistant. Do NOT add tasks unless the user explicitly asks you to. Your primary role is to provide information and suggestions based on the conversation context.
+If the user asks you to create tasks, you must first confirm the details with them, including the date and time.
+When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
 
 User's Task Context:
 ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}

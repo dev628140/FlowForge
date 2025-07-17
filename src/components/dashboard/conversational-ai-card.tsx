@@ -56,13 +56,15 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       const modelMessage: Message = { role: 'model', content: result.response };
       setMessages(prev => [...prev, modelMessage]);
 
-      if (result.tasksToAdd && result.tasksToAdd.length > 0) {
-        await handleAddTasks(result.tasksToAdd);
-        toast({
-          title: 'Tasks Added!',
-          description: `The AI has added ${result.tasksToAdd.length} task(s) to your list.`,
-        });
-      }
+      // This logic is now removed as the AI is not expected to return tasks directly.
+      // The user must explicitly ask the AI to use a tool to add tasks.
+      // if (result.tasksToAdd && result.tasksToAdd.length > 0) {
+      //   await handleAddTasks(result.tasksToAdd);
+      //   toast({
+      //     title: 'Tasks Added!',
+      //     description: `The AI has added ${result.tasksToAdd.length} task(s) to your list.`,
+      //   });
+      // }
 
     } catch (err) {
       console.error(`Error in ${config.title}:`, err);

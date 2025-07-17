@@ -20,10 +20,7 @@ export type ConversationalAgentInput = z.infer<typeof ConversationalAgentInputSc
 
 export const ConversationalAgentOutputSchema = z.object({
   response: z.string().describe("The agent's text response to the user."),
-  tasksToAdd: z.array(z.object({
-    title: z.string(),
-    description: z.string().optional(),
-    scheduledDate: z.string().optional(),
-  })).optional().describe("A list of tasks that the user has asked to be created."),
+  // tasksToAdd is removed to prevent the AI from automatically adding tasks.
+  // The AI must now be explicitly told to use the task-adding tool.
 });
 export type ConversationalAgentOutput = z.infer<typeof ConversationalAgentOutputSchema>;
