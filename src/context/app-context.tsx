@@ -19,7 +19,7 @@ interface AppContextType {
   xpToNextLevel: number;
   showConfetti: boolean;
   handleToggleTask: (id: string, parentId?: string) => Promise<void>;
-  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>) => Promise<void>;
+  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => Promise<void>;
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
@@ -28,22 +28,20 @@ interface AppContextType {
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
 const XP_PER_LEVEL = 50;
-const XP_PENALTY_PER_DAY = 5;
-const LAST_PENALTY_CHECK_KEY = 'lastPenaltyCheck';
 
-const countTasks = (allTasks: Task[]): { active: number; completed: number } => {
+/**
+ * Recursively counts active and completed tasks, including subtasks.
+ */
+const countTasks = (allTasks: Task[]): { active: number; completed: number; total: number } => {
   let active = 0;
   let completed = 0;
-  
+
   allTasks.forEach(task => {
-    // Count the parent task itself
     if (task.completed) {
       completed++;
     } else {
       active++;
     }
-    
-    // If it has subtasks, recursively count them
     if (task.subtasks && task.subtasks.length > 0) {
       const subtaskCounts = countTasks(task.subtasks);
       active += subtaskCounts.active;
@@ -51,26 +49,29 @@ const countTasks = (allTasks: Task[]): { active: number; completed: number } => 
     }
   });
 
-  return { active, completed };
+  return { active, completed, total: active + completed };
 };
 
+/**
+ * Calculates the total XP based on the user's defined rules.
+ * @param tasks The full list of tasks.
+ * @returns The calculated total XP.
+ */
+const calculateTotalXp = (tasks: Task[]): number => {
+    const { completed, total } = countTasks(tasks);
 
-const calculateTotalXp = (allTasks: Task[]): number => {
-  const { active, completed } = countTasks(allTasks);
-  const totalTasks = active + completed;
+    if (total === 0) {
+        return 0;
+    }
 
-  if (totalTasks === 0) {
-    return 0;
-  }
-  
-  // If 5 or fewer tasks, 10xp per completed task.
-  if (totalTasks <= 5) {
-    return completed * 10;
-  }
+    // If 5 or fewer tasks, 10xp per completed task.
+    if (total <= 5) {
+        return completed * 10;
+    }
 
-  // If more than 5 tasks, use proportional XP.
-  const xpPerTask = XP_PER_LEVEL / totalTasks;
-  return Math.round(completed * xpPerTask);
+    // If more than 5 tasks, use proportional XP out of 50.
+    const xpPerTask = XP_PER_LEVEL / total;
+    return Math.round(completed * xpPerTask);
 };
 
 
@@ -99,8 +100,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         querySnapshot.forEach((doc) => {
           userTasks.push({ id: doc.id, ...doc.data() } as Task);
         });
+        
+        // This is the core of the new logic:
+        // Always set the tasks list first, then calculate XP from that single source of truth.
         setTasks(userTasks);
         setTotalXp(calculateTotalXp(userTasks));
+
       }, (error) => {
         console.error("Error listening to tasks:", error);
         toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
@@ -113,62 +118,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, toast]);
 
-  // Effect for daily penalty check
-  React.useEffect(() => {
-    if (!user || tasks.length === 0) return;
-
-    const lastCheckString = localStorage.getItem(LAST_PENALTY_CHECK_KEY);
-    const today = startOfToday();
-
-    if (lastCheckString && isToday(parseISO(lastCheckString))) {
-      return;
-    }
-
-    const overdueTasks = tasks.filter(task => 
-        !task.completed && 
-        task.scheduledDate && 
-        isBefore(parseISO(task.scheduledDate), today)
-    );
-
-    if (overdueTasks.length > 0) {
-        let totalPenalty = 0;
-        overdueTasks.forEach(task => {
-            const daysOverdue = differenceInDays(today, parseISO(task.scheduledDate!));
-            if (daysOverdue > 0) {
-                totalPenalty += daysOverdue * XP_PENALTY_PER_DAY;
-            }
-        });
-
-        if (totalPenalty > 0) {
-            setTotalXp(currentXp => {
-                const newXp = Math.max(0, currentXp - totalPenalty);
-                 toast({
-                    title: "XP Penalty Applied",
-                    description: `You lost ${totalPenalty} XP for overdue tasks.`,
-                    variant: 'destructive'
-                });
-                return newXp;
-            });
-        }
-    }
-
-    localStorage.setItem(LAST_PENALTY_CHECK_KEY, today.toISOString());
-
-  }, [tasks, user, toast]);
-
   const handleToggleTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
 
     let taskToToggle: Task | null = null;
     let parentTask: Task | null = null;
+    const currentTasks = tasks; // Work with the current state
 
     if (parentId) {
-      parentTask = tasks.find(t => t.id === parentId) || null;
+      parentTask = currentTasks.find(t => t.id === parentId) || null;
       if (parentTask && parentTask.subtasks) {
         taskToToggle = parentTask.subtasks.find(t => t.id === id) || null;
       }
     } else {
-      taskToToggle = tasks.find(t => t.id === id) || null;
+      taskToToggle = currentTasks.find(t => t.id === id) || null;
     }
 
     if (!taskToToggle) return;
@@ -202,7 +165,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 5000);
       }
-      // Firestore listener will automatically update state and recalculate XP.
+      // Firestore listener will automatically update the tasks and trigger the XP recalculation in the useEffect hook.
 
     } catch (error) {
       console.error("Error toggling task:", error);
@@ -240,7 +203,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         batch.set(taskRef, newTaskData);
       });
       await batch.commit();
-      // Firestore listener will update state.
+      // Firestore listener will update state and recalculate XP.
     } catch (error) {
        console.error("Error adding tasks:", error);
        toast({ title: "Error", description: "Could not add tasks.", variant: "destructive" });
@@ -252,7 +215,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const taskRef = doc(db, 'tasks', taskId);
       await updateDoc(taskRef, updates);
-      // Firestore listener will update state.
+      // Firestore listener will update state and recalculate XP.
     } catch (error) {
       console.error("Error updating task:", error);
       toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
@@ -281,7 +244,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
        const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
        await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
-       // Firestore listener will update state.
+       // Firestore listener will update state and recalculate XP.
        
      } catch (error) {
        console.error("Error adding subtasks:", error);
@@ -306,7 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const taskRef = doc(db, 'tasks', id);
         await deleteDoc(taskRef);
       }
-      // Firestore listener will update state.
+      // Firestore listener will update state and recalculate XP.
     } catch (error) {
       console.error("Error deleting task:", error);
       toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
