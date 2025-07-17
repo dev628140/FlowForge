@@ -21,7 +21,7 @@ const RoleBasedTaskSuggestionsInputSchema = z.object({
     .describe("The task the user wants to accomplish (e.g., 'get fit this month')."),
   mood: z
     .string()
-    .describe("The user's current mood (e.g., 'High Energy', 'Stressed')."),
+    .describe("The user's current mood (e.g., 'High Energy', 'Stressed', 'Overwhelmed')."),
 });
 export type RoleBasedTaskSuggestionsInput = z.infer<
   typeof RoleBasedTaskSuggestionsInputSchema
@@ -30,7 +30,7 @@ export type RoleBasedTaskSuggestionsInput = z.infer<
 const RoleBasedTaskSuggestionsOutputSchema = z.object({
   suggestedTasks: z
     .array(z.string())
-    .describe('A list of suggested tasks tailored to the user role and mood.'),
+    .describe('A list of suggested tasks tailored to the user role and mood. If the user feels overwhelmed or stressed, these should be small, easy-to-win steps.'),
   timeboxingSuggestions: z
     .string()
     .describe(
@@ -56,14 +56,17 @@ const prompt = ai.definePrompt({
   name: 'roleBasedTaskSuggestionsPrompt',
   input: {schema: RoleBasedTaskSuggestionsInputSchema},
   output: {schema: RoleBasedTaskSuggestionsOutputSchema},
-  prompt: `You are an AI productivity assistant that provides task suggestions,
-timeboxing advice, and motivational nudges tailored to a user's role and mood.
+  prompt: `You are an empathetic AI productivity assistant. Your goal is to provide task suggestions, timeboxing advice, and motivational nudges tailored to a user's role and mood.
 
 Role: {{{role}}}
 Mood: {{{mood}}}
 User Task: {{{userTask}}}
 
-Provide a list of suggested tasks, timeboxing suggestions, and motivational nudges specific to the user's role and current mood to help them accomplish their task. For example, if the mood is 'Low Energy', suggest smaller, easier tasks.`,
+Your suggestions must be adapted to the user's mood.
+- If the mood is 'Overwhelmed', 'Stressed', or 'Low Energy', suggest very small, simple, "2-minute win" tasks to get them started (e.g., 'Drink a glass of water', 'Clear your desk', 'Reply to one email'). The goal is to build momentum, not tackle the main task directly yet. Ask if they want to break down the main task into easier steps.
+- If the mood is 'High Energy' or 'Motivated', suggest more challenging or creative sub-tasks that help them make significant progress on their main goal.
+
+Provide a list of suggested tasks, timeboxing suggestions, and motivational nudges specific to the user's role and current mood to help them accomplish their task.`,
 });
 
 const roleBasedTaskSuggestionsFlow = ai.defineFlow(

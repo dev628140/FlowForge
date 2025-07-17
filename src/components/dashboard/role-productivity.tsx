@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 
 import { getRoleBasedTaskSuggestions, RoleBasedTaskSuggestionsOutput } from '@/ai/flows/role-based-task-suggestions';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import type { UserRole, MoodLabel } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
+import { useAppContext } from '@/context/app-context';
+import { breakdownTask } from '@/ai/flows/breakdown-task-flow';
 
 const roles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
 
@@ -19,6 +21,7 @@ interface RoleProductivityProps {
 }
 
 export default function RoleProductivity({ mood }: RoleProductivityProps) {
+  const { handleAddTasks } = useAppContext();
   const [role, setRole] = React.useState<UserRole>('Developer');
   const [task, setTask] = React.useState('');
   const [suggestions, setSuggestions] = React.useState<RoleBasedTaskSuggestionsOutput | null>(null);
@@ -52,11 +55,19 @@ export default function RoleProductivity({ mood }: RoleProductivityProps) {
     }
   };
 
+  const handleAddTask = (taskTitle: string) => {
+    handleAddTasks([{ title: taskTitle }]);
+    toast({
+      title: 'Task Added',
+      description: `"${taskTitle}" has been added to your unscheduled tasks.`,
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Role-Based Assistant</CardTitle>
-        <CardDescription>Get AI suggestions tailored to your role and mood.</CardDescription>
+        <CardTitle>Emotion-Adaptive Assistant</CardTitle>
+        <CardDescription>Feeling stuck? Get AI suggestions tailored to your role and current mood.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -79,13 +90,13 @@ export default function RoleProductivity({ mood }: RoleProductivityProps) {
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? (
               <>
-                <Skeleton className="h-5 w-5 mr-2 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 <span>Getting Suggestions...</span>
               </>
             ) : (
               <>
                 <Sparkles className="mr-2 h-4 w-4" />
-                <span>Get Suggestions</span>
+                <span>Help Me Get Started</span>
               </>
             )}
           </Button>
@@ -105,14 +116,25 @@ export default function RoleProductivity({ mood }: RoleProductivityProps) {
 
         {suggestions && !loading && (
           <div className="mt-6 space-y-4 animate-in fade-in-50">
-            <h4 className="font-semibold text-sm">Suggested Tasks:</h4>
-            <ul className="list-disc list-inside text-sm text-muted-foreground">
-              {suggestions.suggestedTasks.map((t, i) => <li key={i}>{t}</li>)}
-            </ul>
-            <h4 className="font-semibold text-sm">Timeboxing:</h4>
-            <p className="text-sm text-muted-foreground">{suggestions.timeboxingSuggestions}</p>
-            <h4 className="font-semibold text-sm">Motivation:</h4>
-            <p className="text-sm text-muted-foreground">{suggestions.motivationalNudges}</p>
+            <div>
+              <h4 className="font-semibold text-sm mb-2">Suggested Next Steps:</h4>
+              <ul className="space-y-1">
+                {suggestions.suggestedTasks.map((t, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded-md">
+                        <span>{t}</span>
+                        <Button variant="ghost" size="sm" onClick={() => handleAddTask(t)}>Add</Button>
+                    </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+                <h4 className="font-semibold text-sm">Timeboxing:</h4>
+                <p className="text-sm text-muted-foreground">{suggestions.timeboxingSuggestions}</p>
+            </div>
+             <div>
+                <h4 className="font-semibold text-sm">A Little Motivation:</h4>
+                <p className="text-sm text-muted-foreground italic">"{suggestions.motivationalNudges}"</p>
+             </div>
           </div>
         )}
       </CardContent>
