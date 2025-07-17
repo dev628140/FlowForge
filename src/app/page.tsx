@@ -73,6 +73,7 @@ export default function DashboardPage() {
     handleToggleTask, 
     handleAddTasks,
     handleDeleteTask,
+    updateTask,
   } = useAppContext();
 
   const { toast } = useToast();
@@ -90,11 +91,9 @@ export default function DashboardPage() {
   });
   
   const handleAddTaskSubmit = (values: TaskFormValues) => {
-    const today = format(new Date(), 'yyyy-MM-dd');
     handleAddTasks([{ 
       title: values.title, 
       description: values.description,
-      scheduledDate: today 
     }]);
     form.reset();
     setIsAddDialogOpen(false);
@@ -149,9 +148,9 @@ export default function DashboardPage() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add a new task for today</DialogTitle>
+                  <DialogTitle>Add a new task</DialogTitle>
                   <DialogDescription>
-                    What do you want to accomplish? This will be automatically scheduled for today.
+                    What do you want to accomplish? This task will be added to your inbox.
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
@@ -180,7 +179,7 @@ export default function DashboardPage() {
                           <FormLabel>Description (optional)</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Add any extra details for the AI to summarize..."
+                              placeholder="Add any extra details..."
                               {...field}
                             />
                           </FormControl>
@@ -200,7 +199,7 @@ export default function DashboardPage() {
             </Dialog>
           </CardHeader>
           <CardContent>
-            <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} emptyMessage="No tasks for today. Enjoy your break or schedule some!" />
+            <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks for today. Enjoy your break or schedule some!" />
           </CardContent>
         </Card>
         
