@@ -28,7 +28,6 @@ interface AppContextType {
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
 const XP_PER_LEVEL = 50;
-const XP_PER_TASK_COMPLETION = 10;
 const XP_PENALTY_PER_DAY = 5;
 const LAST_PENALTY_CHECK_KEY = 'lastPenaltyCheck';
 
@@ -63,8 +62,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
       });
 
-      // Fetch user progress (like totalXp) if you store it in Firestore
-      // For now, we'll keep it in component state and localStorage for persistence
       const storedXp = localStorage.getItem(`totalXp_${user.uid}`);
       if (storedXp) {
         setTotalXp(parseInt(storedXp, 10));
@@ -92,7 +89,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const lastCheckString = localStorage.getItem(LAST_PENALTY_CHECK_KEY);
     const today = startOfToday();
 
-    // Only run penalty check once per day
     if (lastCheckString && isToday(parseISO(lastCheckString))) {
       return;
     }
@@ -129,6 +125,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   }, [tasks, user, toast]);
 
+  const countActiveTasks = (allTasks: Task[]): number => {
+    return allTasks.reduce((count, task) => {
+        let currentTaskCount = 0;
+        if (!task.completed) {
+            currentTaskCount++;
+        }
+        if (task.subtasks) {
+            currentTaskCount += task.subtasks.filter(sub => !sub.completed).length;
+        }
+        return count + currentTaskCount;
+    }, 0);
+  };
+
   const handleToggleTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
 
@@ -147,6 +156,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!taskToToggle) return;
 
     const isCompleting = !taskToToggle.completed;
+    
+    // Calculate XP based on the number of active tasks *before* this one is toggled.
+    const activeTasksCount = countActiveTasks(tasks);
 
     try {
       const batch = writeBatch(db);
@@ -179,13 +191,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       
       await batch.commit();
+      
+      const xpPerTask = activeTasksCount > 0 ? XP_PER_LEVEL / activeTasksCount : 0;
 
       if (isCompleting) {
+        setTotalXp(prev => Math.max(0, prev + xpPerTask));
         setShowConfetti(true);
-        setTotalXp(prev => prev + XP_PER_TASK_COMPLETION);
         setTimeout(() => setShowConfetti(false), 5000);
       } else {
-         // Optional: logic for de-completing a task (e.g., remove XP)
+        setTotalXp(prev => Math.max(0, prev - xpPerTask));
       }
     } catch (error) {
       console.error("Error toggling task:", error);
