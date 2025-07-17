@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Camera, Loader2, UploadCloud, X, CheckCircle } from 'lucide-react';
+import { Camera, Loader2, UploadCloud, X, CheckCircle, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -37,36 +37,84 @@ export default function VisualTaskSnapCard() {
   const [loading, setLoading] = React.useState(false);
   const [extractedTasks, setExtractedTasks] = React.useState<string[]>([]);
   const [isCameraDialogOpen, setIsCameraDialogOpen] = React.useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = React.useState(true); // Assume true initially
-
+  const [hasCameraPermission, setHasCameraPermission] = React.useState(true);
+  const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
+  const [currentDeviceId, setCurrentDeviceId] = React.useState<string | undefined>();
+  
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
   React.useEffect(() => {
-    const getCameraPermission = async () => {
+    let stream: MediaStream | null = null;
+    
+    const getCameraDevices = async () => {
       if (!isCameraDialogOpen) return;
+      
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // First, get permission
+        const permissionStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        permissionStream.getTracks().forEach(track => track.stop()); // Stop the permission stream immediately
         setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+
+        // Then, enumerate devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter(device => device.kind === 'videoinput');
+        setVideoDevices(videoInputs);
+        
+        if (videoInputs.length > 0) {
+          setCurrentDeviceId(videoInputs[0].deviceId);
         }
+
       } catch (error) {
-        console.error('Error accessing camera:', error);
+        console.error('Error accessing camera or enumerating devices:', error);
         setHasCameraPermission(false);
       }
     };
-    getCameraPermission();
 
+    getCameraDevices();
+    
     return () => {
-        // Stop camera stream when component unmounts or dialog closes
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-        }
+      // Cleanup function to stop any active stream when the dialog closes.
+       if (videoRef.current && videoRef.current.srcObject) {
+         const stream = videoRef.current.srcObject as MediaStream;
+         stream.getTracks().forEach(track => track.stop());
+       }
     }
   }, [isCameraDialogOpen]);
   
+  React.useEffect(() => {
+    if (isCameraDialogOpen && hasCameraPermission && currentDeviceId) {
+        const startStream = async () => {
+            // Stop any existing stream before starting a new one
+            if (videoRef.current && videoRef.current.srcObject) {
+                const existingStream = videoRef.current.srcObject as MediaStream;
+                existingStream.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: { exact: currentDeviceId } }
+                });
+                if (videoRef.current) {
+                    videoRef.current.srcObject = newStream;
+                }
+            } catch (error) {
+                console.error("Error switching camera:", error);
+                setHasCameraPermission(false);
+            }
+        };
+        startStream();
+    }
+  }, [currentDeviceId, isCameraDialogOpen, hasCameraPermission]);
+
+  const handleSwitchCamera = () => {
+    if (videoDevices.length > 1) {
+        const currentIndex = videoDevices.findIndex(device => device.deviceId === currentDeviceId);
+        const nextIndex = (currentIndex + 1) % videoDevices.length;
+        setCurrentDeviceId(videoDevices[nextIndex].deviceId);
+    }
+  };
+
   const processImage = async (dataUri: string) => {
     setLoading(true);
     setExtractedTasks([]);
@@ -197,11 +245,18 @@ export default function VisualTaskSnapCard() {
                        </div>
                    )}
                 </div>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button type="button" variant="ghost">Cancel</Button>
-                    </DialogClose>
-                    <Button onClick={handleSnap} disabled={!hasCameraPermission}>Snap Photo</Button>
+                <DialogFooter className="sm:justify-between">
+                    {videoDevices.length > 1 ? (
+                        <Button variant="outline" onClick={handleSwitchCamera} disabled={!hasCameraPermission}>
+                           <RefreshCw className="mr-2" /> Switch Camera
+                        </Button>
+                    ) : <div />}
+                    <div>
+                         <DialogClose asChild>
+                            <Button type="button" variant="ghost">Cancel</Button>
+                        </DialogClose>
+                        <Button onClick={handleSnap} disabled={!hasCameraPermission}>Snap Photo</Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
