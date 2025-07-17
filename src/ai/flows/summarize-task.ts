@@ -12,7 +12,8 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SummarizeTaskInputSchema = z.object({
-  taskDescription: z.string().describe('The description of the task to summarize.'),
+  taskTitle: z.string().describe('The title of the task to summarize.'),
+  taskDescription: z.string().optional().describe('The optional description of the task to summarize.'),
 });
 export type SummarizeTaskInput = z.infer<typeof SummarizeTaskInputSchema>;
 
@@ -29,7 +30,14 @@ const prompt = ai.definePrompt({
   name: 'summarizeTaskPrompt',
   input: {schema: SummarizeTaskInputSchema},
   output: {schema: SummarizeTaskOutputSchema},
-  prompt: `Summarize the following task description, focusing on key talking points and action items:\n\n{{{taskDescription}}}`,
+  prompt: `Summarize the following task, focusing on key talking points and action items. The main goal is defined by the title. Use the description for additional context if it is provided.
+
+Task Title: {{{taskTitle}}}
+{{#if taskDescription}}
+Task Description:
+{{{taskDescription}}}
+{{/if}}
+`,
 });
 
 const summarizeTaskFlow = ai.defineFlow(

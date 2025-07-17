@@ -68,18 +68,13 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
   }
 
   const handleSummarize = async () => {
-    if (!task.description) {
-      toast({
-        title: 'No description',
-        description: 'This task has no description to summarize.',
-        variant: 'destructive',
-      });
-      return;
-    }
     setIsSummarizing(true);
     setSummary(null);
     try {
-      const result = await summarizeTask({ taskDescription: task.description });
+      const result = await summarizeTask({ 
+        taskTitle: task.title,
+        taskDescription: task.description 
+      });
       setSummary(result.summary);
     } catch (error) {
       console.error('Error summarizing task:', error);
@@ -291,7 +286,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
                 </Button>
                 <Button 
                   onClick={handleSummarize}
-                  disabled={isSummarizing || !task.description}
+                  disabled={isSummarizing}
                   size="sm"
                   variant="outline"
                 >
