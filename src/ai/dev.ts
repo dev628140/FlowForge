@@ -6,3 +6,4 @@ import '@/ai/flows/summarize-task.ts';
 import '@/ai/flows/progress-reflection-journal.ts';
 import '@/ai/flows/role-based-task-suggestions.ts';
 import '@/ai/flows/productivity-dna-tracker.ts';
+import '@/ai/flows/auto-schedule-flow.ts';

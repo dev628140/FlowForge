@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GitGraph, LayoutDashboard, Settings } from 'lucide-react';
+import { Calendar, GitGraph, LayoutDashboard, Settings } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -43,6 +43,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuButton isActive={pathname === '/'}>
                   <LayoutDashboard />
                   <span>Dashboard</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/schedule">
+                <SidebarMenuButton isActive={pathname === '/schedule'}>
+                  <Calendar />
+                  <span>Schedule</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

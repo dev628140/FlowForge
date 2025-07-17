@@ -1,0 +1,133 @@
+'use client';
+
+import * as React from 'react';
+import { addDays, format, startOfWeek } from 'date-fns';
+import { Calendar as CalendarIcon, Loader2, Wand2 } from 'lucide-react';
+import { useAppContext } from '@/context/app-context';
+import type { Task } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { autoSchedule } from '@/ai/flows/auto-schedule-flow';
+
+type ScheduledTask = {
+    taskId: string;
+    date: string;
+}
+
+export default function SchedulePage() {
+    const { tasks } = useAppContext();
+    const { toast } = useToast();
+    const [date, setDate] = React.useState<Date | undefined>(new Date());
+    const [scheduledTasks, setScheduledTasks] = React.useState<ScheduledTask[]>([]);
+    const [loading, setLoading] = React.useState(false);
+
+    const weekStartsOn = 1; // Monday
+    const selectedWeekStart = date ? startOfWeek(date, { weekStartsOn }) : new Date();
+
+    const handleAutoSchedule = async () => {
+        setLoading(true);
+        try {
+            const result = await autoSchedule({
+                tasks: tasks.filter(t => !t.completed),
+                startDate: format(selectedWeekStart, 'yyyy-MM-dd'),
+            });
+            if (result.schedule) {
+                setScheduledTasks(result.schedule);
+                toast({
+                    title: 'Schedule Generated!',
+                    description: 'Your tasks have been scheduled for the week.',
+                });
+            }
+        } catch (error) {
+            console.error("Error auto-scheduling tasks:", error);
+            toast({
+                title: 'Scheduling Failed',
+                description: 'Could not generate a schedule. Please try again.',
+                variant: 'destructive',
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    const tasksByDate = scheduledTasks.reduce((acc, scheduledTask) => {
+        const dateStr = format(new Date(scheduledTask.date), 'yyyy-MM-dd');
+        if (!acc[dateStr]) {
+            acc[dateStr] = [];
+        }
+        const task = tasks.find(t => t.id === scheduledTask.taskId);
+        if (task) {
+            acc[dateStr].push(task);
+        }
+        return acc;
+    }, {} as Record<string, Task[]>);
+    
+    const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(selectedWeekStart, i));
+
+    return (
+        <div className="p-4 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold font-headline mb-1">Weekly Schedule</h1>
+                    <p className="text-muted-foreground">View and manage your tasks for the week.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-[280px] justify-start text-left font-normal",
+                                    !date && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {date ? format(date, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={date}
+                                onSelect={setDate}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    <Button onClick={handleAutoSchedule} disabled={loading}>
+                        {loading ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Wand2 className="mr-2 h-4 w-4" />
+                        )}
+                        Auto-Schedule Week
+                    </Button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+                {weekDays.map(day => (
+                    <Card key={day.toString()} className="h-full">
+                        <CardHeader className="p-4">
+                            <CardTitle className="text-sm font-medium">{format(day, 'EEE')}</CardTitle>
+                            <CardDescription className="text-xs">{format(day, 'MMM d')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                            <div className="space-y-2">
+                                {tasksByDate[format(day, 'yyyy-MM-dd')]?.map(task => (
+                                    <div key={task.id} className="text-xs p-2 rounded-md bg-muted text-muted-foreground">
+                                        {task.title}
+                                    </div>
+                                )) || <p className="text-xs text-muted-foreground/50">No tasks.</p>}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </div>
+    );
+}
