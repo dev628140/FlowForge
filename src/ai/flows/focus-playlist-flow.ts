@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview An AI flow for generating a short, Lo-fi focus playlist.
+ * @fileOverview An AI flow for generating a short, Lo-fi focus playlist and finding a suitable YouTube stream.
  *
  * - `generateFocusPlaylist` - A function that creates a playlist based on a task title.
  * - `FocusPlaylistInput` - The input type for the `generateFocusPlaylist` function.
@@ -24,6 +24,7 @@ const SongSchema = z.object({
 
 const FocusPlaylistOutputSchema = z.object({
   playlist: z.array(SongSchema).describe('A list of 3-5 instrumental lo-fi hip hop tracks suitable for focus.'),
+  youtubeVideoId: z.string().optional().describe('The video ID of a suitable, embeddable YouTube lofi hip hop livestream. Example: "jfKfPfyJRdk" for lo-fi girl.'),
 });
 export type FocusPlaylistOutput = z.infer<typeof FocusPlaylistOutputSchema>;
 
@@ -38,10 +39,11 @@ const prompt = ai.definePrompt({
   prompt: `You are a music curator specializing in instrumental lo-fi hip hop for focus and concentration.
 Based on the user's task, generate a short playlist of 3-5 songs.
 The songs should be chill, instrumental, and conducive to deep work. Avoid tracks with prominent vocals.
+Also, provide a suitable YouTube video ID for a popular, embeddable 'lofi hip hop radio' live stream that can be played in the background. A good default is 'jfKfPfyJRdk'.
 
 Task: {{{taskTitle}}}
 
-Generate the playlist now.
+Generate the playlist and YouTube video ID now.
 `,
 });
 

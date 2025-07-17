@@ -214,43 +214,31 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
         <div className="w-full text-left">
             <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-2">
                 <Music className="h-4 w-4" />
-                Focus Playlist
+                Focus Music
             </h3>
             {playlistLoading ? (
                 <div className="space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-24 w-full" />
                 </div>
-            ) : playlist && playlist.playlist.length > 0 ? (
-                <Card className="bg-muted/50">
-                  <CardContent className="p-4">
-                      <div className="text-center">
-                          <p className="font-bold text-card-foreground">{currentTrack?.title}</p>
-                          <p className="text-sm text-muted-foreground">{currentTrack?.artist}</p>
-                      </div>
-                       <div className="flex items-center justify-center gap-4 mt-4">
-                           <Button variant="ghost" size="icon" onClick={handlePrevTrack}>
-                               <SkipBack />
-                           </Button>
-                           <Button variant="ghost" size="icon" disabled>
-                               <Play />
-                           </Button>
-                           <Button variant="ghost" size="icon" onClick={handleNextTrack}>
-                               <SkipForward />
-                           </Button>
-                       </div>
-                  </CardContent>
-                </Card>
-
+            ) : playlist && playlist.youtubeVideoId ? (
+                <div className="aspect-video w-full">
+                    <iframe
+                        className="w-full h-full rounded-lg"
+                        src={`https://www.youtube.com/embed/${playlist.youtubeVideoId}?autoplay=1&mute=1`}
+                        title="YouTube video player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                    ></iframe>
+                </div>
             ) : (
                  <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-2">
-                        {playlist === null ? 'Click below to generate a playlist for this task.' : 'Could not generate a playlist.'}
+                        {playlist === null ? 'Click below to generate focus music.' : 'Could not generate a playlist.'}
                     </p>
                     <Button onClick={fetchPlaylist} disabled={playlistLoading} size="sm" variant="ghost">
                         {playlistLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Music className="mr-2 h-4 w-4" />}
-                        Generate Playlist
+                        Generate Music
                     </Button>
                  </div>
             )}
