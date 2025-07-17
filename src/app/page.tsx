@@ -100,6 +100,7 @@ export default function DashboardPage() {
     );
 
     if (isCompleting) {
+      new Audio('/sounds/success.mp3').play().catch(e => console.error("Audio play failed", e));
       setShowConfetti(true);
       setXp(prev => prev + 10);
       setTimeout(() => setShowConfetti(false), 5000);
