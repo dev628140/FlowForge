@@ -44,6 +44,7 @@ import VisualTaskSnap from '@/components/dashboard/visual-task-snap';
 import LearningPlanner from '@/components/dashboard/learning-planner';
 import { useAuth } from '@/context/auth-context';
 import { Icons } from '@/components/icons';
+import DynamicSuggestions from '@/components/dashboard/dynamic-suggestions';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -101,7 +102,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+                <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-6 h-6" />
                   Today's Tasks
                 </CardTitle>
@@ -175,6 +176,7 @@ export default function DashboardPage() {
           <LearningPlanner />
         </div>
         <div className="lg:col-span-2 space-y-6">
+          <DynamicSuggestions />
           <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
           <RoleProductivity mood={selectedMood?.label || 'Neutral'} />
           <VisualTaskSnap onAddTasks={handleAddTasks} />

@@ -1,3 +1,4 @@
+
 import { config } from 'dotenv';
 config();
 
@@ -10,3 +11,4 @@ import '@/ai/flows/auto-schedule-flow.ts';
 import '@/ai/flows/visual-task-snap.ts';
 import '@/ai/flows/learning-plan-flow.ts';
 import '@/ai/flows/breakdown-task-flow.ts';
+import '@/ai/flows/dynamic-suggestions-flow.ts';
