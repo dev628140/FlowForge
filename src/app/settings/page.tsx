@@ -230,9 +230,9 @@ export default function SettingsPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-4 py-4 max-h-[400px] overflow-y-auto">
-                            {avatars.map((avatar) => (
+                            {avatars.map((avatar, index) => (
                                 <button
-                                    key={avatar.url}
+                                    key={index}
                                     className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                     onClick={() => setSelectedAvatar(avatar.url)}
                                 >
