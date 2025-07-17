@@ -9,6 +9,7 @@ import { Skeleton } from '../ui/skeleton';
 import { useAppContext } from '@/context/app-context';
 import { getDynamicSuggestions } from '@/ai/flows/dynamic-suggestions-flow';
 import { cn } from '@/lib/utils';
+import { isToday, parseISO } from 'date-fns';
 
 const SESSION_STORAGE_KEY = 'initialSuggestionsFetched';
 
@@ -21,15 +22,18 @@ export default function DynamicSuggestions() {
     setLoading(true);
     try {
       const userRole = 'Developer';
+      
+      const todaysTasks = tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate)));
+
       const result = await getDynamicSuggestions({
-        tasks: tasks.map(({ title, completed, description, createdAt }) => ({ title, completed, description, createdAt })),
+        tasks: todaysTasks.map(({ title, completed, description, createdAt }) => ({ title, completed, description, createdAt })),
         role: userRole,
       });
 
       if (result.suggestions && result.suggestions.length > 0) {
         setSuggestions(result.suggestions);
       } else {
-        setSuggestions(isManualRefresh ? [] : ["Add some tasks to get personalized suggestions!"]);
+        setSuggestions(isManualRefresh ? [] : ["Add some tasks for today to get personalized suggestions!"]);
       }
     } catch (error) {
       console.error('Error getting dynamic suggestions:', error);

@@ -20,14 +20,14 @@ const TaskSchema = z.object({
 });
 
 const DynamicSuggestionsInputSchema = z.object({
-  tasks: z.array(TaskSchema).describe("The user's list of recent tasks, both completed and incomplete."),
+  tasks: z.array(TaskSchema).describe("The user's list of tasks for today."),
   role: z.string().describe("The user's current role (e.g., 'Developer', 'Student')."),
 });
 export type DynamicSuggestionsInput = z.infer<typeof DynamicSuggestionsInputSchema>;
 
 
 const DynamicSuggestionsOutputSchema = z.object({
-  suggestions: z.array(z.string()).describe('A list of 2-3 concise, actionable suggestions for the user.'),
+  suggestions: z.array(z.string()).describe('A list of 2-3 concise, actionable suggestions for the user based on their tasks for the day.'),
 });
 export type DynamicSuggestionsOutput = z.infer<typeof DynamicSuggestionsOutputSchema>;
 
@@ -43,17 +43,17 @@ const prompt = ai.definePrompt({
   input: {schema: DynamicSuggestionsInputSchema},
   output: {schema: DynamicSuggestionsOutputSchema},
   prompt: `You are a proactive AI productivity assistant. Your goal is to provide a "Next Best Action" feed for the user.
-Analyze the user's recent task list to identify patterns, neglected areas, or opportunities.
-Based on their role and task history, generate 2-3 concise and highly relevant suggestions.
+Analyze the user's task list for today to identify patterns, opportunities, or potential blockers.
+Based on their role and today's tasks, generate 2-3 concise and highly relevant suggestions.
 
 - Infer task categories (e.g., 'health', 'work', 'learning', 'deep work') from the task titles.
-- If an important category seems neglected (e.g., no health tasks in a few days), create a gentle nudge.
 - If they seem to be procrastinating on a big task, suggest breaking it down or starting a focus session.
+- If there are related tasks, suggest batching them together.
 - Keep the suggestions friendly, encouraging, and actionable.
 
 User's Role: {{{role}}}
 
-Recent Tasks:
+Today's Tasks:
 {{#each tasks}}
 - {{this.title}} (Completed: {{this.completed}})
 {{/each}}
@@ -71,7 +71,7 @@ const dynamicSuggestionsFlow = ai.defineFlow(
   async input => {
     // If there are no tasks, return empty suggestions to avoid hallucination
     if (input.tasks.length === 0) {
-      return { suggestions: ["Add some tasks to get personalized suggestions!"] };
+      return { suggestions: ["Add some tasks for today to get personalized suggestions!"] };
     }
     const {output} = await prompt(input);
     return output!;
