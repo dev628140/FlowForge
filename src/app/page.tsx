@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppContext } from '@/context/app-context';
+import { v4 as uuidv4 } from 'uuid';
 
 import AITaskPlanner from '@/components/dashboard/ai-task-planner';
 import RoleProductivity from '@/components/dashboard/role-productivity';
@@ -39,6 +40,7 @@ import { Textarea } from '@/components/ui/textarea';
 import ProgressJournal from '@/components/dashboard/progress-journal';
 import ProductivityDNATracker from '@/components/dashboard/productivity-dna-tracker';
 import VisualTaskSnap from '@/components/dashboard/visual-task-snap';
+import LearningPlanner from '@/components/dashboard/learning-planner';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -72,7 +74,42 @@ export default function DashboardPage() {
 
   React.useEffect(() => {
     setIsClient(true);
-  }, []);
+    // This effect runs only once on the client after mounting.
+    // This prevents hydration errors by ensuring the server-rendered HTML
+    // and the initial client-rendered HTML are identical.
+    const initialTasks: Task[] = [
+      { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.', completedAt: new Date().toISOString() },
+      { 
+        id: uuidv4(), 
+        title: 'Design the UI layout', 
+        completed: true, 
+        description: 'Create wireframes and mockups for the dashboard.',
+        completedAt: new Date().toISOString(),
+        subtasks: [
+          { id: uuidv4(), title: 'Wireframe main dashboard', completed: true, completedAt: new Date().toISOString() },
+          { id: uuidv4(), title: 'Choose color palette', completed: true, completedAt: new Date().toISOString() },
+        ]
+      },
+      { id: uuidv4(), title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
+      { id: uuidv4(), title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
+      { id: uuidv4(), title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
+    ];
+    setTasks(initialTasks);
+    
+    const calculateInitialXp = (tasks: Task[]): number => {
+      let totalXp = 0;
+      tasks.forEach(task => {
+        if (task.completed) {
+          totalXp += 10;
+        }
+        if (task.subtasks) {
+          totalXp += calculateInitialXp(task.subtasks);
+        }
+      });
+      return totalXp;
+    };
+    setXp(calculateInitialXp(initialTasks));
+  }, [setTasks, setXp]);
   
   const handleAddTaskSubmit = (values: TaskFormValues) => {
     handleAddTasks([{ title: values.title, description: values.description }]);
@@ -85,7 +122,7 @@ export default function DashboardPage() {
   };
 
   if (!isClient) {
-    return null;
+    return null; // Return null on the server to avoid hydration mismatches
   }
 
   return (
@@ -160,6 +197,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
           <AITaskPlanner onAddTasks={handleAddTasks} />
+          <LearningPlanner />
         </div>
         <div className="lg:col-span-1 space-y-6">
           <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
