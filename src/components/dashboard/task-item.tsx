@@ -1,7 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2 } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,6 +17,17 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import TaskList from './task-list';
 import { useAppContext } from '@/context/app-context';
 import { Separator } from '../ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface TaskItemProps {
   task: Task;
@@ -25,7 +37,7 @@ interface TaskItemProps {
 }
 
 export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = false }: TaskItemProps) {
-  const { handleAddSubtasks } = useAppContext();
+  const { handleAddSubtasks, handleDeleteTask } = useAppContext();
   const [summary, setSummary] = React.useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const [isBreakingDown, setIsBreakingDown] = React.useState(false);
@@ -85,6 +97,14 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
     } finally {
       setIsBreakingDown(false);
     }
+  }
+
+  const onDelete = () => {
+    handleDeleteTask(task.id);
+    toast({
+      title: 'Task deleted',
+      description: `"${task.title}" has been removed.`,
+    });
   }
 
   const itemContent = (
@@ -213,6 +233,41 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
             </div>
           </PopoverContent>
         </Popover>
+
+        <AlertDialog>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`Delete task ${task.title}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete Task</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the task "{task.title}"
+                {hasSubtasks && " and all of its subtasks"}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={onDelete}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

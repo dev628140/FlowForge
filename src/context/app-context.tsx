@@ -17,6 +17,7 @@ interface AppContextType {
   handleToggleTask: (id: string) => void;
   handleAddTasks: (newTasks: { title: string; description?: string }[]) => void;
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => void;
+  handleDeleteTask: (id: string) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -28,38 +29,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [showConfetti, setShowConfetti] = React.useState(false);
 
   React.useEffect(() => {
-    const initialTasks: Task[] = [
-      { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.', completedAt: new Date().toISOString() },
-      { 
-        id: uuidv4(), 
-        title: 'Design the UI layout', 
-        completed: true, 
-        description: 'Create wireframes and mockups for the dashboard.',
-        completedAt: new Date().toISOString(),
-        subtasks: [
-          { id: uuidv4(), title: 'Wireframe main dashboard', completed: true, completedAt: new Date().toISOString() },
-          { id: uuidv4(), title: 'Choose color palette', completed: true, completedAt: new Date().toISOString() },
-        ]
-      },
-      { id: uuidv4(), title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
-      { id: uuidv4(), title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
-      { id: uuidv4(), title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
-    ];
-    setTasks(initialTasks);
-    
-    const calculateInitialXp = (tasks: Task[]): number => {
-      let totalXp = 0;
-      tasks.forEach(task => {
-        if (task.completed) {
-          totalXp += 10;
-        }
-        if (task.subtasks) {
-          totalXp += calculateInitialXp(task.subtasks);
-        }
-      });
-      return totalXp;
-    };
-    setXp(calculateInitialXp(initialTasks));
+    // Start with an empty list of tasks
+    setTasks([]);
+    setXp(0);
+    setLevel(1);
   }, []);
 
   const xpToNextLevel = level * 50;
@@ -137,7 +110,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setTasks(prevTasks => addRecursively(prevTasks));
   };
+  
+  const handleDeleteTask = (id: string) => {
+    const deleteRecursively = (tasks: Task[], taskId: string): Task[] => {
+      return tasks.filter(task => {
+        if (task.id === taskId) {
+          return false;
+        }
+        if (task.subtasks) {
+          task.subtasks = deleteRecursively(task.subtasks, taskId);
+        }
+        return true;
+      });
+    };
 
+    setTasks(prevTasks => deleteRecursively(prevTasks, id));
+  };
 
   return (
     <AppContext.Provider value={{
@@ -148,7 +136,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       showConfetti,
       handleToggleTask,
       handleAddTasks,
-      handleAddSubtasks
+      handleAddSubtasks,
+      handleDeleteTask
     }}>
       {children}
     </AppContext.Provider>
