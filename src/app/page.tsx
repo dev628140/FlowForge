@@ -75,7 +75,12 @@ export default function DashboardPage() {
   });
   
   const handleAddTaskSubmit = (values: TaskFormValues) => {
-    handleAddTasks([{ title: values.title, description: values.description }]);
+    const today = format(new Date(), 'yyyy-MM-dd');
+    handleAddTasks([{ 
+      title: values.title, 
+      description: values.description,
+      scheduledDate: today 
+    }]);
     form.reset();
     setIsAddDialogOpen(false);
   };
@@ -117,9 +122,9 @@ export default function DashboardPage() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Add a new task</DialogTitle>
+                    <DialogTitle>Add a new task for today</DialogTitle>
                     <DialogDescription>
-                      What do you want to accomplish? This will be added as an unscheduled task.
+                      What do you want to accomplish? This will be automatically scheduled for today.
                     </DialogDescription>
                   </DialogHeader>
                   <Form {...form}>
