@@ -81,13 +81,13 @@ export default function SchedulePage() {
                     <h1 className="text-3xl font-bold font-headline mb-1">Weekly Schedule</h1>
                     <p className="text-muted-foreground">View and manage your tasks for the week. Only unscheduled tasks will be added.</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
                                 variant={"outline"}
                                 className={cn(
-                                    "w-[280px] justify-start text-left font-normal",
+                                    "w-full sm:w-[280px] justify-start text-left font-normal",
                                     !date && "text-muted-foreground"
                                 )}
                             >
@@ -104,25 +104,25 @@ export default function SchedulePage() {
                             />
                         </PopoverContent>
                     </Popover>
-                    <Button onClick={handleAutoSchedule} disabled={loading}>
+                    <Button onClick={handleAutoSchedule} disabled={loading} className="w-full sm:w-auto">
                         {loading ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                             <Wand2 className="mr-2 h-4 w-4" />
                         )}
-                        Auto-Schedule Week
+                        Auto-Schedule
                     </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
                 {weekDays.map(day => (
-                    <Card key={day.toString()} className="h-full">
+                    <Card key={day.toString()} className="h-full flex flex-col">
                         <CardHeader className="p-4">
                             <CardTitle className="text-sm font-medium">{format(day, 'EEE')}</CardTitle>
                             <CardDescription className="text-xs">{format(day, 'MMM d')}</CardDescription>
                         </CardHeader>
-                        <CardContent className="p-4 pt-0">
+                        <CardContent className="p-4 pt-0 flex-grow">
                             <div className="space-y-2">
                                 {tasksByDate[format(day, 'yyyy-MM-dd')]?.map(task => (
                                     <div key={task.id} className={cn("text-xs p-2 rounded-md bg-muted text-muted-foreground", task.completed && "line-through opacity-50")}>

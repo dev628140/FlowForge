@@ -98,7 +98,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-lg m-4 p-8 text-center flex flex-col items-center relative">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-md m-4 p-6 md:p-8 text-center flex flex-col items-center relative">
         <Button variant="ghost" size="icon" className="absolute top-4 right-4" onClick={onClose}>
             <X className="h-5 w-5" />
             <span className="sr-only">Close Focus Mode</span>
@@ -109,25 +109,26 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
             <span>{isBreak ? 'BREAK TIME' : 'FOCUSING ON'}</span>
         </div>
 
-        {!isBreak && <h1 className="text-2xl font-bold font-headline mb-6 text-card-foreground">{task.title}</h1>}
+        {!isBreak && <h1 className="text-xl md:text-2xl font-bold font-headline mb-4 text-card-foreground">{task.title}</h1>}
         
-        <div className="font-mono font-bold text-7xl md:text-8xl text-card-foreground my-6">
+        <div className="font-mono font-bold text-6xl sm:text-7xl md:text-8xl text-card-foreground my-4">
           {formatTime(timeLeft)}
         </div>
         
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-6">
           <Button variant="outline" size="icon" onClick={resetTimer}>
             <RotateCcw className="w-5 h-5" />
             <span className="sr-only">Reset Timer</span>
           </Button>
-          <Button size="lg" className="w-32 h-16 rounded-full text-lg shadow-lg" onClick={toggleTimer}>
+          <Button size="lg" className="w-24 h-16 md:w-32 md:h-16 rounded-full text-lg shadow-lg" onClick={toggleTimer}>
             {isActive ? <Pause className="w-8 h-8"/> : <Play className="w-8 h-8"/>}
             <span className="sr-only">{isActive ? 'Pause timer' : 'Start timer'}</span>
+
           </Button>
            <div className="w-12 h-12" /> {/* Spacer */}
         </div>
 
-        <div className="w-full space-y-6 mb-8">
+        <div className="w-full space-y-4 mb-6">
             <div className="space-y-3">
               <Label htmlFor="focus-duration">Focus Duration: {focusDuration / 60} mins</Label>
               <Slider
@@ -152,7 +153,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
                 disabled={isActive}
               />
             </div>
-             <div className="flex justify-around items-center">
+             <div className="flex flex-col sm:flex-row justify-around items-center gap-4">
                 <div className="flex items-center space-x-2">
                     <Switch id="auto-start-breaks" checked={autoStartBreaks} onCheckedChange={setAutoStartBreaks} />
                     <Label htmlFor="auto-start-breaks">Auto-start Breaks</Label>

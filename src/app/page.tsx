@@ -96,10 +96,10 @@ export default function DashboardPage() {
   return (
     <div className="relative min-h-screen w-full">
       <Confetti active={showConfetti} />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 p-4 md:p-6">
+        <div className="lg:col-span-3 space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-6 h-6" />
@@ -109,7 +109,7 @@ export default function DashboardPage() {
               </div>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" variant="ghost">
+                  <Button size="sm" variant="ghost" className="mt-4 sm:mt-0">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Task
                   </Button>
@@ -174,7 +174,7 @@ export default function DashboardPage() {
           <AITaskPlanner />
           <LearningPlanner />
         </div>
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
           <RoleProductivity mood={selectedMood?.label || 'Neutral'} />
           <VisualTaskSnap onAddTasks={handleAddTasks} />
