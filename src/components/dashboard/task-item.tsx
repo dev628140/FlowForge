@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2 } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, UserPlus } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,6 +30,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
 import { Badge } from '../ui/badge';
+import { useAuth } from '@/context/auth-context';
+import ShareTask from './share-task';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 interface TaskItemProps {
   task: Task;
@@ -40,12 +43,14 @@ interface TaskItemProps {
 }
 
 export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = false, parentId }: TaskItemProps) {
+  const { user } = useAuth();
   const { handleAddSubtasks, handleDeleteTask, updateTask } = useAppContext();
   const [summary, setSummary] = React.useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const [isBreakingDown, setIsBreakingDown] = React.useState(false);
   const { toast } = useToast();
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+  const isOwner = task.userId === user?.uid;
 
   const handleToggleSubtask = (subtaskId: string) => {
     onToggle(subtaskId, task.id);
@@ -120,6 +125,11 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
       description: `"${task.title}" has been removed.`,
     });
   }
+  
+  const collaborators = task.sharedWith?.filter(email => email !== user?.email) || [];
+  if (task.ownerEmail && task.ownerEmail !== user?.email && !collaborators.includes(task.ownerEmail)) {
+      collaborators.push(task.ownerEmail);
+  }
 
   const itemContent = (
     <div className={cn("flex items-start group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
@@ -141,7 +151,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
         >
           {task.title}
         </label>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
             {task.description && (
             <p className={cn(
                 "text-xs text-muted-foreground transition-colors",
@@ -154,6 +164,30 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
                 <Badge variant="outline" className="text-xs">
                     {format(parseISO(task.scheduledDate), 'MMM d')}
                 </Badge>
+            )}
+             {!isOwner && task.ownerEmail && (
+                <Badge variant="secondary" className="text-xs">
+                    Shared by {task.ownerEmail.split('@')[0]}
+                </Badge>
+            )}
+            {collaborators.length > 0 && (
+                <div className="flex items-center gap-1">
+                    {collaborators.map(email => (
+                        <TooltipProvider key={email}>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Avatar className="h-4 w-4">
+                                        <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${email}`} alt={email} />
+                                        <AvatarFallback>{email.charAt(0).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{email}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    ))}
+                </div>
             )}
         </div>
       </div>
@@ -186,6 +220,21 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        <Popover>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                   <ShareTask task={task} />
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Share Task</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </Popover>
 
         <Popover onOpenChange={() => setSummary(null)}>
           <TooltipProvider>
@@ -268,6 +317,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
                     size="icon"
                     className="hover:bg-destructive/10 hover:text-destructive"
                     aria-label={`Delete task ${task.title}`}
+                    disabled={!isOwner}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

@@ -6,7 +6,7 @@ import type { Task } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface AppContextType {
@@ -23,6 +23,7 @@ interface AppContextType {
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  shareTask: (taskId: string, email: string) => Promise<void>;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -39,7 +40,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Listen for task changes in Firestore
   React.useEffect(() => {
     if (user && db) {
-      const q = query(collection(db, "tasks"), where("userId", "==", user.uid));
+      // Query for tasks owned by the user OR shared with the user
+      const q = query(
+        collection(db, "tasks"), 
+        where("memberEmails", "array-contains", user.email)
+      );
+
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const userTasks: Task[] = [];
         querySnapshot.forEach((doc) => {
@@ -96,8 +102,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             };
             if (isCompleting) {
               updatedSubtask.completedAt = new Date().toISOString();
-            } else {
-              delete updatedSubtask.completedAt; // Remove field
             }
             return updatedSubtask as Task;
           }
@@ -106,13 +110,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         batch.update(parentTaskRef, { subtasks: updatedSubtasks });
       } else {
         const taskRef = doc(db, 'tasks', id);
-        const updateData: Partial<Task> = {
+        const updateData: any = {
           completed: isCompleting
         };
         if (isCompleting) {
           updateData.completedAt = new Date().toISOString();
-        } else {
-          delete updateData.completedAt; // Remove field
         }
         batch.update(taskRef, updateData);
       }
@@ -132,7 +134,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
   
   const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed'>>[]) => {
-    if (!user || !db) return;
+    if (!user || !db || !user.email) return;
     
     try {
       const batch = writeBatch(db);
@@ -143,6 +145,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ...task,
           id: taskId,
           userId: user.uid,
+          ownerEmail: user.email,
+          sharedWith: [user.email], // Initially shared only with the owner
+          memberEmails: [user.email], // For querying
           completed: false,
           createdAt: new Date().toISOString(),
         });
@@ -165,6 +170,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const shareTask = async (taskId: string, email: string) => {
+    if (!user || !db) return;
+    try {
+        const taskRef = doc(db, 'tasks', taskId);
+        await updateDoc(taskRef, {
+            sharedWith: arrayUnion(email),
+            memberEmails: arrayUnion(email)
+        });
+        toast({ title: "Task Shared!", description: `Successfully shared with ${email}` });
+    } catch (error) {
+        console.error("Error sharing task:", error);
+        toast({ title: "Error", description: "Could not share the task.", variant: "destructive" });
+    }
+  };
+
   const handleAddSubtasks = async (parentId: string, subtasks: { title: string; description?: string }[]) => {
      if (!user || !db) return;
      try {
@@ -183,6 +203,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completed: false,
           userId: user.uid,
           createdAt: new Date().toISOString(),
+          ownerEmail: user.email!,
        }));
 
        const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
@@ -234,7 +255,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleAddTasks,
       handleAddSubtasks,
       handleDeleteTask,
-      updateTask
+      updateTask,
+      shareTask
     }}>
       {children}
     </AppContext.Provider>

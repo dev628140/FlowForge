@@ -6,8 +6,10 @@ export interface Task {
   subtasks?: Task[];
   completedAt?: string;
   scheduledDate?: string; // YYYY-MM-DD
-  userId?: string;
+  userId: string;
   createdAt?: string;
+  ownerEmail?: string;
+  sharedWith?: string[]; // Array of user emails
 }
 
 export type UserRole = 'Student' | 'Developer' | 'Founder' | 'Freelancer';
