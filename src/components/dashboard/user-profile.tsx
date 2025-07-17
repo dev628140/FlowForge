@@ -19,7 +19,7 @@ interface UserProfileProps {
 
 export default function UserProfile({ level, xp, xpToNextLevel, user }: UserProfileProps) {
   const { logout } = useAuth();
-  const progressPercentage = (xp / xpToNextLevel) * 100;
+  const progressPercentage = xpToNextLevel > 0 ? (xp / xpToNextLevel) * 100 : 0;
   
   const displayName = user?.displayName || user?.email;
   const fallback = displayName ? displayName.charAt(0).toUpperCase() : 'U';

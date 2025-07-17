@@ -6,16 +6,16 @@ import type { Task } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { differenceInDays, isBefore, isToday, startOfToday, parseISO } from 'date-fns';
 
 interface AppContextType {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   xp: number;
-  setXp: React.Dispatch<React.SetStateAction<number>>;
+  totalXp: number;
   level: number;
-  setLevel: React.Dispatch<React.SetStateAction<number>>;
   xpToNextLevel: number;
   showConfetti: boolean;
   handleToggleTask: (id: string, parentId?: string) => void;
@@ -27,19 +27,26 @@ interface AppContextType {
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
+const XP_PER_LEVEL = 50;
+const XP_PER_TASK_COMPLETION = 10;
+const XP_PENALTY_PER_DAY = 5;
+const LAST_PENALTY_CHECK_KEY = 'lastPenaltyCheck';
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [xp, setXp] = React.useState(0);
-  const [level, setLevel] = React.useState(1);
+  const [totalXp, setTotalXp] = React.useState(0); // Single source of truth for XP
   const [showConfetti, setShowConfetti] = React.useState(false);
-  const xpToNextLevel = level * 50;
+
+  // Derived state for level and current XP
+  const level = Math.floor(totalXp / XP_PER_LEVEL) + 1;
+  const xp = totalXp % XP_PER_LEVEL;
+  const xpToNextLevel = XP_PER_LEVEL;
 
   // Listen for task changes in Firestore
   React.useEffect(() => {
     if (user && db) {
-      // Query for tasks owned by the user
       const q = query(
         collection(db, "tasks"), 
         where("userId", "==", user.uid)
@@ -56,19 +63,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
       });
 
+      // Fetch user progress (like totalXp) if you store it in Firestore
+      // For now, we'll keep it in component state and localStorage for persistence
+      const storedXp = localStorage.getItem(`totalXp_${user.uid}`);
+      if (storedXp) {
+        setTotalXp(parseInt(storedXp, 10));
+      }
+
+
       return () => unsubscribe();
     } else {
       setTasks([]); // Clear tasks if user logs out
+      setTotalXp(0);
     }
   }, [user, toast]);
-
-  React.useEffect(() => {
-    if (xp >= xpToNextLevel) {
-      setLevel(prev => prev + 1);
-      setXp(prev => prev - xpToNextLevel);
-    }
-  }, [xp, xpToNextLevel]);
   
+  // Effect to save totalXp to localStorage
+  React.useEffect(() => {
+    if (user) {
+      localStorage.setItem(`totalXp_${user.uid}`, totalXp.toString());
+    }
+  }, [totalXp, user]);
+
+  // Effect for daily penalty check
+  React.useEffect(() => {
+    if (!user || tasks.length === 0) return;
+
+    const lastCheckString = localStorage.getItem(LAST_PENALTY_CHECK_KEY);
+    const today = startOfToday();
+
+    // Only run penalty check once per day
+    if (lastCheckString && isToday(parseISO(lastCheckString))) {
+      return;
+    }
+
+    const overdueTasks = tasks.filter(task => 
+        !task.completed && 
+        task.scheduledDate && 
+        isBefore(parseISO(task.scheduledDate), today)
+    );
+
+    if (overdueTasks.length > 0) {
+        let totalPenalty = 0;
+        overdueTasks.forEach(task => {
+            const daysOverdue = differenceInDays(today, parseISO(task.scheduledDate!));
+            if (daysOverdue > 0) {
+                totalPenalty += daysOverdue * XP_PENALTY_PER_DAY;
+            }
+        });
+
+        if (totalPenalty > 0) {
+            setTotalXp(currentXp => {
+                const newXp = Math.max(0, currentXp - totalPenalty);
+                 toast({
+                    title: "XP Penalty Applied",
+                    description: `You lost ${totalPenalty} XP for overdue tasks.`,
+                    variant: 'destructive'
+                });
+                return newXp;
+            });
+        }
+    }
+
+    localStorage.setItem(LAST_PENALTY_CHECK_KEY, today.toISOString());
+
+  }, [tasks, user, toast]);
+
   const handleToggleTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
 
@@ -114,10 +174,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         };
         if (isCompleting) {
           updateData.completedAt = new Date().toISOString();
-        } else {
-            // Firestore does not allow `undefined` values. 
-            // To remove a field, you can either omit it or use deleteField()
-            // but for simplicity, we just won't include it in the update.
         }
         batch.update(taskRef, updateData);
       }
@@ -127,8 +183,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (isCompleting) {
         new Audio('/sounds/success.mp3').play().catch(e => console.error("Audio play failed", e));
         setShowConfetti(true);
-        setXp(prev => prev + 10);
+        setTotalXp(prev => prev + XP_PER_TASK_COMPLETION);
         setTimeout(() => setShowConfetti(false), 5000);
+      } else {
+         // Optional: logic for de-completing a task (e.g., remove XP)
       }
     } catch (error) {
       console.error("Error toggling task:", error);
@@ -136,7 +194,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed'>>[]) => {
+  const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => {
     if (!user || !db) return;
     
     try {
@@ -145,7 +203,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const taskId = uuidv4();
         const taskRef = doc(db, 'tasks', taskId);
         
-        // Build the new task data, ensuring no undefined fields are passed to Firestore
         const newTaskData: any = {
           id: taskId,
           userId: user.uid,
@@ -219,7 +276,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const batch = writeBatch(db);
       
       if (parentId) {
-        // This is a subtask, update the parent
         const parentTaskRef = doc(db, 'tasks', parentId);
         const docSnap = await getDoc(parentTaskRef);
 
@@ -230,7 +286,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const updatedSubtasks = parentTask.subtasks?.filter(sub => sub.id !== id);
         batch.update(parentTaskRef, { subtasks: updatedSubtasks });
       } else {
-        // This is a main task, delete the document
         const taskRef = doc(db, 'tasks', id);
         batch.delete(taskRef);
       }
@@ -245,8 +300,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       tasks, setTasks,
-      xp, setXp,
-      level, setLevel,
+      xp,
+      totalXp,
+      level,
       xpToNextLevel,
       showConfetti,
       handleToggleTask,
