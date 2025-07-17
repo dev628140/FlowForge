@@ -32,6 +32,7 @@ import { format, parseISO } from 'date-fns';
 import { Badge } from '../ui/badge';
 import { Calendar } from '../ui/calendar';
 import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 interface TaskItemProps {
   task: Task;
