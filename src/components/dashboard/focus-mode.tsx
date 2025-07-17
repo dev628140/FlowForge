@@ -2,12 +2,15 @@
 'use client';
 
 import * as React from 'react';
-import { Pause, Play, RotateCcw, X, Brain, Coffee } from 'lucide-react';
+import { Pause, Play, RotateCcw, X, Brain, Coffee, Music, Loader2 } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { generateFocusPlaylist, FocusPlaylistOutput } from '@/ai/flows/focus-playlist-flow';
+import { Skeleton } from '../ui/skeleton';
+import { Separator } from '../ui/separator';
 
 interface FocusModeProps {
   task: Task;
@@ -33,6 +36,27 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   const [autoStartBreaks, setAutoStartBreaks] = React.useState(false);
   const [autoStartFocus, setAutoStartFocus] = React.useState(false);
   const [cyclesCompleted, setCyclesCompleted] = React.useState(0);
+  
+  const [playlist, setPlaylist] = React.useState<FocusPlaylistOutput | null>(null);
+  const [playlistLoading, setPlaylistLoading] = React.useState(true);
+
+  // Fetch playlist when component mounts
+  React.useEffect(() => {
+    const fetchPlaylist = async () => {
+      setPlaylistLoading(true);
+      try {
+        const result = await generateFocusPlaylist({ taskTitle: task.title });
+        setPlaylist(result);
+      } catch (error) {
+        console.error("Failed to generate playlist:", error);
+        setPlaylist(null); // Set to null on error
+      } finally {
+        setPlaylistLoading(false);
+      }
+    };
+    fetchPlaylist();
+  }, [task.title]);
+
 
   // Update timeLeft when duration settings are changed while paused
   React.useEffect(() => {
@@ -98,7 +122,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-md m-4 p-6 md:p-8 text-center flex flex-col items-center relative">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-lg m-4 p-6 md:p-8 text-center flex flex-col items-center relative">
         <Button variant="ghost" size="icon" className="absolute top-4 right-4" onClick={onClose}>
             <X className="h-5 w-5" />
             <span className="sr-only">Close Focus Mode</span>
@@ -127,7 +151,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
           </Button>
            <div className="w-12 h-12" /> {/* Spacer */}
         </div>
-
+        
         <div className="w-full space-y-4 mb-6">
             <div className="space-y-3">
               <Label htmlFor="focus-duration">Focus Duration: {focusDuration / 60} mins</Label>
@@ -168,7 +192,33 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
         <Button onClick={handleComplete} variant="secondary" className="w-full mb-4">
           Mark as Complete
         </Button>
-        <p className="text-sm text-muted-foreground">Cycles completed: {cyclesCompleted}</p>
+        <p className="text-sm text-muted-foreground mb-4">Cycles completed: {cyclesCompleted}</p>
+        
+        <Separator className="my-4" />
+        
+        <div className="w-full text-left">
+            <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-2">
+                <Music className="h-4 w-4" />
+                Focus Playlist
+            </h3>
+            {playlistLoading ? (
+                <div className="space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
+                </div>
+            ) : playlist && playlist.playlist.length > 0 ? (
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                    {playlist.playlist.map((song, index) => (
+                        <li key={index}>
+                            <span className="font-medium text-card-foreground">{song.title}</span> by {song.artist}
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="text-xs text-muted-foreground">Could not generate a playlist.</p>
+            )}
+        </div>
       </div>
     </div>
   );
