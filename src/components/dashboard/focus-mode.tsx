@@ -38,24 +38,21 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   const [cyclesCompleted, setCyclesCompleted] = React.useState(0);
   
   const [playlist, setPlaylist] = React.useState<FocusPlaylistOutput | null>(null);
-  const [playlistLoading, setPlaylistLoading] = React.useState(true);
+  const [playlistLoading, setPlaylistLoading] = React.useState(false);
 
-  // Fetch playlist when component mounts
-  React.useEffect(() => {
-    const fetchPlaylist = async () => {
-      setPlaylistLoading(true);
-      try {
-        const result = await generateFocusPlaylist({ taskTitle: task.title });
-        setPlaylist(result);
-      } catch (error) {
-        console.error("Failed to generate playlist:", error);
-        setPlaylist(null); // Set to null on error
-      } finally {
-        setPlaylistLoading(false);
-      }
-    };
-    fetchPlaylist();
-  }, [task.title]);
+  const fetchPlaylist = async () => {
+    setPlaylistLoading(true);
+    setPlaylist(null);
+    try {
+      const result = await generateFocusPlaylist({ taskTitle: task.title });
+      setPlaylist(result);
+    } catch (error) {
+      console.error("Failed to generate playlist:", error);
+      setPlaylist(null); // Set to null on error
+    } finally {
+      setPlaylistLoading(false);
+    }
+  };
 
 
   // Update timeLeft when duration settings are changed while paused
@@ -216,7 +213,15 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
                     ))}
                 </ul>
             ) : (
-                <p className="text-xs text-muted-foreground">Could not generate a playlist.</p>
+                 <div className="text-center">
+                    <p className="text-xs text-muted-foreground mb-2">
+                        {playlist === null ? 'Click below to generate a playlist for this task.' : 'Could not generate a playlist.'}
+                    </p>
+                    <Button onClick={fetchPlaylist} disabled={playlistLoading} size="sm" variant="ghost">
+                        {playlistLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Music className="mr-2 h-4 w-4" />}
+                        Generate Playlist
+                    </Button>
+                 </div>
             )}
         </div>
       </div>
