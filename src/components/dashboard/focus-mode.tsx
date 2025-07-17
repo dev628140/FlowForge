@@ -170,7 +170,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
                 disabled={isActive}
               />
             </div>
-             <div className="flex flex-col sm:flex-row justify-around items-center gap-4">
+             <div className="flex flex-col sm:flex-row justify-around items-center gap-4 pt-2">
                 <div className="flex items-center space-x-2">
                     <Switch id="auto-start-breaks" checked={autoStartBreaks} onCheckedChange={setAutoStartBreaks} />
                     <Label htmlFor="auto-start-breaks">Auto-start Breaks</Label>
