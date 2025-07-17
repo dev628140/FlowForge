@@ -111,19 +111,86 @@ export default function SettingsPage() {
   const processImageFile = async (file: File) => {
     setPictureLoading(true);
     try {
-      await updateUserProfilePicture(file);
-      toast({
-        title: 'Profile Picture Updated',
-        description: 'Your new avatar has been saved.',
-      });
+      // Create an image element to get dimensions
+      const image = new Image();
+      const imageUrl = URL.createObjectURL(file);
+      
+      image.onload = () => {
+        // Now that the image is loaded, we can draw it to the canvas
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 512;
+        const MAX_HEIGHT = 512;
+        let width = image.width;
+        let height = image.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Could not get canvas context');
+        }
+        ctx.drawImage(image, 0, 0, width, height);
+
+        // Convert canvas to blob, which is more efficient
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            throw new Error('Canvas to Blob conversion failed');
+          }
+          const optimizedFile = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          });
+          
+          try {
+            await updateUserProfilePicture(optimizedFile);
+            toast({
+              title: 'Profile Picture Updated',
+              description: 'Your new avatar has been saved.',
+            });
+          } catch(uploadError: any) {
+            toast({
+              title: 'Upload Failed',
+              description: uploadError.message,
+              variant: 'destructive',
+            });
+          } finally {
+            setPictureLoading(false);
+             URL.revokeObjectURL(imageUrl); // Clean up the object URL
+          }
+
+        }, 'image/jpeg', 0.9); // 90% quality
+      };
+      
+      image.onerror = () => {
+         setPictureLoading(false);
+         URL.revokeObjectURL(imageUrl);
+         toast({
+            title: 'Image Load Error',
+            description: 'Could not load the selected image file.',
+            variant: 'destructive',
+        });
+      }
+      
+      image.src = imageUrl;
+
     } catch (error: any) {
+      setPictureLoading(false);
       toast({
         title: 'Upload Failed',
         description: error.message,
         variant: 'destructive',
       });
-    } finally {
-      setPictureLoading(false);
     }
   };
 
@@ -155,7 +222,6 @@ export default function SettingsPage() {
   };
 
   React.useEffect(() => {
-    let stream: MediaStream | null = null;
     const getCameraDevices = async () => {
       if (!isCameraDialogOpen) return;
       try {
@@ -240,7 +306,7 @@ export default function SettingsPage() {
                 </Button>
                 <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline">
+                        <Button variant="outline" disabled={pictureLoading}>
                             <Camera className="mr-2"/> Take Picture
                         </Button>
                     </DialogTrigger>
