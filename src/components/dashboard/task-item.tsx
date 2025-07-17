@@ -33,12 +33,13 @@ import { Badge } from '../ui/badge';
 
 interface TaskItemProps {
   task: Task;
-  onToggle: (id: string) => void;
+  onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   isSubtask?: boolean;
+  parentId?: string;
 }
 
-export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = false }: TaskItemProps) {
+export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = false, parentId }: TaskItemProps) {
   const { handleAddSubtasks, handleDeleteTask, updateTask } = useAppContext();
   const [summary, setSummary] = React.useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
@@ -47,18 +48,10 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
 
   const handleToggleSubtask = (subtaskId: string) => {
-    const updatedSubtasks = task.subtasks?.map(sub => 
-      sub.id === subtaskId 
-        ? { ...sub, completed: !sub.completed, completedAt: !sub.completed ? new Date().toISOString() : undefined } 
-        : sub
-    );
-    updateTask(task.id, { subtasks: updatedSubtasks });
+    onToggle(subtaskId, task.id);
   };
   
   const handleStartFocusSubtask = (subtask: Task) => {
-    // We can't start focus mode on a subtask directly in this component
-    // a more complex state management would be needed.
-    // For now, we can show a toast or disable the button.
      toast({
       title: "Focus Mode",
       description: "Focus mode can only be started on main tasks.",
@@ -121,7 +114,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
   }
 
   const onDelete = async () => {
-    await handleDeleteTask(task.id);
+    await handleDeleteTask(task.id, parentId);
     toast({
       title: 'Task deleted',
       description: `"${task.title}" has been removed.`,
@@ -134,7 +127,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
        <Checkbox
         id={`task-${task.id}`}
         checked={task.completed}
-        onCheckedChange={() => onToggle(task.id)}
+        onCheckedChange={() => onToggle(task.id, parentId)}
         className="w-5 h-5 mr-4 mt-1"
         aria-label={`Mark task ${task.title} as ${task.completed ? 'incomplete' : 'complete'}`}
       />
@@ -166,7 +159,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
       </div>
       <div className={cn(
           "flex items-center transition-opacity", 
-          isSubtask ? "opacity-0 group-hover:opacity-100" : ""
+          "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
       )}>
         {hasSubtasks && (
            <CollapsibleTrigger asChild>
@@ -314,6 +307,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
               onToggle={handleToggleSubtask}
               onStartFocus={handleStartFocusSubtask}
               isSubtaskList={true}
+              parentId={task.id}
             />
           </div>
         </CollapsibleContent>

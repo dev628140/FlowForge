@@ -6,7 +6,7 @@ import type { Task } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDocs, writeBatch, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, writeBatch, query, where, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface AppContextType {
@@ -18,10 +18,10 @@ interface AppContextType {
   setLevel: React.Dispatch<React.SetStateAction<number>>;
   xpToNextLevel: number;
   showConfetti: boolean;
-  handleToggleTask: (id: string) => void;
+  handleToggleTask: (id: string, parentId?: string) => void;
   handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => Promise<void>;
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
-  handleDeleteTask: (id: string) => Promise<void>;
+  handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
 }
 
@@ -64,22 +64,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [xp, xpToNextLevel]);
   
-  const handleToggleTask = async (id: string) => {
+  const handleToggleTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
     
-    const taskRef = doc(db, 'tasks', id);
-    const taskToToggle = findTaskById(tasks, id);
+    let taskToToggle: Task | null = null;
+    let parentTask: Task | null = null;
+    
+    if (parentId) {
+      parentTask = findTaskById(tasks, parentId);
+      if (parentTask && parentTask.subtasks) {
+        taskToToggle = parentTask.subtasks.find(t => t.id === id) || null;
+      }
+    } else {
+      taskToToggle = findTaskById(tasks, id);
+    }
 
     if (!taskToToggle) return;
 
     const isCompleting = !taskToToggle.completed;
-    
+
     try {
       const batch = writeBatch(db);
-      batch.update(taskRef, { 
-        completed: isCompleting,
-        completedAt: isCompleting ? new Date().toISOString() : undefined,
-      });
+
+      if (parentTask) {
+        const parentTaskRef = doc(db, 'tasks', parentId);
+        const updatedSubtasks = parentTask.subtasks?.map(sub => 
+          sub.id === id 
+            ? { ...sub, completed: isCompleting, completedAt: isCompleting ? new Date().toISOString() : undefined } 
+            : sub
+        );
+        batch.update(parentTaskRef, { subtasks: updatedSubtasks });
+      } else {
+        const taskRef = doc(db, 'tasks', id);
+        batch.update(taskRef, { 
+          completed: isCompleting,
+          completedAt: isCompleting ? new Date().toISOString() : undefined,
+        });
+      }
+      
       await batch.commit();
 
       if (isCompleting) {
@@ -134,8 +156,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
      if (!user || !db) return;
      try {
        const parentTaskRef = doc(db, 'tasks', parentId);
-       const parentTask = findTaskById(tasks, parentId);
-       if (!parentTask) return;
+       const docSnap = await getDoc(parentTaskRef);
+
+       if (!docSnap.exists()) {
+         throw new Error("Parent task not found");
+       }
+       const parentTask = docSnap.data() as Task;
 
        const batch = writeBatch(db);
        
@@ -158,12 +184,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
      }
   };
   
-  const handleDeleteTask = async (id: string) => {
+  const handleDeleteTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
     try {
-      const taskRef = doc(db, 'tasks', id);
       const batch = writeBatch(db);
-      batch.delete(taskRef);
+      
+      if (parentId) {
+        // This is a subtask, update the parent
+        const parentTaskRef = doc(db, 'tasks', parentId);
+        const docSnap = await getDoc(parentTaskRef);
+
+        if (!docSnap.exists()) {
+            throw new Error("Parent task not found");
+        }
+        const parentTask = docSnap.data() as Task;
+        const updatedSubtasks = parentTask.subtasks?.filter(sub => sub.id !== id);
+        batch.update(parentTaskRef, { subtasks: updatedSubtasks });
+      } else {
+        // This is a main task, delete the document
+        const taskRef = doc(db, 'tasks', id);
+        batch.delete(taskRef);
+      }
+      
       await batch.commit();
     } catch (error) {
       console.error("Error deleting task:", error);

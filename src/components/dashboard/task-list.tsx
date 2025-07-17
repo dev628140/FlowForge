@@ -7,13 +7,14 @@ import TaskItem from './task-item';
 
 interface TaskListProps {
   tasks: Task[];
-  onToggle: (id: string) => void;
+  onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   isSubtaskList?: boolean;
   emptyMessage?: string;
+  parentId?: string;
 }
 
-export default function TaskList({ tasks, onToggle, onStartFocus, isSubtaskList = false, emptyMessage }: TaskListProps) {
+export default function TaskList({ tasks, onToggle, onStartFocus, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
   const incompleteTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
 
@@ -32,6 +33,7 @@ export default function TaskList({ tasks, onToggle, onStartFocus, isSubtaskList 
       onToggle={onToggle} 
       onStartFocus={onStartFocus} 
       isSubtask={isSubtaskList}
+      parentId={parentId}
     />
   );
 
