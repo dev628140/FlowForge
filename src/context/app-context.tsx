@@ -28,15 +28,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const initialTasks: Task[] = [
-      { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.' },
+      { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.', completedAt: new Date().toISOString() },
       { 
         id: uuidv4(), 
         title: 'Design the UI layout', 
         completed: true, 
         description: 'Create wireframes and mockups for the dashboard.',
+        completedAt: new Date().toISOString(),
         subtasks: [
-          { id: uuidv4(), title: 'Wireframe main dashboard', completed: true },
-          { id: uuidv4(), title: 'Choose color palette', completed: true },
+          { id: uuidv4(), title: 'Wireframe main dashboard', completed: true, completedAt: new Date().toISOString() },
+          { id: uuidv4(), title: 'Choose color palette', completed: true, completedAt: new Date().toISOString() },
         ]
       },
       { id: uuidv4(), title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
@@ -78,7 +79,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (!task.completed) {
             isCompleting = true;
           }
-          return { ...task, completed: !task.completed };
+          const isNowCompleted = !task.completed;
+          return { 
+            ...task, 
+            completed: isNowCompleted,
+            completedAt: isNowCompleted ? new Date().toISOString() : undefined
+          };
         }
         if (task.subtasks) {
           return { ...task, subtasks: toggleRecursively(task.subtasks) };

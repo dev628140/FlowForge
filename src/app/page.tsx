@@ -37,6 +37,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import ProgressJournal from '@/components/dashboard/progress-journal';
+import ProductivityDNATracker from '@/components/dashboard/productivity-dna-tracker';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -161,6 +162,7 @@ export default function DashboardPage() {
           <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
           <RoleProductivity mood={selectedMood?.label || 'Neutral'} />
           <ProgressJournal tasks={tasks} />
+          <ProductivityDNATracker tasks={tasks} />
         </div>
       </div>
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {

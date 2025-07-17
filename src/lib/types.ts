@@ -4,6 +4,7 @@ export interface Task {
   description?: string;
   completed: boolean;
   subtasks?: Task[];
+  completedAt?: string;
 }
 
 export type UserRole = 'Student' | 'Developer' | 'Founder' | 'Freelancer';
