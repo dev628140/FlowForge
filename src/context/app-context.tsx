@@ -181,7 +181,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await batch.commit();
 
       if (isCompleting) {
-        new Audio('/sounds/success.mp3').play().catch(e => console.error("Audio play failed", e));
         setShowConfetti(true);
         setTotalXp(prev => prev + XP_PER_TASK_COMPLETION);
         setTimeout(() => setShowConfetti(false), 5000);
@@ -203,12 +202,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const taskId = uuidv4();
         const taskRef = doc(db, 'tasks', taskId);
         
-        const newTaskData: any = {
+        const newTaskData: Omit<Task, 'subtasks'> = {
           id: taskId,
           userId: user.uid,
           completed: false,
           createdAt: new Date().toISOString(),
-          title: task.title,
+          title: task.title || 'Untitled Task',
         };
 
         if (task.description) {
