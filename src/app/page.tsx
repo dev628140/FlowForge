@@ -38,6 +38,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import ProgressJournal from '@/components/dashboard/progress-journal';
 import ProductivityDNATracker from '@/components/dashboard/productivity-dna-tracker';
+import VisualTaskSnap from '@/components/dashboard/visual-task-snap';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -51,7 +52,9 @@ export default function DashboardPage() {
     tasks, 
     showConfetti, 
     handleToggleTask, 
-    handleAddTasks 
+    handleAddTasks,
+    setTasks,
+    setXp
   } = useAppContext();
 
   const [isClient, setIsClient] = React.useState(false);
@@ -161,6 +164,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-1 space-y-6">
           <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
           <RoleProductivity mood={selectedMood?.label || 'Neutral'} />
+          <VisualTaskSnap onAddTasks={handleAddTasks} />
           <ProgressJournal tasks={tasks} />
           <ProductivityDNATracker tasks={tasks} />
         </div>
