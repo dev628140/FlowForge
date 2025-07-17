@@ -13,7 +13,7 @@ import { getDynamicSuggestions } from '@/ai/flows/dynamic-suggestions-flow';
 export default function DynamicSuggestions() {
   const { tasks } = useAppContext();
   const [suggestions, setSuggestions] = React.useState<string[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
   const { toast } = useToast();
 
   const fetchSuggestions = React.useCallback(async () => {
@@ -35,17 +35,14 @@ export default function DynamicSuggestions() {
       console.error('Error getting dynamic suggestions:', error);
       toast({
         title: 'Suggestion Error',
-        description: 'Could not fetch AI suggestions. Please try again later.',
+        description: 'Could not fetch AI suggestions. This may be due to API rate limits.',
         variant: 'destructive',
       });
+      setSuggestions([]);
     } finally {
       setLoading(false);
     }
   }, [tasks, toast]);
-
-  React.useEffect(() => {
-    fetchSuggestions();
-  }, [fetchSuggestions]);
   
   return (
     <Card>
@@ -80,7 +77,7 @@ export default function DynamicSuggestions() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">No suggestions right now. Keep up the great work!</p>
+          <p className="text-sm text-muted-foreground text-center py-4">Click the refresh button to get new suggestions.</p>
         )}
       </CardContent>
     </Card>
