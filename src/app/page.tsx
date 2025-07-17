@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Confetti from '@/components/confetti';
 import FocusMode from '@/components/dashboard/focus-mode';
 
-const initialTasks: Task[] = [
+const getInitialTasks = (): Task[] => [
   { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.' },
   { id: uuidv4(), title: 'Design the UI layout', completed: true, description: 'Create wireframes and mockups for the dashboard.' },
   { id: uuidv4(), title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
@@ -23,7 +23,7 @@ const initialTasks: Task[] = [
 ];
 
 export default function DashboardPage() {
-  const [tasks, setTasks] = React.useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = React.useState<Task[]>(getInitialTasks);
   const [xp, setXp] = React.useState(20);
   const [level, setLevel] = React.useState(1);
   const [showConfetti, setShowConfetti] = React.useState(false);
