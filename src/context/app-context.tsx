@@ -144,13 +144,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       newTasks.forEach(task => {
         const taskId = uuidv4();
         const taskRef = doc(db, 'tasks', taskId);
-        batch.set(taskRef, {
-          ...task,
+        
+        // Build the new task data, ensuring no undefined fields are passed to Firestore
+        const newTaskData: any = {
           id: taskId,
           userId: user.uid,
           completed: false,
           createdAt: new Date().toISOString(),
-        });
+          title: task.title,
+        };
+
+        if (task.description) {
+          newTaskData.description = task.description;
+        }
+        if (task.scheduledDate) {
+          newTaskData.scheduledDate = task.scheduledDate;
+        }
+        if (task.scheduledTime) {
+          newTaskData.scheduledTime = task.scheduledTime;
+        }
+
+        batch.set(taskRef, newTaskData);
       });
       await batch.commit();
     } catch (error) {
