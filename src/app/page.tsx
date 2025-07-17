@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import { PlusCircle, Zap } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAppContext } from '@/context/app-context';
 
 import AITaskPlanner from '@/components/dashboard/ai-task-planner';
 import RoleProductivity from '@/components/dashboard/role-productivity';
@@ -46,11 +46,14 @@ const taskFormSchema = z.object({
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
 export default function DashboardPage() {
-  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const { 
+    tasks, 
+    showConfetti, 
+    handleToggleTask, 
+    handleAddTasks 
+  } = useAppContext();
+
   const [isClient, setIsClient] = React.useState(false);
-  const [xp, setXp] = React.useState(0);
-  const [level, setLevel] = React.useState(1);
-  const [showConfetti, setShowConfetti] = React.useState(false);
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedMood, setSelectedMood] = React.useState<Mood | null>({ emoji: '😊', label: 'Motivated' });
@@ -65,87 +68,8 @@ export default function DashboardPage() {
 
   React.useEffect(() => {
     setIsClient(true);
-    const initialTasksData: Task[] = [
-      { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.' },
-      { 
-        id: uuidv4(), 
-        title: 'Design the UI layout', 
-        completed: true, 
-        description: 'Create wireframes and mockups for the dashboard.',
-        subtasks: [
-          { id: uuidv4(), title: 'Wireframe main dashboard', completed: true },
-          { id: uuidv4(), title: 'Choose color palette', completed: true },
-        ]
-      },
-      { id: uuidv4(), title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
-      { id: uuidv4(), title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
-      { id: uuidv4(), title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
-    ];
-    setTasks(initialTasksData);
-    
-    // Calculate initial XP based on completed tasks and subtasks
-    const calculateInitialXp = (tasks: Task[]): number => {
-      let totalXp = 0;
-      tasks.forEach(task => {
-        if (task.completed) {
-          totalXp += 10;
-        }
-        if (task.subtasks) {
-          totalXp += calculateInitialXp(task.subtasks);
-        }
-      });
-      return totalXp;
-    };
-    setXp(calculateInitialXp(initialTasksData));
   }, []);
-
-  const xpToNextLevel = level * 50;
-
-  React.useEffect(() => {
-    if (xp >= xpToNextLevel) {
-      setLevel(prev => prev + 1);
-      setXp(prev => prev - xpToNextLevel);
-    }
-  }, [xp, xpToNextLevel]);
   
-  const handleToggleTask = (id: string) => {
-    let isCompleting = false;
-
-    const toggleRecursively = (tasks: Task[]): Task[] => {
-      return tasks.map(task => {
-        if (task.id === id) {
-          if (!task.completed) {
-            isCompleting = true;
-          }
-          return { ...task, completed: !task.completed };
-        }
-        if (task.subtasks) {
-          return { ...task, subtasks: toggleRecursively(task.subtasks) };
-        }
-        return task;
-      });
-    };
-    
-    setTasks(prevTasks => toggleRecursively(prevTasks));
-
-    if (isCompleting) {
-      new Audio('/sounds/success.mp3').play().catch(e => console.error("Audio play failed", e));
-      setShowConfetti(true);
-      setXp(prev => prev + 10);
-      setTimeout(() => setShowConfetti(false), 5000);
-    }
-  };
-
-  const handleAddTasks = (newTasks: { title: string; description?: string }[]) => {
-    const tasksToAdd: Task[] = newTasks.map(task => ({
-      id: uuidv4(),
-      title: task.title,
-      description: task.description || '',
-      completed: false,
-    }));
-    setTasks(prev => [...tasksToAdd, ...prev]);
-  };
-
   const handleAddTaskSubmit = (values: TaskFormValues) => {
     handleAddTasks([{ title: values.title, description: values.description }]);
     form.reset();

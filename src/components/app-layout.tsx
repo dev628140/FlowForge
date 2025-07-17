@@ -21,33 +21,11 @@ import UserProfile from '@/components/dashboard/user-profile';
 import { Icons } from './icons';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
+import { useAppContext } from '@/context/app-context';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [xp, setXp] = React.useState(20);
-  const [level, setLevel] = React.useState(1);
-  const xpToNextLevel = level * 50;
-
-  React.useEffect(() => {
-    const handleTaskCompletion = () => {
-      setXp(prev => prev + 10);
-    };
-    
-    // In a real app, this would be driven by a global state manager or context
-    window.addEventListener('taskCompleted', handleTaskCompletion);
-
-    return () => {
-      window.removeEventListener('taskCompleted', handleTaskCompletion);
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (xp >= xpToNextLevel) {
-      setLevel(prev => prev + 1);
-      setXp(prev => prev - xpToNextLevel);
-    }
-  }, [xp, xpToNextLevel]);
-
+  const { level, xp, xpToNextLevel } = useAppContext();
 
   return (
     <SidebarProvider>
