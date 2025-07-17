@@ -16,6 +16,7 @@ interface AppContextType {
   showConfetti: boolean;
   handleToggleTask: (id: string) => void;
   handleAddTasks: (newTasks: { title: string; description?: string }[]) => void;
+  handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -113,6 +114,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(prev => [...tasksToAdd, ...prev]);
   };
 
+  const handleAddSubtasks = (parentId: string, subtasks: { title: string; description?: string }[]) => {
+    const newSubtasks: Task[] = subtasks.map(sub => ({
+      id: uuidv4(),
+      title: sub.title,
+      description: sub.description || '',
+      completed: false,
+    }));
+
+    const addRecursively = (tasks: Task[]): Task[] => {
+      return tasks.map(task => {
+        if (task.id === parentId) {
+          const existingSubtasks = task.subtasks || [];
+          return { ...task, subtasks: [...existingSubtasks, ...newSubtasks] };
+        }
+        if (task.subtasks) {
+          return { ...task, subtasks: addRecursively(task.subtasks) };
+        }
+        return task;
+      });
+    };
+
+    setTasks(prevTasks => addRecursively(prevTasks));
+  };
+
+
   return (
     <AppContext.Provider value={{
       tasks, setTasks,
@@ -121,7 +147,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       xpToNextLevel,
       showConfetti,
       handleToggleTask,
-      handleAddTasks
+      handleAddTasks,
+      handleAddSubtasks
     }}>
       {children}
     </AppContext.Provider>

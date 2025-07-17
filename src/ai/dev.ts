@@ -9,3 +9,4 @@ import '@/ai/flows/productivity-dna-tracker.ts';
 import '@/ai/flows/auto-schedule-flow.ts';
 import '@/ai/flows/visual-task-snap.ts';
 import '@/ai/flows/learning-plan-flow.ts';
+import '@/ai/flows/breakdown-task-flow.ts';

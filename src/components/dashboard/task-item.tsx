@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -9,10 +9,13 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { summarizeTask } from '@/ai/flows/summarize-task';
+import { breakdownTask } from '@/ai/flows/breakdown-task-flow';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import TaskList from './task-list';
+import { useAppContext } from '@/context/app-context';
+import { Separator } from '../ui/separator';
 
 interface TaskItemProps {
   task: Task;
@@ -22,8 +25,10 @@ interface TaskItemProps {
 }
 
 export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = false }: TaskItemProps) {
+  const { handleAddSubtasks } = useAppContext();
   const [summary, setSummary] = React.useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
+  const [isBreakingDown, setIsBreakingDown] = React.useState(false);
   const { toast } = useToast();
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
 
@@ -52,6 +57,35 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
       setIsSummarizing(false);
     }
   };
+
+  const handleBreakdown = async () => {
+    setIsBreakingDown(true);
+    try {
+      const result = await breakdownTask({ taskTitle: task.title });
+      if (result.subtasks && result.subtasks.length > 0) {
+        handleAddSubtasks(task.id, result.subtasks.map(title => ({ title })));
+        toast({
+          title: 'Task broken down!',
+          description: 'Subtasks have been added.',
+        });
+      } else {
+        toast({
+          title: 'Could not break down task',
+          description: 'The AI could not generate subtasks for this item.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+       console.error('Error breaking down task:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to break down the task. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsBreakingDown(false);
+    }
+  }
 
   const itemContent = (
     <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
@@ -139,13 +173,25 @@ export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = fal
               </div>
               <div className="grid gap-2">
                 <Button 
+                  onClick={handleBreakdown}
+                  disabled={isBreakingDown}
+                  size="sm"
+                  variant="outline"
+                >
+                  {isBreakingDown ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
+                  Break Down Task
+                </Button>
+                <Button 
                   onClick={handleSummarize}
                   disabled={isSummarizing || !task.description}
                   size="sm"
+                  variant="outline"
                 >
                   {isSummarizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Summarize Task
                 </Button>
+
+                {(isSummarizing || isBreakingDown) && <Separator className="my-2"/>}
 
                 {isSummarizing && (
                     <div className="p-4 text-center text-sm text-muted-foreground">
