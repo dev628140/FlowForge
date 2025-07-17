@@ -21,7 +21,7 @@ interface AuthContextType {
   signup: (email: string, pass: string) => Promise<any>;
   login: (email: string, pass: string) => Promise<any>;
   logout: () => Promise<any>;
-  updateUserProfile: (profile: { displayName?: string; photoURL?: string }) => Promise<void>;
+  updateUserProfile: (profile: { displayName?: string }) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
 }
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return signOut(auth);
   };
 
-  const updateUserProfile = async (profile: { displayName?: string; photoURL?: string }) => {
+  const updateUserProfile = async (profile: { displayName?: string }) => {
     if (!auth || !auth.currentUser) throw new Error("User not authenticated");
     await updateProfile(auth.currentUser, profile);
     // Force re-render with new data by creating a new object
