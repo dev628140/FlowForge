@@ -18,9 +18,16 @@ export const ConversationalAgentInputSchema = z.object({
 });
 export type ConversationalAgentInput = z.infer<typeof ConversationalAgentInputSchema>;
 
+
+const TaskToAddSchema = z.object({
+    title: z.string().describe('The title of the task.'),
+    description: z.string().optional().describe('A brief description of the task.'),
+    scheduledDate: z.string().optional().describe('The scheduled date for the task in YYYY-MM-DD format if a timeframe is provided.'),
+    scheduledTime: z.string().optional().describe('The scheduled time for the task in HH:mm format if provided.'),
+});
+
 export const ConversationalAgentOutputSchema = z.object({
   response: z.string().describe("The agent's text response to the user."),
-  // tasksToAdd is removed to prevent the AI from automatically adding tasks.
-  // The AI must now be explicitly told to use the task-adding tool.
+  tasksToAdd: z.array(TaskToAddSchema).optional().describe("A list of tasks to be added to the user's to-do list, based on the conversation. Only populate this if the user explicitly asks to create tasks or a plan."),
 });
 export type ConversationalAgentOutput = z.infer<typeof ConversationalAgentOutputSchema>;

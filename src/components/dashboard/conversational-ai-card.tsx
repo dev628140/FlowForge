@@ -58,6 +58,14 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       const modelMessage: Message = { role: 'model', content: result.response };
       setMessages(prev => [...prev, modelMessage]);
 
+      if (result.tasksToAdd && result.tasksToAdd.length > 0) {
+        await handleAddTasks(result.tasksToAdd);
+        toast({
+          title: "Tasks Added!",
+          description: `${result.tasksToAdd.length} task(s) have been added to your list.`,
+        });
+      }
+
     } catch (err: any) {
       console.error(`Error in ${config.title}:`, err);
       const errorMessage = err.message || "I'm sorry, something went wrong. Please try again.";

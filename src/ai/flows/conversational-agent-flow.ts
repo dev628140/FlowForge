@@ -140,8 +140,9 @@ const conversationalAgentFlow = ai.defineFlow(
             const response = await ai.generate({
               model: 'googleai/gemini-1.5-flash-latest',
               system: `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
-You are a helpful assistant. Do NOT add tasks unless the user explicitly asks you to. Your primary role is to provide information and suggestions based on the conversation context.
-If the user asks you to create tasks, you must first confirm the details with them, including the date and time.
+You are a helpful assistant. Your primary role is to provide information and suggestions based on the conversation context.
+If the user explicitly asks you to create tasks, plan something, or add items to their list, you should generate a conversational response and ALSO populate the 'tasksToAdd' array in the JSON output. 
+Confirm details with the user if their request is ambiguous.
 When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
 
 User's Task Context:
@@ -170,7 +171,7 @@ ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
         } catch (error: any) {
              const errorMessage = error.message || '';
             // Check for specific error types
-            if (errorMessage.includes('429 Too Many Requests')) {
+            if (errorMessage.includes('429 Too Many Requests') || errorMessage.includes('exceeded your current quota')) {
                  throw new Error("You've exceeded the daily limit for the AI. Please try again tomorrow or consider upgrading your API plan.");
             }
             if (errorMessage.includes('503 Service Unavailable')) {
