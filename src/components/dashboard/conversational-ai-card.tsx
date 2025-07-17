@@ -22,6 +22,7 @@ export interface AgentConfig {
   initialContext: string;
   initialPrompt?: string;
   taskContext: any;
+  children?: React.ReactNode;
 }
 
 interface ConversationalAICardProps {
@@ -81,6 +82,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         <CardDescription>{config.description}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col justify-between gap-4">
+        {config.children}
         <ScrollArea className="flex-grow h-48 pr-4 -mr-4">
           <div className="space-y-4">
             {messages.length === 0 && (

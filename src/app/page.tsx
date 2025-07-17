@@ -10,7 +10,7 @@ import { useAppContext } from '@/context/app-context';
 import { format, isToday, parseISO, isBefore, startOfToday, differenceInDays } from 'date-fns';
 
 import TaskList from '@/components/dashboard/task-list';
-import type { Task, Mood } from '@/lib/types';
+import type { Task, Mood, UserRole } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Confetti from '@/components/confetti';
@@ -53,6 +53,7 @@ import { cn } from '@/lib/utils';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import ConversationalAICard, { type AgentConfig } from '@/components/dashboard/conversational-ai-card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const generalTaskFormSchema = z.object({
@@ -86,6 +87,7 @@ export default function DashboardPage() {
   const [isGeneralAddDialogOpen, setIsGeneralAddDialogOpen] = React.useState(false);
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
   const [selectedMood, setSelectedMood] = React.useState<Mood | null>({ emoji: '😊', label: 'Motivated' });
+  const [selectedRole, setSelectedRole] = React.useState<UserRole>('Developer');
 
   const generalForm = useForm<GeneralTaskFormValues>({
     resolver: zodResolver(generalTaskFormSchema),
@@ -137,6 +139,8 @@ export default function DashboardPage() {
     task.scheduledDate && 
     isBefore(parseISO(task.scheduledDate), startOfToday())
   );
+  
+  const userRoles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
 
   const agentConfigs: AgentConfig[] = [
     {
@@ -152,7 +156,7 @@ export default function DashboardPage() {
         initialContext: "You are a proactive AI productivity assistant. Your goal is to provide a 'Next Best Action' feed for the user. Analyze their task list for today and generate relevant suggestions.",
         initialPrompt: 'What should I do next?',
         taskContext: {
-            role: 'Developer',
+            role: selectedRole,
             tasks: todaysTasks.map(t => ({ title: t.title, completed: t.completed })),
         }
     },
@@ -160,11 +164,23 @@ export default function DashboardPage() {
         title: 'Emotion-Adaptive Assistant',
         description: 'Feeling stuck? Get suggestions tailored to your role and mood.',
         initialContext: "You are an empathetic AI productivity assistant. Your goal is to provide task suggestions, timeboxing advice, and motivational nudges tailored to a user's role and mood.",
-        initialPrompt: `I'm a Developer feeling ${selectedMood?.label || 'Neutral'} and I want to...`,
+        initialPrompt: `I'm a ${selectedRole} feeling ${selectedMood?.label || 'Neutral'} and I want to...`,
         taskContext: {
-            role: 'Developer',
+            role: selectedRole,
             mood: selectedMood?.label || 'Neutral',
-        }
+        },
+        children: (
+             <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
+                  <SelectTrigger className="w-full mt-2">
+                    <SelectValue placeholder="Select your role..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userRoles.map(role => (
+                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+        )
     },
     {
         title: 'AI Learning Planner',
