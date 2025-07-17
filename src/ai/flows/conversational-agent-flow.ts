@@ -132,9 +132,8 @@ const conversationalAgentFlow = ai.defineFlow(
         breakdownTaskTool,
     ];
 
-    const model = ai.getModel('googleai/gemini-1.5-flash-latest');
-
-    const response = await model.generate({
+    const response = await ai.generate({
+      model: 'googleai/gemini-1.5-flash-latest',
       system: `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
 The user is providing you with their current task list as context.
 You can use the available tools to help the user manage their tasks, get suggestions, and analyze their productivity.
