@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, Zap, Calendar, AlertTriangle, Trash2, LayoutDashboard } from 'lucide-react';
+import { PlusCircle, Zap, Calendar as CalendarIcon, AlertTriangle, Trash2, LayoutDashboard } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -72,6 +72,8 @@ type GeneralTaskFormValues = z.infer<typeof generalTaskFormSchema>;
 const todayTaskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
   description: z.string().optional(),
+  scheduledDate: z.date().optional(),
+  scheduledTime: z.string().optional(),
 });
 type TodayTaskFormValues = z.infer<typeof todayTaskFormSchema>;
 
@@ -99,7 +101,7 @@ export default function DashboardPage() {
   
   const todayForm = useForm<TodayTaskFormValues>({
     resolver: zodResolver(todayTaskFormSchema),
-    defaultValues: { title: '', description: '' },
+    defaultValues: { title: '', description: '', scheduledDate: new Date() },
   });
   
   const handleGeneralAddTaskSubmit = (values: GeneralTaskFormValues) => {
@@ -117,9 +119,10 @@ export default function DashboardPage() {
     handleAddTasks([{ 
       title: values.title, 
       description: values.description,
-      scheduledDate: format(new Date(), 'yyyy-MM-dd'),
+      scheduledDate: format(values.scheduledDate || new Date(), 'yyyy-MM-dd'),
+      scheduledTime: values.scheduledTime || undefined,
     }]);
-    todayForm.reset();
+    todayForm.reset({ title: '', description: '', scheduledDate: new Date() });
     setIsTodayAddDialogOpen(false);
   };
   
@@ -229,7 +232,7 @@ export default function DashboardPage() {
                                     ) : (
                                       <span>Pick a date</span>
                                     )}
-                                    <Calendar className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -276,7 +279,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-6 h-6" />
+                <CalendarIcon className="w-6 h-6" />
                 Today's Tasks
               </CardTitle>
               <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
@@ -292,7 +295,7 @@ export default function DashboardPage() {
                   <DialogHeader>
                     <DialogTitle>Add a task for today</DialogTitle>
                     <DialogDescription>
-                      This task will be automatically scheduled for today.
+                      This task will be automatically scheduled for today. You can optionally add a time.
                     </DialogDescription>
                   </DialogHeader>
                   <Form {...todayForm}>
@@ -329,6 +332,59 @@ export default function DashboardPage() {
                           </FormItem>
                         )}
                       />
+                       <div className="flex gap-4">
+                        <FormField
+                            control={todayForm.control}
+                            name="scheduledDate"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col w-1/2">
+                                <FormLabel>Date (optional)</FormLabel>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                          "pl-3 text-left font-normal",
+                                          !field.value && "text-muted-foreground"
+                                        )}
+                                      >
+                                        {field.value ? (
+                                          format(field.value, "PPP")
+                                        ) : (
+                                          <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <CalendarPicker
+                                      mode="single"
+                                      selected={field.value}
+                                      onSelect={field.onChange}
+                                      initialFocus
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                              control={todayForm.control}
+                              name="scheduledTime"
+                              render={({ field }) => (
+                                <FormItem className="w-1/2">
+                                  <FormLabel>Time (optional)</FormLabel>
+                                  <FormControl>
+                                    <Input type="time" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                      </div>
                       <DialogFooter>
                         <DialogClose asChild>
                            <Button type="button" variant="ghost">Cancel</Button>
