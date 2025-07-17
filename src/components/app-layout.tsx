@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Toaster } from './ui/toaster';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -172,6 +173,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <UserProfile user={user} />
         </header>
         <main>{children}</main>
+        <Toaster />
       </SidebarInset>
     </SidebarProvider>
   );

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster";
 import { AppLayout } from '@/components/app-layout';
 import { AppProvider } from '@/context/app-context';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -37,7 +36,6 @@ export default function RootLayout({
               </AppLayout>
             </AppProvider>
           </AuthProvider>
-          <Toaster />
         </ThemeProvider>
       </body>
     </html>
