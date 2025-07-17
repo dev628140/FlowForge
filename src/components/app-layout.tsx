@@ -43,21 +43,37 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { level, xp, xpToNextLevel } = useAppContext();
   const { user, loading, logout } = useAuth();
 
+  // If Firebase is not configured, we only ever render the login page,
+  // which will show instructions.
+  if (!isFirebaseConfigured) {
+    if (pathname !== '/login') {
+      router.push('/login');
+      return ( // Return a loading state while redirecting
+          <div className="flex h-screen w-full items-center justify-center">
+             <Icons.logo className="w-12 h-12 animate-pulse text-primary" />
+          </div>
+      );
+    }
+    return <>{children}</>;
+  }
+  
+  // From here, we assume Firebase is configured.
+
   React.useEffect(() => {
-    // If firebase is configured, but we are not loading and there's no user,
+    // If we are not loading and there's no user,
     // and we're not on the login page, redirect to login.
-    if (isFirebaseConfigured && !loading && !user && pathname !== '/login') {
+    if (!loading && !user && pathname !== '/login') {
       router.push('/login');
     }
   }, [user, loading, pathname, router]);
 
-  // If Firebase is not configured or if we are on the login page, don't render the main layout
-  if (!isFirebaseConfigured || pathname === '/login') {
+  // Don't render the layout on the login page.
+  if (pathname === '/login') {
     return <>{children}</>;
   }
 
-  // Show a loading screen while checking auth state
-  if (loading) {
+  // Show a loading screen while checking auth state (after initial page load)
+  if (loading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Icons.logo className="w-12 h-12 animate-pulse text-primary" />
