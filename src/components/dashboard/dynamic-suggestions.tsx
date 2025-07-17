@@ -34,11 +34,7 @@ export default function DynamicSuggestions() {
       }
     } catch (error) {
       console.error('Error getting dynamic suggestions:', error);
-      toast({
-        title: 'Suggestion Error',
-        description: 'Could not fetch AI suggestions. This may be due to API rate limits.',
-        variant: 'destructive',
-      });
+      // Removed the toast notification to prevent error messages for API rate limits.
       setSuggestions([]);
     } finally {
       setLoading(false);
