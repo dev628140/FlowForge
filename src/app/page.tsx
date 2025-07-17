@@ -130,8 +130,8 @@ export default function DashboardPage() {
   return (
     <div className="relative min-h-screen w-full">
       <Confetti active={showConfetti} />
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 p-4 md:p-6">
-        <div className="lg:col-span-3 space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 md:p-6">
+        <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -263,13 +263,14 @@ export default function DashboardPage() {
           )}
 
           <AITaskPlanner />
-          <LearningPlanner />
         </div>
-        <div className="lg:col-span-2 space-y-6">
+
+        <div className="lg:col-span-1 space-y-6">
           <DynamicSuggestions />
           <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
           <RoleProductivity mood={selectedMood?.label || 'Neutral'} />
           <VisualTaskSnap onAddTasks={handleAddTasks} />
+          <LearningPlanner />
           <ProgressJournal tasks={tasks} />
           <ProductivityDNATracker tasks={tasks} />
         </div>
