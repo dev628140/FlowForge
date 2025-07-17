@@ -65,15 +65,38 @@ export default function DashboardPage() {
 
   React.useEffect(() => {
     setIsClient(true);
-    const initialTasksData = [
+    const initialTasksData: Task[] = [
       { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.' },
-      { id: uuidv4(), title: 'Design the UI layout', completed: true, description: 'Create wireframes and mockups for the dashboard.' },
+      { 
+        id: uuidv4(), 
+        title: 'Design the UI layout', 
+        completed: true, 
+        description: 'Create wireframes and mockups for the dashboard.',
+        subtasks: [
+          { id: uuidv4(), title: 'Wireframe main dashboard', completed: true },
+          { id: uuidv4(), title: 'Choose color palette', completed: true },
+        ]
+      },
       { id: uuidv4(), title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
       { id: uuidv4(), title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
       { id: uuidv4(), title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
     ];
     setTasks(initialTasksData);
-    setXp(initialTasksData.filter(t => t.completed).length * 10);
+    
+    // Calculate initial XP based on completed tasks and subtasks
+    const calculateInitialXp = (tasks: Task[]): number => {
+      let totalXp = 0;
+      tasks.forEach(task => {
+        if (task.completed) {
+          totalXp += 10;
+        }
+        if (task.subtasks) {
+          totalXp += calculateInitialXp(task.subtasks);
+        }
+      });
+      return totalXp;
+    };
+    setXp(calculateInitialXp(initialTasksData));
   }, []);
 
   const xpToNextLevel = level * 50;
@@ -87,17 +110,23 @@ export default function DashboardPage() {
   
   const handleToggleTask = (id: string) => {
     let isCompleting = false;
-    setTasks(prevTasks =>
-      prevTasks.map(task => {
+
+    const toggleRecursively = (tasks: Task[]): Task[] => {
+      return tasks.map(task => {
         if (task.id === id) {
           if (!task.completed) {
             isCompleting = true;
           }
           return { ...task, completed: !task.completed };
         }
+        if (task.subtasks) {
+          return { ...task, subtasks: toggleRecursively(task.subtasks) };
+        }
         return task;
-      })
-    );
+      });
+    };
+    
+    setTasks(prevTasks => toggleRecursively(prevTasks));
 
     if (isCompleting) {
       new Audio('/sounds/success.mp3').play().catch(e => console.error("Audio play failed", e));

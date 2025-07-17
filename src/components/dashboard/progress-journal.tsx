@@ -24,14 +24,27 @@ export default function ProgressJournal({ tasks }: ProgressJournalProps) {
   const [summary, setSummary] = React.useState<string | null>(null);
   const { toast } = useToast();
 
-  const completedTasks = tasks.filter(task => task.completed);
+  const getCompletedTasks = (tasks: Task[]): string[] => {
+    let completed: string[] = [];
+    tasks.forEach(task => {
+      if (task.completed) {
+        completed.push(task.title);
+      }
+      if (task.subtasks) {
+        completed = completed.concat(getCompletedTasks(task.subtasks));
+      }
+    });
+    return completed;
+  };
+
+  const completedTasks = getCompletedTasks(tasks);
 
   const handleReflection = async () => {
     setLoading(true);
     setSummary(null);
     try {
       const result = await progressReflectionJournal({
-        tasksCompleted: completedTasks.map(t => t.title),
+        tasksCompleted: completedTasks,
       });
       if (result.summary) {
         setSummary(result.summary);

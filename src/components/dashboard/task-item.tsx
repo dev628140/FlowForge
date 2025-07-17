@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2 } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,17 +11,21 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { summarizeTask } from '@/ai/flows/summarize-task';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import TaskList from './task-list';
 
 interface TaskItemProps {
   task: Task;
   onToggle: (id: string) => void;
   onStartFocus: (task: Task) => void;
+  isSubtask?: boolean;
 }
 
-export default function TaskItem({ task, onToggle, onStartFocus }: TaskItemProps) {
+export default function TaskItem({ task, onToggle, onStartFocus, isSubtask = false }: TaskItemProps) {
   const [summary, setSummary] = React.useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
   const { toast } = useToast();
+  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
 
   const handleSummarize = async () => {
     if (!task.description) {
@@ -49,8 +53,9 @@ export default function TaskItem({ task, onToggle, onStartFocus }: TaskItemProps
     }
   };
 
-  return (
-    <div className="flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors">
+  const itemContent = (
+    <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
+      {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 text-muted-foreground" />}
       <Checkbox
         id={`task-${task.id}`}
         checked={task.completed}
@@ -78,6 +83,13 @@ export default function TaskItem({ task, onToggle, onStartFocus }: TaskItemProps
         )}
       </div>
       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+        {hasSubtasks && (
+           <CollapsibleTrigger asChild>
+             <Button variant="ghost" size="icon" aria-label="Toggle subtasks">
+               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:-rotate-180" />
+             </Button>
+           </CollapsibleTrigger>
+        )}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -158,4 +170,24 @@ export default function TaskItem({ task, onToggle, onStartFocus }: TaskItemProps
       </div>
     </div>
   );
+
+  if (hasSubtasks) {
+    return (
+      <Collapsible>
+        {itemContent}
+        <CollapsibleContent>
+          <div className="pl-6">
+            <TaskList
+              tasks={task.subtasks!}
+              onToggle={onToggle}
+              onStartFocus={onStartFocus}
+              isSubtaskList={true}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+
+  return itemContent;
 }
