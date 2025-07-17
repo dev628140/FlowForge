@@ -135,7 +135,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
 
         const updates: Partial<Task> = {
             scheduledDate: format(newDate, 'yyyy-MM-dd'),
-            scheduledTime: newTime || undefined, // Send undefined to clear time
+            scheduledTime: newTime || undefined,
         };
 
         await onUpdateTask(task.id, updates);
