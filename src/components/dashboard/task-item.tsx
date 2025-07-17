@@ -103,12 +103,20 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
 
   const handleEditSubmit = async (values: EditTaskFormValues) => {
     if (!onUpdateTask) return;
+    
     const updates: Partial<Task> = {
-      title: values.title,
-      description: values.description,
-      scheduledDate: values.scheduledDate ? format(values.scheduledDate, 'yyyy-MM-dd') : undefined,
-      scheduledTime: values.scheduledTime || undefined,
+        title: values.title,
     };
+
+    if (values.description) {
+        updates.description = values.description;
+    }
+    if (values.scheduledDate) {
+        updates.scheduledDate = format(values.scheduledDate, 'yyyy-MM-dd');
+    }
+    if (values.scheduledTime) {
+        updates.scheduledTime = values.scheduledTime;
+    }
 
     await onUpdateTask(task.id, updates);
     setIsEditDialogOpen(false);
