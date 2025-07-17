@@ -8,7 +8,6 @@ import {
   signInWithEmailAndPassword, 
   signOut,
   updateProfile,
-  updateEmail,
   updatePassword,
   sendPasswordResetEmail,
   type User 
@@ -22,8 +21,7 @@ interface AuthContextType {
   signup: (email: string, pass: string) => Promise<any>;
   login: (email: string, pass: string) => Promise<any>;
   logout: () => Promise<any>;
-  updateUserProfile: (displayName: string) => Promise<void>;
-  updateUserEmail: (email: string) => Promise<void>;
+  updateUserProfile: (profile: { displayName?: string; photoURL?: string }) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
 }
@@ -41,7 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // Create a new user object to force re-render
       setUser(user ? { ...user } : null);
       setLoading(false);
     });
@@ -71,16 +68,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return signOut(auth);
   };
 
-  const updateUserProfile = async (displayName: string) => {
+  const updateUserProfile = async (profile: { displayName?: string; photoURL?: string }) => {
     if (!auth || !auth.currentUser) throw new Error("User not authenticated");
-    await updateProfile(auth.currentUser, { displayName });
-    setUser({ ...auth.currentUser }); // Force re-render with new data
-  };
-
-  const updateUserEmail = async (email: string) => {
-    if (!auth || !auth.currentUser) throw new Error("User not authenticated");
-    await updateEmail(auth.currentUser, email);
-    setUser({ ...auth.currentUser });
+    await updateProfile(auth.currentUser, profile);
+    // Force re-render with new data by creating a new object
+    setUser(auth.currentUser ? { ...auth.currentUser } : null);
   };
   
   const updateUserPassword = async (password: string) => {
@@ -100,7 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login, 
     logout,
     updateUserProfile,
-    updateUserEmail,
     updateUserPassword,
     sendPasswordReset,
   };
