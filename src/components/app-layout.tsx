@@ -67,12 +67,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, pathname, router]);
 
-  // Don't render the layout on the login or settings page if not logged in.
-  if (pathname === '/login' || (!user && pathname.startsWith('/settings'))) {
+  // Don't render the layout on the login page.
+  if (pathname === '/login') {
     return <>{children}</>;
   }
-
-  // Show a loading screen while checking auth state (after initial page load)
+  
+  // Show a loading screen while checking auth state or if there's no user (and not on login page)
   if (loading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -131,8 +131,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Separator />
             <div className="flex items-center justify-between p-2">
                <div className="flex items-center gap-2 text-sm">
-                 <Settings className="w-4 h-4" />
-                 <span>Settings</span>
+                 <Link href="/settings" className="flex items-center gap-2">
+                   <Settings className="w-4 h-4" />
+                   <span>Settings</span>
+                 </Link>
                </div>
                <ThemeToggle />
             </div>
@@ -147,7 +149,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
                     <AlertDialogDescription>
                       You will be returned to the login page.
-                    </d_AlertDialogDescription>
+                    </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
