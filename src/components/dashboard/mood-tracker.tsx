@@ -3,11 +3,7 @@
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-
-type Mood = {
-  emoji: string;
-  label: 'High Energy' | 'Neutral' | 'Low Energy' | 'Motivated' | 'Calm' | 'Stressed';
-};
+import type { Mood } from '@/lib/types';
 
 const moods: Mood[] = [
   { emoji: '⚡️', label: 'High Energy' },
@@ -18,9 +14,12 @@ const moods: Mood[] = [
   { emoji: '😴', label: 'Low Energy' },
 ];
 
-export default function MoodTracker() {
-  const [selectedMood, setSelectedMood] = React.useState<string | null>('😊');
+interface MoodTrackerProps {
+  selectedMood: Mood | null;
+  onSelectMood: (mood: Mood) => void;
+}
 
+export default function MoodTracker({ selectedMood, onSelectMood }: MoodTrackerProps) {
   return (
     <Card>
       <CardHeader>
@@ -32,10 +31,10 @@ export default function MoodTracker() {
           {moods.map(mood => (
             <button
               key={mood.label}
-              onClick={() => setSelectedMood(mood.emoji)}
+              onClick={() => onSelectMood(mood)}
               className={cn(
                 'flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all duration-200',
-                selectedMood === mood.emoji
+                selectedMood?.emoji === mood.emoji
                   ? 'border-primary bg-primary/10'
                   : 'border-transparent hover:bg-muted'
               )}

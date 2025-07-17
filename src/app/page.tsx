@@ -11,7 +11,7 @@ import AITaskPlanner from '@/components/dashboard/ai-task-planner';
 import RoleProductivity from '@/components/dashboard/role-productivity';
 import TaskList from '@/components/dashboard/task-list';
 import MoodTracker from '@/components/dashboard/mood-tracker';
-import type { Task } from '@/lib/types';
+import type { Task, Mood } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Confetti from '@/components/confetti';
@@ -53,7 +53,8 @@ export default function DashboardPage() {
   const [showConfetti, setShowConfetti] = React.useState(false);
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
-  
+  const [selectedMood, setSelectedMood] = React.useState<Mood | null>({ emoji: '😊', label: 'Motivated' });
+
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
@@ -65,15 +66,14 @@ export default function DashboardPage() {
   React.useEffect(() => {
     setIsClient(true);
     const initialTasksData = [
-      { title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.' },
-      { title: 'Design the UI layout', completed: true, description: 'Create wireframes and mockups for the dashboard.' },
-      { title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
-      { title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
-      { title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
+      { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.' },
+      { id: uuidv4(), title: 'Design the UI layout', completed: true, description: 'Create wireframes and mockups for the dashboard.' },
+      { id: uuidv4(), title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
+      { id: uuidv4(), title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
+      { id: uuidv4(), title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
     ];
-    const initialTasks = initialTasksData.map(task => ({ ...task, id: uuidv4() }));
-    setTasks(initialTasks);
-    setXp(initialTasks.filter(t => t.completed).length * 10);
+    setTasks(initialTasksData);
+    setXp(initialTasksData.filter(t => t.completed).length * 10);
   }, []);
 
   const xpToNextLevel = level * 50;
@@ -204,8 +204,8 @@ export default function DashboardPage() {
           <AITaskPlanner onAddTasks={handleAddTasks} />
         </div>
         <div className="lg:col-span-1 space-y-6">
-          <MoodTracker />
-          <RoleProductivity />
+          <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
+          <RoleProductivity mood={selectedMood?.label || 'Neutral'} />
           <ProgressJournal tasks={tasks} />
         </div>
       </div>

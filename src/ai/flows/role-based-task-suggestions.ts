@@ -2,9 +2,9 @@
 'use server';
 
 /**
- * @fileOverview Provides AI-driven task suggestions tailored to a user's selected role.
+ * @fileOverview Provides AI-driven task suggestions tailored to a user's selected role and mood.
  *
- * - `getRoleBasedTaskSuggestions` -  A function to generate task suggestions based on the user's specified role.
+ * - `getRoleBasedTaskSuggestions` -  A function to generate task suggestions based on the user's specified role and mood.
  * - `RoleBasedTaskSuggestionsInput` - The input type for the `getRoleBasedTaskSuggestions` function.
  * - `RoleBasedTaskSuggestionsOutput` - The output type for the `getRoleBasedTaskSuggestions` function.
  */
@@ -19,6 +19,9 @@ const RoleBasedTaskSuggestionsInputSchema = z.object({
   userTask: z
     .string()
     .describe("The task the user wants to accomplish (e.g., 'get fit this month')."),
+  mood: z
+    .string()
+    .describe("The user's current mood (e.g., 'High Energy', 'Stressed')."),
 });
 export type RoleBasedTaskSuggestionsInput = z.infer<
   typeof RoleBasedTaskSuggestionsInputSchema
@@ -27,16 +30,16 @@ export type RoleBasedTaskSuggestionsInput = z.infer<
 const RoleBasedTaskSuggestionsOutputSchema = z.object({
   suggestedTasks: z
     .array(z.string())
-    .describe('A list of suggested tasks tailored to the user role.'),
+    .describe('A list of suggested tasks tailored to the user role and mood.'),
   timeboxingSuggestions: z
     .string()
     .describe(
-      'Suggestions for timeboxing the tasks based on the user role and task.'
+      'Suggestions for timeboxing the tasks based on the user role, task, and mood.'
     ),
   motivationalNudges: z
     .string()
     .describe(
-      'Motivational nudges tailored to the user role to encourage task completion.'
+      'Motivational nudges tailored to the user role and mood to encourage task completion.'
     ),
 });
 export type RoleBasedTaskSuggestionsOutput = z.infer<
@@ -54,12 +57,13 @@ const prompt = ai.definePrompt({
   input: {schema: RoleBasedTaskSuggestionsInputSchema},
   output: {schema: RoleBasedTaskSuggestionsOutputSchema},
   prompt: `You are an AI productivity assistant that provides task suggestions,
-timeboxing advice, and motivational nudges tailored to a user's role.
+timeboxing advice, and motivational nudges tailored to a user's role and mood.
 
 Role: {{{role}}}
+Mood: {{{mood}}}
 User Task: {{{userTask}}}
 
-Provide a list of suggested tasks, timeboxing suggestions, and motivational nudges specific to the user's role to help them accomplish their task.`,
+Provide a list of suggested tasks, timeboxing suggestions, and motivational nudges specific to the user's role and current mood to help them accomplish their task. For example, if the mood is 'Low Energy', suggest smaller, easier tasks.`,
 });
 
 const roleBasedTaskSuggestionsFlow = ai.defineFlow(

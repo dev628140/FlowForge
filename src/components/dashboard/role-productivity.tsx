@@ -9,12 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { UserRole } from '@/lib/types';
+import type { UserRole, MoodLabel } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
 
 const roles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
 
-export default function RoleProductivity() {
+interface RoleProductivityProps {
+  mood: MoodLabel;
+}
+
+export default function RoleProductivity({ mood }: RoleProductivityProps) {
   const [role, setRole] = React.useState<UserRole>('Developer');
   const [task, setTask] = React.useState('');
   const [suggestions, setSuggestions] = React.useState<RoleBasedTaskSuggestionsOutput | null>(null);
@@ -34,7 +38,7 @@ export default function RoleProductivity() {
     setLoading(true);
     setSuggestions(null);
     try {
-      const result = await getRoleBasedTaskSuggestions({ role, userTask: task });
+      const result = await getRoleBasedTaskSuggestions({ role, userTask: task, mood });
       setSuggestions(result);
     } catch (error) {
       console.error('Error getting suggestions:', error);
@@ -52,7 +56,7 @@ export default function RoleProductivity() {
     <Card>
       <CardHeader>
         <CardTitle>Role-Based Assistant</CardTitle>
-        <CardDescription>Get AI suggestions tailored to your role.</CardDescription>
+        <CardDescription>Get AI suggestions tailored to your role and mood.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
