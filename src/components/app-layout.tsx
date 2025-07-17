@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, GitGraph, LayoutDashboard, LogOut, Settings, ListTodo } from 'lucide-react';
+import { Calendar, GitGraph, LayoutDashboard, LogOut, Settings, ListTodo, User as UserIcon } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -36,8 +36,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Toaster } from './ui/toaster';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { User } from 'lucide-react';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -86,10 +84,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center gap-2 p-2">
+          <Link href="/" className="flex items-center gap-2 p-2">
             <Icons.logo className="w-8 h-8 text-primary" />
             <span className="font-headline text-lg font-semibold">FlowForge</span>
-          </div>
+          </Link>
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
