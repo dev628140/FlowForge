@@ -74,6 +74,8 @@ const todayTaskFormSchema = z.object({
 });
 type TodayTaskFormValues = z.infer<typeof todayTaskFormSchema>;
 
+const USER_ROLE_STORAGE_KEY = 'flowforge_user_role';
+
 export default function DashboardPage() {
   const { 
     tasks, 
@@ -91,6 +93,20 @@ export default function DashboardPage() {
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
   const [selectedMood, setSelectedMood] = React.useState<Mood | null>({ emoji: '😊', label: 'Motivated' });
   const [selectedRole, setSelectedRole] = React.useState<UserRole>('Developer');
+
+  // Load role from localStorage on mount
+  React.useEffect(() => {
+    const savedRole = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole;
+    if (savedRole) {
+      setSelectedRole(savedRole);
+    }
+  }, []);
+
+  // Save role to localStorage on change
+  const handleRoleChange = (role: UserRole) => {
+    setSelectedRole(role);
+    localStorage.setItem(USER_ROLE_STORAGE_KEY, role);
+  };
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -181,7 +197,7 @@ export default function DashboardPage() {
         children: (
             <Form {...dummyForm}>
               <div className="space-y-4">
-                  <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
+                  <Select value={selectedRole} onValueChange={handleRoleChange}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select your role..." />
                         </SelectTrigger>
