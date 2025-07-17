@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import ProgressJournal from '@/components/dashboard/progress-journal';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -44,18 +45,10 @@ const taskFormSchema = z.object({
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
-const initialTasksData = [
-  { title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.' },
-  { title: 'Design the UI layout', completed: true, description: 'Create wireframes and mockups for the dashboard.' },
-  { title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
-  { title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
-  { title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
-];
-
 export default function DashboardPage() {
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [isClient, setIsClient] = React.useState(false);
-  const [xp, setXp] = React.useState(20);
+  const [xp, setXp] = React.useState(0);
   const [level, setLevel] = React.useState(1);
   const [showConfetti, setShowConfetti] = React.useState(false);
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
@@ -71,9 +64,17 @@ export default function DashboardPage() {
 
   React.useEffect(() => {
     setIsClient(true);
-    setTasks(initialTasksData.map(task => ({...task, id: uuidv4()})));
+    const initialTasksData = [
+      { title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.' },
+      { title: 'Design the UI layout', completed: true, description: 'Create wireframes and mockups for the dashboard.' },
+      { title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
+      { title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
+      { title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
+    ];
+    const initialTasks = initialTasksData.map(task => ({ ...task, id: uuidv4() }));
+    setTasks(initialTasks);
+    setXp(initialTasks.filter(t => t.completed).length * 10);
   }, []);
-
 
   const xpToNextLevel = level * 50;
 
@@ -205,6 +206,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-1 space-y-6">
           <MoodTracker />
           <RoleProductivity />
+          <ProgressJournal tasks={tasks} />
         </div>
       </div>
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
