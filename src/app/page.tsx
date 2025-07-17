@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, Zap, Calendar as CalendarIcon, AlertTriangle, Trash2, LayoutDashboard } from 'lucide-react';
+import { PlusCircle, Zap, Calendar as CalendarIcon, AlertTriangle, Trash2, LayoutDashboard, CalendarPlus } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -55,6 +55,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import ConversationalAICard, { type AgentConfig } from '@/components/dashboard/conversational-ai-card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
+import { Badge } from '@/components/ui/badge';
 
 
 const taskFormSchema = z.object({
@@ -131,6 +132,14 @@ export default function DashboardPage() {
     toast({
       title: 'Task deleted',
       description: `"${task.title}" has been permanently removed.`,
+    });
+  }
+  
+  const onReschedule = async (task: Task) => {
+    await updateTask(task.id, { scheduledDate: format(new Date(), 'yyyy-MM-dd') });
+    toast({
+      title: 'Task Rescheduled',
+      description: `"${task.title}" has been moved to today.`,
     });
   }
 
@@ -446,9 +455,12 @@ export default function DashboardPage() {
         {overdueTasks.length > 0 && (
           <Card className="border-destructive/50">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-destructive">
-                <AlertTriangle className="w-6 h-6" />
-                Pending Tasks
+              <CardTitle className="flex items-center justify-between text-destructive">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-6 h-6" />
+                  Pending Tasks
+                </div>
+                 <Badge variant="destructive">{overdueTasks.length}</Badge>
               </CardTitle>
               <CardDescription>Tasks that are past their due date.</CardDescription>
             </CardHeader>
@@ -457,9 +469,9 @@ export default function DashboardPage() {
                 {overdueTasks.map(task => {
                   const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
                   return (
-                     <div key={task.id} className={cn("flex items-start group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
+                     <div key={task.id} className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
                         <div className="flex-1">
-                          <span className={cn("font-medium transition-colors", task.completed ? "text-muted-foreground line-through" : "text-card-foreground")}>
+                          <span className={cn("font-medium text-card-foreground")}>
                             {task.title}
                           </span>
                           <p className="text-xs text-destructive">
@@ -467,6 +479,15 @@ export default function DashboardPage() {
                           </p>
                         </div>
                         <div className={cn("flex items-center transition-opacity", "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
+                             <Button
+                                variant="ghost"
+                                size="icon"
+                                className="hover:bg-primary/10 hover:text-primary"
+                                aria-label={`Reschedule task ${task.title}`}
+                                onClick={() => onReschedule(task)}
+                              >
+                                <CalendarPlus className="h-4 w-4" />
+                            </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
