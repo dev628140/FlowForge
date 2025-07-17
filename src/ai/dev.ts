@@ -13,3 +13,5 @@ import '@/ai/flows/learning-plan-flow.ts';
 import '@/ai/flows/breakdown-task-flow.ts';
 import '@/ai/flows/dynamic-suggestions-flow.ts';
 import '@/ai/flows/focus-playlist-flow.ts';
+import '@/ai/flows/conversational-agent-flow.ts';
+

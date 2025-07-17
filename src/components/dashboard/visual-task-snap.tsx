@@ -1,191 +1,166 @@
-
 'use client';
 
 import * as React from 'react';
-import { Camera, Loader2, Wand2, AlertTriangle, Check, X, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Bot, Send, User, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { visualTaskSnap } from '@/ai/flows/visual-task-snap';
+import { useAppContext } from '@/context/app-context';
+import { conversationalAgent, type Message, type ConversationalAgentOutput } from '@/ai/flows/conversational-agent-flow';
+import { ScrollArea } from '../ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 
-interface VisualTaskSnapProps {
-  onAddTasks: (tasks: { title: string }[]) => void;
+export interface AgentConfig {
+  title: string;
+  description: string;
+  initialContext: string;
+  initialPrompt?: string;
+  taskContext: any;
 }
 
-export default function VisualTaskSnap({ onAddTasks }: VisualTaskSnapProps) {
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-  const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+interface ConversationalAICardProps {
+  config: AgentConfig;
+}
+
+export default function ConversationalAICard({ config }: ConversationalAICardProps) {
+  const { handleAddTasks } = useAppContext();
   const { toast } = useToast();
-
-  const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
-  const [isCameraOpen, setIsCameraOpen] = React.useState(false);
-  const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
+  const [messages, setMessages] = React.useState<Message[]>([]);
+  const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (isCameraOpen) {
-      const getCameraPermission = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-          setHasCameraPermission(true);
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        } catch (error) {
-          console.error('Error accessing camera:', error);
-          setHasCameraPermission(false);
-          toast({
-            variant: 'destructive',
-            title: 'Camera Access Denied',
-            description: 'Please enable camera permissions in your browser settings.',
-          });
-        }
-      };
-      getCameraPermission();
-    } else {
-      // Stop camera stream when not open
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-        videoRef.current.srcObject = null;
-      }
-    }
-  }, [isCameraOpen, toast]);
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!prompt.trim()) return;
 
-  const handleCapture = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      if (context) {
-        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        const dataUri = canvas.toDataURL('image/png');
-        setCapturedImage(dataUri);
-        setIsCameraOpen(false);
-      }
-    }
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
-        setCapturedImage(dataUri);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRetake = () => {
-    setCapturedImage(null);
-    setIsCameraOpen(true);
-  };
-
-  const handleAnalyze = async () => {
-    if (!capturedImage) return;
+    const userMessage: Message = { role: 'user', content: prompt };
+    setMessages(prev => [...prev, userMessage]);
+    setPrompt('');
     setLoading(true);
+    setError(null);
+
     try {
-      const result = await visualTaskSnap({ imageDataUri: capturedImage });
-      if (result.tasks && result.tasks.length > 0) {
-        onAddTasks(result.tasks.map(title => ({ title })));
+      const result = await conversationalAgent({
+        history: messages,
+        prompt: prompt,
+        initialContext: config.initialContext,
+        taskContext: config.taskContext,
+      });
+      
+      const modelMessage: Message = { role: 'model', content: result.response };
+      setMessages(prev => [...prev, modelMessage]);
+
+      if (result.tasksToAdd && result.tasksToAdd.length > 0) {
+        await handleAddTasks(result.tasksToAdd);
         toast({
-          title: 'Tasks Extracted!',
-          description: 'New tasks from your image have been added.',
-        });
-        setCapturedImage(null);
-      } else {
-        toast({
-          title: 'No Tasks Found',
-          description: 'The AI could not identify any tasks in the image.',
-          variant: 'destructive'
+          title: 'Tasks Added!',
+          description: `The AI has added ${result.tasksToAdd.length} task(s) to your list.`,
         });
       }
-    } catch (error) {
-      console.error('Error analyzing image:', error);
-      toast({
-        title: 'Analysis Failed',
-        description: 'Could not extract tasks from the image. Please try again.',
-        variant: 'destructive',
-      });
+
+    } catch (err) {
+      console.error(`Error in ${config.title}:`, err);
+      const errorMessage = "I'm sorry, something went wrong. Please try again.";
+      const modelErrorMessage: Message = { role: 'model', content: errorMessage };
+      setMessages(prev => [...prev, modelErrorMessage]);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleInitialPrompt = () => {
+      if (config.initialPrompt) {
+          setPrompt(config.initialPrompt);
+      }
+  }
+
   return (
-    <Card>
+    <Card className="flex flex-col h-full">
       <CardHeader>
-        <CardTitle>Visual Task Snap</CardTitle>
-        <CardDescription>Capture or upload notes and turn them into tasks.</CardDescription>
+        <CardTitle>{config.title}</CardTitle>
+        <CardDescription>{config.description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        {isCameraOpen ? (
+      <CardContent className="flex-grow flex flex-col justify-between gap-4">
+        <ScrollArea className="flex-grow h-48 pr-4 -mr-4">
           <div className="space-y-4">
-            <div className="relative">
-              <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
-              <canvas ref={canvasRef} className="hidden" />
-            </div>
-            {hasCameraPermission === false && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Camera Access Required</AlertTitle>
-                <AlertDescription>
-                  Please allow camera access to use this feature.
-                </AlertDescription>
-              </Alert>
+            {messages.length === 0 && (
+                <div className="text-center text-sm text-muted-foreground p-4">
+                    {config.initialPrompt ? (
+                        <>
+                            <span>Start by asking a question, or try this suggestion:</span>
+                            <Button variant="link" className="p-1 h-auto" onClick={handleInitialPrompt}>
+                                "{config.initialPrompt}"
+                            </Button>
+                        </>
+                    ) : (
+                        <span>Type a message below to start the conversation.</span>
+                    )}
+                </div>
             )}
-            <div className="flex gap-2">
-              <Button onClick={() => setIsCameraOpen(false)} variant="outline" className="w-full">Cancel</Button>
-              <Button onClick={handleCapture} disabled={hasCameraPermission !== true} className="w-full">
-                <Camera className="mr-2" /> Capture
-              </Button>
-            </div>
-          </div>
-        ) : capturedImage ? (
-          <div className="space-y-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={capturedImage} alt="Captured notes" className="rounded-md w-full" />
-            {loading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <p className="text-sm text-center text-muted-foreground pt-2">Analyzing image...</p>
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "flex items-start gap-3",
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                )}
+              >
+                {message.role === 'model' && (
+                  <Avatar className="w-8 h-8 border">
+                    <AvatarFallback><Bot size={16} /></AvatarFallback>
+                  </Avatar>
+                )}
+                <div
+                  className={cn(
+                    "p-3 rounded-lg max-w-xs md:max-w-sm",
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  <p className="text-sm">{message.content}</p>
                 </div>
-              ) : (
-                <div className="flex gap-2">
-                  <Button onClick={() => setCapturedImage(null)} variant="outline" className="w-full">
-                    <X className="mr-2" /> Cancel
-                  </Button>
-                  <Button onClick={handleAnalyze} className="w-full">
-                    <Check className="mr-2" /> Use Image
-                  </Button>
+                 {message.role === 'user' && (
+                  <Avatar className="w-8 h-8 border">
+                     <AvatarFallback><User size={16} /></AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            ))}
+             {loading && (
+                <div className="flex items-start gap-3 justify-start">
+                    <Avatar className="w-8 h-8 border">
+                        <AvatarFallback><Bot size={16} /></AvatarFallback>
+                    </Avatar>
+                    <div className="p-3 rounded-lg bg-muted">
+                        <Skeleton className="h-4 w-16" />
+                    </div>
                 </div>
-              )
-            }
+            )}
+            {error && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
           </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={() => setIsCameraOpen(true)} className="w-full">
-              <Camera className="mr-2" /> Open Camera
-            </Button>
-            <Button onClick={() => fileInputRef.current?.click()} className="w-full" variant="outline">
-              <Upload className="mr-2" /> Upload Photo
-            </Button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileSelect}
-            />
-          </div>
-        )}
+        </ScrollArea>
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <Input
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Ask me anything..."
+            disabled={loading}
+          />
+          <Button type="submit" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin" /> : <Send />}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

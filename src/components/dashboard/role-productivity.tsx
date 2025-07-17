@@ -1,142 +1,166 @@
 'use client';
 
 import * as React from 'react';
-import { Sparkles, Loader2 } from 'lucide-react';
-
-import { getRoleBasedTaskSuggestions, RoleBasedTaskSuggestionsOutput } from '@/ai/flows/role-based-task-suggestions';
-import { Button } from '@/components/ui/button';
+import { Bot, Send, User, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { UserRole, MoodLabel } from '@/lib/types';
-import { Skeleton } from '../ui/skeleton';
 import { useAppContext } from '@/context/app-context';
-import { breakdownTask } from '@/ai/flows/breakdown-task-flow';
+import { conversationalAgent, type Message, type ConversationalAgentOutput } from '@/ai/flows/conversational-agent-flow';
+import { ScrollArea } from '../ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Skeleton } from '../ui/skeleton';
 
-const roles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
-
-interface RoleProductivityProps {
-  mood: MoodLabel;
+export interface AgentConfig {
+  title: string;
+  description: string;
+  initialContext: string;
+  initialPrompt?: string;
+  taskContext: any;
 }
 
-export default function RoleProductivity({ mood }: RoleProductivityProps) {
-  const { handleAddTasks } = useAppContext();
-  const [role, setRole] = React.useState<UserRole>('Developer');
-  const [task, setTask] = React.useState('');
-  const [suggestions, setSuggestions] = React.useState<RoleBasedTaskSuggestionsOutput | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const { toast } = useToast();
+interface ConversationalAICardProps {
+  config: AgentConfig;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!task.trim()) {
-      toast({
-        title: 'Task is empty',
-        description: 'Please enter a task to get suggestions.',
-        variant: 'destructive',
-      });
-      return;
-    }
+export default function ConversationalAICard({ config }: ConversationalAICardProps) {
+  const { handleAddTasks } = useAppContext();
+  const { toast } = useToast();
+  const [messages, setMessages] = React.useState<Message[]>([]);
+  const [prompt, setPrompt] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!prompt.trim()) return;
+
+    const userMessage: Message = { role: 'user', content: prompt };
+    setMessages(prev => [...prev, userMessage]);
+    setPrompt('');
     setLoading(true);
-    setSuggestions(null);
+    setError(null);
+
     try {
-      const result = await getRoleBasedTaskSuggestions({ role, userTask: task, mood });
-      setSuggestions(result);
-    } catch (error) {
-      console.error('Error getting suggestions:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to get suggestions. Please try again.',
-        variant: 'destructive',
+      const result = await conversationalAgent({
+        history: messages,
+        prompt: prompt,
+        initialContext: config.initialContext,
+        taskContext: config.taskContext,
       });
+      
+      const modelMessage: Message = { role: 'model', content: result.response };
+      setMessages(prev => [...prev, modelMessage]);
+
+      if (result.tasksToAdd && result.tasksToAdd.length > 0) {
+        await handleAddTasks(result.tasksToAdd);
+        toast({
+          title: 'Tasks Added!',
+          description: `The AI has added ${result.tasksToAdd.length} task(s) to your list.`,
+        });
+      }
+
+    } catch (err) {
+      console.error(`Error in ${config.title}:`, err);
+      const errorMessage = "I'm sorry, something went wrong. Please try again.";
+      const modelErrorMessage: Message = { role: 'model', content: errorMessage };
+      setMessages(prev => [...prev, modelErrorMessage]);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddTask = (taskTitle: string) => {
-    handleAddTasks([{ title: taskTitle }]);
-    toast({
-      title: 'Task Added',
-      description: `"${taskTitle}" has been added to your unscheduled tasks.`,
-    });
-  };
+  const handleInitialPrompt = () => {
+      if (config.initialPrompt) {
+          setPrompt(config.initialPrompt);
+      }
+  }
 
   return (
-    <Card>
+    <Card className="flex flex-col h-full">
       <CardHeader>
-        <CardTitle>Emotion-Adaptive Assistant</CardTitle>
-        <CardDescription>Feeling stuck? Get AI suggestions tailored to your role and current mood.</CardDescription>
+        <CardTitle>{config.title}</CardTitle>
+        <CardDescription>{config.description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Select value={role} onValueChange={(value: UserRole) => setRole(value)} disabled={loading}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select your role" />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map(r => (
-                <SelectItem key={r} value={r}>{r}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <CardContent className="flex-grow flex flex-col justify-between gap-4">
+        <ScrollArea className="flex-grow h-48 pr-4 -mr-4">
+          <div className="space-y-4">
+            {messages.length === 0 && (
+                <div className="text-center text-sm text-muted-foreground p-4">
+                    {config.initialPrompt ? (
+                        <>
+                            <span>Start by asking a question, or try this suggestion:</span>
+                            <Button variant="link" className="p-1 h-auto" onClick={handleInitialPrompt}>
+                                "{config.initialPrompt}"
+                            </Button>
+                        </>
+                    ) : (
+                        <span>Type a message below to start the conversation.</span>
+                    )}
+                </div>
+            )}
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "flex items-start gap-3",
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                )}
+              >
+                {message.role === 'model' && (
+                  <Avatar className="w-8 h-8 border">
+                    <AvatarFallback><Bot size={16} /></AvatarFallback>
+                  </Avatar>
+                )}
+                <div
+                  className={cn(
+                    "p-3 rounded-lg max-w-xs md:max-w-sm",
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  <p className="text-sm">{message.content}</p>
+                </div>
+                 {message.role === 'user' && (
+                  <Avatar className="w-8 h-8 border">
+                     <AvatarFallback><User size={16} /></AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            ))}
+             {loading && (
+                <div className="flex items-start gap-3 justify-start">
+                    <Avatar className="w-8 h-8 border">
+                        <AvatarFallback><Bot size={16} /></AvatarFallback>
+                    </Avatar>
+                    <div className="p-3 rounded-lg bg-muted">
+                        <Skeleton className="h-4 w-16" />
+                    </div>
+                </div>
+            )}
+            {error && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
+          </div>
+        </ScrollArea>
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <Input
-            placeholder="e.g., 'learn a new framework'"
-            value={task}
-            onChange={e => setTask(e.target.value)}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Ask me anything..."
             disabled={loading}
           />
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                <span>Getting Suggestions...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                <span>Help Me Get Started</span>
-              </>
-            )}
+          <Button type="submit" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin" /> : <Send />}
           </Button>
         </form>
-
-        {loading && (
-          <div className="mt-6 space-y-4">
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-4 w-4/5" />
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        )}
-
-        {suggestions && !loading && (
-          <div className="mt-6 space-y-4 animate-in fade-in-50">
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Suggested Next Steps:</h4>
-              <ul className="space-y-1">
-                {suggestions.suggestedTasks.map((t, i) => (
-                    <li key={i} className="flex items-center justify-between gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded-md">
-                        <span>{t}</span>
-                        <Button variant="ghost" size="sm" onClick={() => handleAddTask(t)}>Add</Button>
-                    </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-                <h4 className="font-semibold text-sm">Timeboxing:</h4>
-                <p className="text-sm text-muted-foreground">{suggestions.timeboxingSuggestions}</p>
-            </div>
-             <div>
-                <h4 className="font-semibold text-sm">A Little Motivation:</h4>
-                <p className="text-sm text-muted-foreground italic">"{suggestions.motivationalNudges}"</p>
-             </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

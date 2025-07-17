@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -7,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
-import { conversationalAgent, type Message, type ConversationalAgentOutput } from '@/ai/flows/conversational-agent-flow';
+import { conversationalAgent } from '@/ai/flows/conversational-agent-flow';
+import type { Message } from '@/lib/types/conversational-agent';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';

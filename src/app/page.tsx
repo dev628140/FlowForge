@@ -9,10 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppContext } from '@/context/app-context';
 import { format, isToday, parseISO, isBefore, startOfToday, differenceInDays } from 'date-fns';
 
-import AITaskPlanner from '@/components/dashboard/ai-task-planner';
-import RoleProductivity from '@/components/dashboard/role-productivity';
 import TaskList from '@/components/dashboard/task-list';
-import MoodTracker from '@/components/dashboard/mood-tracker';
 import type { Task, Mood } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -38,13 +35,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import ProgressJournal from '@/components/dashboard/progress-journal';
-import ProductivityDNATracker from '@/components/dashboard/productivity-dna-tracker';
-import VisualTaskSnap from '@/components/dashboard/visual-task-snap';
-import LearningPlanner from '@/components/dashboard/learning-planner';
 import { useAuth } from '@/context/auth-context';
 import { Icons } from '@/components/icons';
-import DynamicSuggestions from '@/components/dashboard/dynamic-suggestions';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -60,6 +52,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import ConversationalAICard, { type AgentConfig } from '@/components/dashboard/conversational-ai-card';
+
 
 const generalTaskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -143,6 +137,62 @@ export default function DashboardPage() {
     task.scheduledDate && 
     isBefore(parseISO(task.scheduledDate), startOfToday())
   );
+
+  const agentConfigs: AgentConfig[] = [
+    {
+        title: 'AI Task Planner',
+        description: 'Describe a goal, and let me break it down into actionable tasks.',
+        initialContext: 'You are an AI Task Planner. Your job is to help the user break down their goals into smaller, manageable tasks. You can also schedule these tasks.',
+        initialPrompt: 'I want to plan...',
+        taskContext: null,
+    },
+    {
+        title: 'For You',
+        description: 'Get AI-powered suggestions on what to do next based on your current tasks.',
+        initialContext: "You are a proactive AI productivity assistant. Your goal is to provide a 'Next Best Action' feed for the user. Analyze their task list for today and generate relevant suggestions.",
+        initialPrompt: 'What should I do next?',
+        taskContext: {
+            role: 'Developer',
+            tasks: todaysTasks.map(t => ({ title: t.title, completed: t.completed })),
+        }
+    },
+    {
+        title: 'Emotion-Adaptive Assistant',
+        description: 'Feeling stuck? Get suggestions tailored to your role and mood.',
+        initialContext: "You are an empathetic AI productivity assistant. Your goal is to provide task suggestions, timeboxing advice, and motivational nudges tailored to a user's role and mood.",
+        initialPrompt: `I'm a Developer feeling ${selectedMood?.label || 'Neutral'} and I want to...`,
+        taskContext: {
+            role: 'Developer',
+            mood: selectedMood?.label || 'Neutral',
+        }
+    },
+    {
+        title: 'AI Learning Planner',
+        description: 'Tell me what you want to master, and I will create a step-by-step plan for you.',
+        initialContext: 'You are an expert curriculum developer. A user wants to learn about a specific topic. Create a structured, step-by-step learning plan for them, including resources.',
+        initialPrompt: 'I want to learn about...',
+        taskContext: null,
+    },
+    {
+        title: 'Progress Journal',
+        description: 'Reflect on your completed tasks for a motivational boost.',
+        initialContext: 'You are a motivational AI assistant. Your job is to provide an end-of-day summary based on the tasks a user has completed today.',
+        initialPrompt: 'How did I do today?',
+        taskContext: {
+            tasksCompleted: tasks.filter(t => t.completed && t.completedAt && isToday(parseISO(t.completedAt))).map(t => t.title)
+        }
+    },
+     {
+        title: 'Productivity DNA',
+        description: 'Discover your peak productivity times and habits.',
+        initialContext: 'You are a productivity expert. Your job is to analyze the user\'s completed tasks to identify patterns in their productivity.',
+        initialPrompt: 'Analyze my productivity',
+        taskContext: {
+            tasks: tasks.filter(t => t.completed && t.completedAt).map(t => ({ title: t.title, completedAt: t.completedAt }))
+        }
+    },
+  ];
+
 
   if (authLoading) {
      return (
@@ -420,14 +470,9 @@ export default function DashboardPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AITaskPlanner />
-          <DynamicSuggestions />
-          <MoodTracker selectedMood={selectedMood} onSelectMood={setSelectedMood} />
-          <RoleProductivity mood={selectedMood?.label || 'Neutral'} />
-          <VisualTaskSnap onAddTasks={handleAddTasks} />
-          <LearningPlanner />
-          <ProgressJournal tasks={tasks} />
-          <ProductivityDNATracker tasks={tasks} />
+          {agentConfigs.map((config) => (
+             <ConversationalAICard key={config.title} config={config} />
+          ))}
         </div>
       </div>
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
