@@ -23,7 +23,7 @@ FlowForge is an intelligent daily productivity system that goes far beyond a tra
 ### ✨ Home Screen
 ![Home Screen](assets/home.png)
 
-### 🧠 AI Task Planner
+### 🧠 Some AI Feaures(Explore More Within The App)
 ![AI Powered Features](assets/ai-features.png)
 
 ### 🧠 AI Week Scheduler
