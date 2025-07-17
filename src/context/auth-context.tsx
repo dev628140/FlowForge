@@ -43,7 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+      // Create a new user object to force re-render
+      setUser(user ? { ...user } : null);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -75,26 +76,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUserProfile = async (displayName: string) => {
     if (!auth || !auth.currentUser) throw new Error("User not authenticated");
     await updateProfile(auth.currentUser, { displayName });
-    // Force a re-render to show the new name
-    setUser(auth.currentUser);
+    setUser({ ...auth.currentUser }); // Force re-render with new data
   };
 
   const updateUserProfilePicture = async (file: File) => {
     if (!auth?.currentUser || !storage) throw new Error("User not authenticated or storage not configured.");
     
-    const storageRef = ref(storage, `avatars/${auth.currentUser.uid}/${file.name}`);
+    const storageRef = ref(storage, `avatars/${auth.currentUser.uid}/profile-picture`);
     
     const snapshot = await uploadBytes(storageRef, file);
     const photoURL = await getDownloadURL(snapshot.ref);
 
     await updateProfile(auth.currentUser, { photoURL });
-    setUser(auth.currentUser);
+    setUser({ ...auth.currentUser }); // Force re-render with new photoURL
   };
 
   const updateUserEmail = async (email: string) => {
     if (!auth || !auth.currentUser) throw new Error("User not authenticated");
     await updateEmail(auth.currentUser, email);
-    setUser(auth.currentUser);
+    setUser({ ...auth.currentUser });
   };
   
   const updateUserPassword = async (password: string) => {

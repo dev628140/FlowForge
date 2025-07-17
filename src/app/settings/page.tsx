@@ -115,19 +115,17 @@ export default function SettingsPage() {
   const processImageFile = async (file: File) => {
     setPictureLoading(true);
     try {
-      // Create an image element to load the file
       const image = new Image();
       const imageUrl = URL.createObjectURL(file);
       
       const loadedImage = await new Promise<HTMLImageElement>((resolve, reject) => {
         image.onload = () => resolve(image);
-        image.onerror = (err) => reject(err);
+        image.onerror = (err) => reject(new Error('Image failed to load.'));
         image.src = imageUrl;
       });
       
-      URL.revokeObjectURL(imageUrl); // Clean up immediately after loading
+      URL.revokeObjectURL(imageUrl);
 
-      // Now that the image is loaded, we can draw it to the canvas
       const canvas = document.createElement('canvas');
       const MAX_WIDTH = 512;
       const MAX_HEIGHT = 512;
@@ -152,14 +150,13 @@ export default function SettingsPage() {
       }
       ctx.drawImage(loadedImage, 0, 0, width, height);
 
-      // Convert canvas to blob, which is more efficient
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
       
       if (!blob) {
         throw new Error('Canvas to Blob conversion failed');
       }
 
-      const optimizedFile = new File([blob], file.name, {
+      const optimizedFile = new File([blob], "profile-photo.jpg", {
         type: 'image/jpeg',
         lastModified: Date.now(),
       });
@@ -181,13 +178,11 @@ export default function SettingsPage() {
     }
   };
 
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       processImageFile(file);
     }
-    // Reset file input to allow re-uploading the same file
     if(event.target) {
         event.target.value = '';
     }
@@ -195,6 +190,8 @@ export default function SettingsPage() {
 
   const handleSnap = async () => {
     if (videoRef.current && canvasRef.current) {
+        setPictureLoading(true);
+        setIsCameraDialogOpen(false); // Close dialog first to provide feedback
         const video = videoRef.current;
         const canvas = canvasRef.current;
         canvas.width = video.videoWidth;
@@ -205,10 +202,15 @@ export default function SettingsPage() {
             canvas.toBlob(async (blob) => {
                 if (blob) {
                     const file = new File([blob], "profile-photo.jpg", { type: "image/jpeg" });
-                    setIsCameraDialogOpen(false); // Close dialog first
-                    await processImageFile(file);
+                    await processImageFile(file); // This will set loading to false
+                } else {
+                    setPictureLoading(false);
+                    toast({ title: "Capture Failed", description: "Could not create an image from the camera.", variant: "destructive" });
                 }
             }, 'image/jpeg');
+        } else {
+           setPictureLoading(false);
+           toast({ title: "Capture Failed", description: "Could not get canvas context.", variant: "destructive" });
         }
     }
   };
@@ -217,8 +219,8 @@ export default function SettingsPage() {
     const getCameraDevices = async () => {
       if (!isCameraDialogOpen) return;
       try {
-        const permissionStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        permissionStream.getTracks().forEach(track => track.stop());
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        stream.getTracks().forEach(track => track.stop()); // Stop immediately, just needed for permission
         setHasCameraPermission(true);
 
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -228,7 +230,7 @@ export default function SettingsPage() {
           setCurrentDeviceId(videoInputs[0].deviceId);
         }
       } catch (error) {
-        console.error('Error accessing camera or enumerating devices:', error);
+        console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
       }
     };
@@ -242,25 +244,28 @@ export default function SettingsPage() {
   }, [isCameraDialogOpen]);
   
   React.useEffect(() => {
-    if (isCameraDialogOpen && hasCameraPermission && currentDeviceId) {
-        const startStream = async () => {
-            if (videoRef.current && videoRef.current.srcObject) {
-                const existingStream = videoRef.current.srcObject as MediaStream;
-                existingStream.getTracks().forEach(track => track.stop());
-            }
-            try {
-                const newStream = await navigator.mediaDevices.getUserMedia({
-                    video: { deviceId: { exact: currentDeviceId } }
-                });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = newStream;
-                }
-            } catch (error) {
-                console.error("Error switching camera:", error);
-                setHasCameraPermission(false);
-            }
-        };
-        startStream();
+    let stream: MediaStream;
+    const startStream = async () => {
+      if (isCameraDialogOpen && hasCameraPermission && currentDeviceId) {
+          if (videoRef.current?.srcObject) {
+              (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+          }
+          try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                  video: { deviceId: { exact: currentDeviceId } }
+              });
+              if (videoRef.current) {
+                  videoRef.current.srcObject = stream;
+              }
+          } catch (error) {
+              console.error("Error starting camera stream:", error);
+              setHasCameraPermission(false);
+          }
+      }
+    };
+    startStream();
+    return () => {
+        stream?.getTracks().forEach(track => track.stop());
     }
   }, [currentDeviceId, isCameraDialogOpen, hasCameraPermission]);
 
@@ -286,14 +291,21 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-6">
-            <Avatar className="w-20 h-20 text-3xl">
-              <AvatarImage src={user?.photoURL || undefined} alt="User profile picture" />
-              <AvatarFallback>{fallback}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-20 h-20 text-3xl">
+                <AvatarImage src={user?.photoURL || undefined} alt="User profile picture" />
+                <AvatarFallback>{fallback}</AvatarFallback>
+              </Avatar>
+              {pictureLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                  <Loader2 className="w-8 h-8 animate-spin text-white" />
+                </div>
+              )}
+            </div>
             <div className="flex flex-col gap-2">
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                 <Button onClick={() => fileInputRef.current?.click()} disabled={pictureLoading}>
-                    {pictureLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2" />}
+                    <UploadCloud className="mr-2" />
                     Upload Photo
                 </Button>
                 <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
@@ -326,12 +338,12 @@ export default function SettingsPage() {
                                    <RefreshCw className="mr-2" /> Switch Camera
                                 </Button>
                             ) : <div />}
-                            <div>
+                            <div className="flex gap-2">
                                  <DialogClose asChild>
                                     <Button type="button" variant="ghost">Cancel</Button>
                                 </DialogClose>
-                                <Button onClick={handleSnap} disabled={!hasCameraPermission || pictureLoading}>
-                                  {pictureLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Snap Photo' }
+                                <Button onClick={handleSnap} disabled={!hasCameraPermission}>
+                                  Snap Photo
                                 </Button>
                             </div>
                         </DialogFooter>
@@ -423,3 +435,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
