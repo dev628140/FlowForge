@@ -131,10 +131,15 @@ const conversationalAgentFlow = ai.defineFlow(
         visualTaskSnapTool,
         breakdownTaskTool,
     ];
+    
+    let retries = 3;
+    let delay = 1000; // start with 1 second
 
-    const response = await ai.generate({
-      model: 'googleai/gemini-1.5-flash-latest',
-      system: `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
+    while (retries > 0) {
+        try {
+            const response = await ai.generate({
+              model: 'googleai/gemini-1.5-flash-latest',
+              system: `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
 The user is providing you with their current task list as context.
 You can use the available tools to help the user manage their tasks, get suggestions, and analyze their productivity.
 If you use the 'naturalLanguageTaskPlanning' tool, the user wants you to create tasks for them.
@@ -143,25 +148,46 @@ After a tool returns tasks, confirm with the user and then format your final res
 User's Task Context:
 ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
 `,
-      history: fullHistory,
-      prompt: prompt,
-      tools,
-      output: {
-          format: 'json',
-          schema: ConversationalAgentOutputSchema,
-      },
-      config: {
-        temperature: 0.3,
-      },
-    });
+              history: fullHistory,
+              prompt: prompt,
+              tools,
+              output: {
+                  format: 'json',
+                  schema: ConversationalAgentOutputSchema,
+              },
+              config: {
+                temperature: 0.3,
+              },
+            });
 
-    const output = response.output();
-    
-    if (!output) {
-      return { response: "I'm sorry, I couldn't generate a response. Please try again." };
+            const output = response.output();
+            
+            if (!output) {
+              return { response: "I'm sorry, I couldn't generate a response. Please try again." };
+            }
+            
+            return output;
+
+        } catch (error: any) {
+            // Check if the error is a 503 service unavailable
+            if (error.message && error.message.includes('503 Service Unavailable')) {
+                retries--;
+                if (retries === 0) {
+                    // If no retries left, re-throw the error to be caught by the client
+                    throw new Error("The AI model is currently overloaded. Please try again in a few moments.");
+                }
+                // Wait for the delay period before retrying
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            } else {
+                // If it's another type of error, throw it immediately
+                throw error;
+            }
+        }
     }
 
-    return output;
+    // This should not be reached, but as a fallback
+    return { response: "I'm sorry, I couldn't generate a response after several attempts. Please try again later." };
   }
 );
 
