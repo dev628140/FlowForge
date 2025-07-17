@@ -36,6 +36,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Toaster } from './ui/toaster';
+import { Avatar, AvatarFallback } from './ui/avatar';
+import { User } from 'lucide-react';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -120,14 +122,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuButton isActive={pathname === '/integrations'}>
                   <GitGraph />
                   <span>Integrations</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <Link href="/settings">
-                <SidebarMenuButton isActive={pathname === '/settings'}>
-                  <Settings />
-                  <span>Settings</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

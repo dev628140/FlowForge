@@ -10,8 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { generateAvatar } from '@/ai/flows/generate-avatar-flow';
+import Image from 'next/image';
 
 const profileFormSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters.').optional(),
@@ -27,13 +29,15 @@ const passwordFormSchema = z.object({
 });
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
-
 export default function SettingsPage() {
-  const { user, updateUserProfile, updateUserPassword } = useAuth();
+  const { user, updateUserProfile, updateUserPassword, updateUserProfilePicture } = useAuth();
   const { toast } = useToast();
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [passwordLoading, setPasswordLoading] = React.useState(false);
-
+  const [avatarPrompt, setAvatarPrompt] = React.useState('');
+  const [generatedAvatar, setGeneratedAvatar] = React.useState<string | null>(null);
+  const [generating, setGenerating] = React.useState(false);
+  const [updatingPicture, setUpdatingPicture] = React.useState(false);
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -87,6 +91,52 @@ export default function SettingsPage() {
       });
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleGenerateAvatar = async () => {
+    if (!avatarPrompt.trim()) {
+        toast({ title: "Prompt is empty", description: "Please enter a description for your avatar.", variant: "destructive"});
+        return;
+    }
+    setGenerating(true);
+    setGeneratedAvatar(null);
+    try {
+        const result = await generateAvatar({ prompt: avatarPrompt });
+        setGeneratedAvatar(result.imageDataUri);
+    } catch (error: any) {
+        toast({
+            title: 'Avatar Generation Failed',
+            description: error.message || "Could not generate an avatar. Please try again.",
+            variant: 'destructive',
+        });
+    } finally {
+        setGenerating(false);
+    }
+  };
+
+  const handleSetAvatar = async () => {
+    if (!generatedAvatar) return;
+    setUpdatingPicture(true);
+    try {
+        const blob = await (await fetch(generatedAvatar)).blob();
+        const file = new File([blob], "avatar.png", { type: "image/png" });
+
+        await updateUserProfilePicture(file);
+        setGeneratedAvatar(null);
+        setAvatarPrompt('');
+        toast({
+            title: 'Avatar Updated!',
+            description: 'Your new profile picture has been set.',
+        });
+    } catch (error: any) {
+        toast({
+            title: 'Failed to Set Avatar',
+            description: error.message || 'There was a problem updating your picture.',
+            variant: 'destructive',
+        });
+    } finally {
+        setUpdatingPicture(false);
     }
   };
 
@@ -171,6 +221,57 @@ export default function SettingsPage() {
                 </Button>
                 </form>
             </Form>
+            </CardContent>
+        </Card>
+        
+        <Card className="md:col-span-2">
+            <CardHeader>
+                <CardTitle>AI Avatar Generator</CardTitle>
+                <CardDescription>Describe your desired avatar and let AI create it for you.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <Input 
+                        placeholder="e.g., A cute robot reading a book, studio lighting"
+                        value={avatarPrompt}
+                        onChange={(e) => setAvatarPrompt(e.target.value)}
+                        disabled={generating || updatingPicture}
+                    />
+                    <Button onClick={handleGenerateAvatar} disabled={generating || updatingPicture} className="w-full sm:w-auto">
+                        {generating ? (
+                            <Loader2 className="mr-2 animate-spin" />
+                        ) : (
+                            <Wand2 className="mr-2" />
+                        )}
+                        Generate
+                    </Button>
+                </div>
+                
+                {generating && (
+                    <div className="flex justify-center items-center p-8 bg-muted rounded-md">
+                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                    </div>
+                )}
+                
+                {generatedAvatar && (
+                    <div className="space-y-4 text-center">
+                        <Image 
+                            src={generatedAvatar}
+                            alt="AI generated avatar"
+                            width={256}
+                            height={256}
+                            className="rounded-lg mx-auto border shadow-md"
+                        />
+                         <Button onClick={handleSetAvatar} disabled={updatingPicture}>
+                            {updatingPicture ? (
+                                <Loader2 className="mr-2 animate-spin" />
+                            ) : (
+                                <Sparkles className="mr-2" />
+                            )}
+                            Set as Profile Picture
+                        </Button>
+                    </div>
+                )}
             </CardContent>
         </Card>
       </div>

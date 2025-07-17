@@ -19,6 +19,15 @@ export default function UserProfile({ user }: UserProfileProps) {
   
   const displayName = user?.displayName || user?.email;
 
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return <UserIcon className="w-5 h-5" />;
+    const parts = name.split(' ');
+    if (parts.length > 1) {
+      return parts[0][0] + parts[parts.length - 1][0];
+    }
+    return name.substring(0, 2);
+  }
+
   return (
     <DropdownMenu>
        <DropdownMenuTrigger asChild>
@@ -26,7 +35,7 @@ export default function UserProfile({ user }: UserProfileProps) {
               <Avatar className="w-8 h-8">
                   <AvatarImage src={user?.photoURL || undefined} alt={displayName || 'User Avatar'} />
                   <AvatarFallback>
-                      <UserIcon className="w-5 h-5" />
+                      {getInitials(user?.displayName || user?.email)}
                   </AvatarFallback>
               </Avatar>
               <div className="text-left hidden md:block">

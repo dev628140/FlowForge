@@ -12,8 +12,9 @@ import {
   sendPasswordResetEmail,
   type User 
 } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from '@/lib/firebase';
+import { auth, storage, isFirebaseConfigured } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +25,7 @@ interface AuthContextType {
   updateUserProfile: (profile: { displayName?: string }) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  updateUserProfilePicture: (photoFile: File) => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -85,6 +87,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
+  const updateUserProfilePicture = async (photoFile: File) => {
+    if (!auth || !auth.currentUser || !storage) throw new Error("User not authenticated or storage not configured");
+    const filePath = `avatars/${auth.currentUser.uid}/${photoFile.name}`;
+    const storageRef = ref(storage, filePath);
+    
+    await uploadBytes(storageRef, photoFile);
+    const photoURL = await getDownloadURL(storageRef);
+    
+    await updateProfile(auth.currentUser, { photoURL });
+    setUser(auth.currentUser ? { ...auth.currentUser } : null);
+  };
+
   const value = { 
     user, 
     loading, 
@@ -94,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateUserProfile,
     updateUserPassword,
     sendPasswordReset,
+    updateUserProfilePicture,
   };
 
   return (
