@@ -2,12 +2,12 @@
 'use client';
 
 import * as React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type User } from 'firebase/auth';
 import Link from 'next/link';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { Button } from '../ui/button';
 
 interface UserProfileProps {
   user: User | null;
@@ -17,20 +17,18 @@ export default function UserProfile({ user }: UserProfileProps) {
   const { logout } = useAuth();
   
   const displayName = user?.displayName || user?.email;
-  const fallback = displayName ? displayName.charAt(0).toUpperCase() : 'U';
 
   return (
     <DropdownMenu>
        <DropdownMenuTrigger asChild>
-          <div className="flex items-center gap-4 cursor-pointer">
-            <div className="text-right">
-              <div className="font-semibold text-sm">{displayName}</div>
-            </div>
-            <Avatar>
-              <AvatarImage src={user?.photoURL || undefined} alt="User profile picture" />
-              <AvatarFallback>{fallback}</AvatarFallback>
-            </Avatar>
-          </div>
+          <Button variant="ghost" className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted text-muted-foreground">
+                  <UserIcon className="w-5 h-5" />
+              </div>
+              <div className="text-left hidden md:block">
+                <div className="font-semibold text-sm">{displayName}</div>
+              </div>
+          </Button>
        </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
