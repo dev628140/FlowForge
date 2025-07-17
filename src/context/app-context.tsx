@@ -19,7 +19,7 @@ interface AppContextType {
   xpToNextLevel: number;
   showConfetti: boolean;
   handleToggleTask: (id: string, parentId?: string) => Promise<void>;
-  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => Promise<void>;
+  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>) => Promise<void>;
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
@@ -31,23 +31,29 @@ const XP_PER_LEVEL = 50;
 const XP_PENALTY_PER_DAY = 5;
 const LAST_PENALTY_CHECK_KEY = 'lastPenaltyCheck';
 
-const countTasks = (allTasks: Task[]) => {
+const countTasks = (allTasks: Task[]): { active: number; completed: number } => {
   let active = 0;
   let completed = 0;
+  
   allTasks.forEach(task => {
+    // Count the parent task itself
     if (task.completed) {
       completed++;
     } else {
       active++;
     }
-    if (task.subtasks) {
+    
+    // If it has subtasks, recursively count them
+    if (task.subtasks && task.subtasks.length > 0) {
       const subtaskCounts = countTasks(task.subtasks);
       active += subtaskCounts.active;
       completed += subtaskCounts.completed;
     }
   });
+
   return { active, completed };
 };
+
 
 const calculateTotalXp = (allTasks: Task[]): number => {
   const { active, completed } = countTasks(allTasks);
@@ -56,7 +62,7 @@ const calculateTotalXp = (allTasks: Task[]): number => {
   if (totalTasks === 0) {
     return 0;
   }
-
+  
   // If 5 or fewer tasks, 10xp per completed task.
   if (totalTasks <= 5) {
     return completed * 10;
@@ -106,13 +112,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTotalXp(0);
     }
   }, [user, toast]);
-  
-  // Effect to save totalXp to localStorage
-  React.useEffect(() => {
-    if (user) {
-      localStorage.setItem(`totalXp_${user.uid}`, totalXp.toString());
-    }
-  }, [totalXp, user]);
 
   // Effect for daily penalty check
   React.useEffect(() => {
@@ -162,15 +161,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     let taskToToggle: Task | null = null;
     let parentTask: Task | null = null;
-    let localTasks = [...tasks];
 
     if (parentId) {
-      parentTask = localTasks.find(t => t.id === parentId) || null;
+      parentTask = tasks.find(t => t.id === parentId) || null;
       if (parentTask && parentTask.subtasks) {
         taskToToggle = parentTask.subtasks.find(t => t.id === id) || null;
       }
     } else {
-      taskToToggle = localTasks.find(t => t.id === id) || null;
+      taskToToggle = tasks.find(t => t.id === id) || null;
     }
 
     if (!taskToToggle) return;
