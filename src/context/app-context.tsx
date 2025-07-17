@@ -37,11 +37,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [totalXp, setTotalXp] = React.useState(0); // Single source of truth for XP
   const [showConfetti, setShowConfetti] = React.useState(false);
+  const [xpRecalculated, setXpRecalculated] = React.useState(false);
 
   // Derived state for level and current XP
   const level = Math.floor(totalXp / XP_PER_LEVEL) + 1;
   const xp = totalXp % XP_PER_LEVEL;
   const xpToNextLevel = XP_PER_LEVEL;
+  
+  const countTasks = (allTasks: Task[]) => {
+    let active = 0;
+    let completed = 0;
+    allTasks.forEach(task => {
+      if (task.completed) {
+        completed++;
+      } else {
+        active++;
+      }
+      if (task.subtasks) {
+        task.subtasks.forEach(sub => {
+          if (sub.completed) {
+            completed++;
+          } else {
+            active++;
+          }
+        });
+      }
+    });
+    return { active, completed };
+  };
+
 
   // Listen for task changes in Firestore
   React.useEffect(() => {
@@ -57,23 +81,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           userTasks.push({ id: doc.id, ...doc.data() } as Task);
         });
         setTasks(userTasks);
+
+        if (!xpRecalculated && userTasks.length > 0) {
+           const { active, completed } = countTasks(userTasks);
+           const totalTasks = active + completed;
+           if (totalTasks > 0) {
+              const xpPerTask = XP_PER_LEVEL / totalTasks;
+              const newTotalXp = Math.round(completed * xpPerTask);
+              setTotalXp(newTotalXp);
+           } else {
+              setTotalXp(0);
+           }
+           setXpRecalculated(true);
+        } else if (userTasks.length === 0) {
+            setTotalXp(0);
+        }
       }, (error) => {
         console.error("Error listening to tasks:", error);
         toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
       });
 
+      // Load initial XP, but it will be corrected by the snapshot listener
       const storedXp = localStorage.getItem(`totalXp_${user.uid}`);
       if (storedXp) {
         setTotalXp(parseInt(storedXp, 10));
       }
 
-
       return () => unsubscribe();
     } else {
       setTasks([]); // Clear tasks if user logs out
       setTotalXp(0);
+      setXpRecalculated(false);
     }
-  }, [user, toast]);
+  }, [user, toast, xpRecalculated]);
   
   // Effect to save totalXp to localStorage
   React.useEffect(() => {
@@ -125,19 +165,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   }, [tasks, user, toast]);
 
-  const countActiveTasks = (allTasks: Task[]): number => {
-    return allTasks.reduce((count, task) => {
-        let currentTaskCount = 0;
-        if (!task.completed) {
-            currentTaskCount++;
-        }
-        if (task.subtasks) {
-            currentTaskCount += task.subtasks.filter(sub => !sub.completed).length;
-        }
-        return count + currentTaskCount;
-    }, 0);
-  };
-
   const handleToggleTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
 
@@ -158,7 +185,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const isCompleting = !taskToToggle.completed;
     
     // Calculate XP based on the number of active tasks *before* this one is toggled.
-    const activeTasksCount = countActiveTasks(tasks);
+    const { active, completed } = countTasks(tasks);
+    const totalTasks = active + completed;
+    const xpPerTask = totalTasks > 0 ? XP_PER_LEVEL / totalTasks : 0;
 
     try {
       const batch = writeBatch(db);
@@ -192,8 +221,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       
       await batch.commit();
       
-      const xpPerTask = activeTasksCount > 0 ? XP_PER_LEVEL / activeTasksCount : 0;
-
       if (isCompleting) {
         setTotalXp(prev => Math.max(0, prev + xpPerTask));
         setShowConfetti(true);
@@ -237,6 +264,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         batch.set(taskRef, newTaskData);
       });
       await batch.commit();
+      // After adding tasks, we need to recalculate XP to adjust the value of existing completed tasks
+      setXpRecalculated(false);
     } catch (error) {
        console.error("Error adding tasks:", error);
        toast({ title: "Error", description: "Could not add tasks.", variant: "destructive" });
@@ -276,6 +305,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
        const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
        await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
+       // After adding subtasks, we need to recalculate XP to adjust the value of existing completed tasks
+       setXpRecalculated(false);
        
      } catch (error) {
        console.error("Error adding subtasks:", error);
@@ -304,6 +335,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       
       await batch.commit();
+      // After deleting a task, we need to recalculate XP
+      setXpRecalculated(false);
     } catch (error) {
       console.error("Error deleting task:", error);
       toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
