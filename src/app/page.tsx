@@ -55,11 +55,8 @@ export default function DashboardPage() {
     showConfetti, 
     handleToggleTask, 
     handleAddTasks,
-    setTasks,
-    setXp
   } = useAppContext();
 
-  const [isClient, setIsClient] = React.useState(false);
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [selectedMood, setSelectedMood] = React.useState<Mood | null>({ emoji: '😊', label: 'Motivated' });
@@ -71,45 +68,6 @@ export default function DashboardPage() {
       description: '',
     },
   });
-
-  React.useEffect(() => {
-    setIsClient(true);
-    // This effect runs only once on the client after mounting.
-    // This prevents hydration errors by ensuring the server-rendered HTML
-    // and the initial client-rendered HTML are identical.
-    const initialTasks: Task[] = [
-      { id: uuidv4(), title: 'Set up project structure', completed: true, description: 'Initialize Next.js app and install dependencies.', completedAt: new Date().toISOString() },
-      { 
-        id: uuidv4(), 
-        title: 'Design the UI layout', 
-        completed: true, 
-        description: 'Create wireframes and mockups for the dashboard.',
-        completedAt: new Date().toISOString(),
-        subtasks: [
-          { id: uuidv4(), title: 'Wireframe main dashboard', completed: true, completedAt: new Date().toISOString() },
-          { id: uuidv4(), title: 'Choose color palette', completed: true, completedAt: new Date().toISOString() },
-        ]
-      },
-      { id: uuidv4(), title: 'Develop the TaskList component', completed: false, description: 'Build the main component to display tasks.' },
-      { id: uuidv4(), title: 'Integrate AI task planning', completed: false, description: 'Connect the natural language processing flow.' },
-      { id: uuidv4(), title: 'Implement dopamine rewards', completed: false, description: 'Add confetti and XP for task completion.' },
-    ];
-    setTasks(initialTasks);
-    
-    const calculateInitialXp = (tasks: Task[]): number => {
-      let totalXp = 0;
-      tasks.forEach(task => {
-        if (task.completed) {
-          totalXp += 10;
-        }
-        if (task.subtasks) {
-          totalXp += calculateInitialXp(task.subtasks);
-        }
-      });
-      return totalXp;
-    };
-    setXp(calculateInitialXp(initialTasks));
-  }, [setTasks, setXp]);
   
   const handleAddTaskSubmit = (values: TaskFormValues) => {
     handleAddTasks([{ title: values.title, description: values.description }]);
@@ -120,10 +78,6 @@ export default function DashboardPage() {
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
   };
-
-  if (!isClient) {
-    return null; // Return null on the server to avoid hydration mismatches
-  }
 
   return (
     <div className="relative min-h-screen w-full">
