@@ -57,6 +57,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
 import { Badge } from '@/components/ui/badge';
 import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-card';
+import { Label } from '@/components/ui/label';
 
 
 const taskFormSchema = z.object({
