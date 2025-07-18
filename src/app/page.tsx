@@ -397,6 +397,7 @@ export default function DashboardPage() {
             <CardContent>
               <TaskList
                 tasks={todaysTasks}
+                allTasks={tasks}
                 onToggle={handleToggleTask} 
                 onStartFocus={handleStartFocus} 
                 onUpdateTask={updateTask} 
