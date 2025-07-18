@@ -151,7 +151,8 @@ ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
             const output = response.output;
             
             if (!output) {
-              return { response: "I'm sorry, I couldn't generate a response. Please try again." };
+              // This is the key change: handle the null output case gracefully.
+              return { response: "I'm sorry, the AI returned an empty response. This might be due to a content filter or a temporary issue. Please try rephrasing your request." };
             }
             
             return output;
