@@ -16,7 +16,6 @@ import { analyzeProductivity } from './productivity-dna-tracker';
 import { progressReflectionJournal } from './progress-reflection-journal';
 import { visualTaskSnap } from './visual-task-snap';
 import { breakdownTask } from './breakdown-task-flow';
-import { reorderAllTasks, ReorderAllTasksInput } from './reorder-all-tasks-flow';
 import {
   ConversationalAgentInput,
   ConversationalAgentInputSchema,
@@ -102,29 +101,6 @@ const breakdownTaskTool = ai.defineTool(
     async (input) => breakdownTask(input)
 );
 
-const reorderAllTasksTool = ai.defineTool(
-  {
-    name: 'reorderAllTasks',
-    description: "Reorders tasks across multiple days to match the order of tasks on a specific 'template' day. Use when the user asks to apply one day's task order to all other days.",
-    inputSchema: z.object({
-      allTasks: z.array(TaskSchema),
-      templateDate: z.string().describe('The date to use as the ordering template, in YYYY-MM-DD format.'),
-    }),
-    outputSchema: z.object({
-      updates: z
-        .array(
-          z.object({
-            taskId: z.string(),
-            updates: z.object({ order: z.number() }),
-          })
-        )
-        .describe('A list of tasks with their new order values.'),
-    }),
-  },
-  async (input) => reorderAllTasks(input)
-);
-
-
 const updateTaskTool = ai.defineTool(
     {
         name: 'updateTask',
@@ -174,28 +150,13 @@ const conversationalAgentFlow = ai.defineFlow(
     const { history, prompt, initialContext, taskContext, imageDataUri, activeTool } = input;
     
     // Initialize a default result object that matches the output schema.
+    // This is the object we will populate and return at the end.
     const result: ConversationalAgentOutput = {
       response: '',
       tasksToAdd: [],
       tasksToUpdate: [],
       tasksToDelete: [],
     };
-
-    // Direct path for reorder tool to avoid LLM confusion
-    if (activeTool === 'reorderAllTasks') {
-        const reorderInput: ReorderAllTasksInput = {
-            allTasks: taskContext.tasks,
-            templateDate: taskContext.templateDate,
-        };
-        const reorderResult = await reorderAllTasks(reorderInput);
-        if (reorderResult.updates.length > 0) {
-            result.response = `I've reordered your tasks on other days to match the order for ${taskContext.templateDate}.`;
-            result.tasksToUpdate = reorderResult.updates;
-        } else {
-            result.response = "I couldn't find any tasks to reorder based on today's schedule.";
-        }
-        return result;
-    }
     
     // Construct the full history for the model
     const fullHistory = history.map(msg => ({
@@ -218,7 +179,6 @@ const conversationalAgentFlow = ai.defineFlow(
         progressJournalTool,
         visualTaskSnapTool,
         breakdownTaskTool,
-        reorderAllTasksTool,
         updateTaskTool,
         deleteTaskTool,
     ];
@@ -235,7 +195,6 @@ If the user wants to break down one specific task, use 'breakdownTask'.
 If the user asks to learn something, use 'generateLearningPlan'.
 If the user asks for a report on their work, use 'analyzeProductivity'.
 If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
-If the user asks to reorder tasks across multiple days based on a template (e.g., "make all days look like today"), use 'reorderAllTasks'. For simple up/down reordering of one task, use 'updateTask'.
 For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools.
 
 ${activeTool ? `The user has the '${activeTool}' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.` : ''}
@@ -302,6 +261,7 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
       result.response = "OK. Is there anything else I can help with?";
     }
     
+    // Always return the result object, ensuring it conforms to the schema.
     return result;
 
   }
