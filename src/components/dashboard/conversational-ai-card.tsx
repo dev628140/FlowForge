@@ -102,7 +102,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const { toast } = useToast();
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = React.useState<string | null>(null);
-  const [isHistoryCollapsed, setIsHistoryCollapsed] = React.useState(false);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = React.useState(true);
 
 
   const [prompt, setPrompt] = React.useState('');
@@ -430,9 +430,8 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       {/* Chat History Sidebar */}
       <div
         className={cn(
-          'absolute top-0 left-0 h-full bg-muted/30 border-r z-10 transition-transform duration-300',
-          isHistoryCollapsed ? '-translate-x-full' : 'translate-x-0',
-          'w-64'
+          'absolute top-0 left-0 h-full bg-muted/30 border-r z-10 transition-transform duration-300 w-64',
+          isHistoryCollapsed ? '-translate-x-full' : 'translate-x-0'
         )}
       >
         <div className="flex flex-col h-full">
@@ -484,11 +483,9 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
 
       {/* Main Chat Area */}
       <div
-        className={cn(
-          'flex flex-col h-full w-full transition-all duration-300'
-        )}
+        className="flex flex-col h-full transition-all duration-300"
         style={{
-          marginLeft: isHistoryCollapsed ? '0' : '256px', // 256px = w-64
+          marginLeft: isHistoryCollapsed ? '0' : '16rem', // w-64 is 16rem
         }}
       >
         <CardHeader>

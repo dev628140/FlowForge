@@ -169,27 +169,8 @@ export default function DashboardPage() {
   
   const agentConfig: AgentConfig = {
     title: 'FlowForge Assistant',
-    description: "Your conversational AI partner. Ask me to plan goals, get suggestions, or analyze your productivity.",
-    initialContext: `You are a helpful productivity assistant named FlowForge.
-You have a set of tools available: naturalLanguageTaskPlanning, getRoleBasedTaskSuggestions, generateLearningPlan, analyzeProductivity, progressReflectionJournal, visualTaskSnap, breakdownTask, updateTask, deleteTask.
-Based on the user's prompt, you MUST decide if a tool is appropriate. If so, call the tool. If not, respond conversationally.
-You must act autonomously to fulfill the user's request using the tools.
-IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context and the provided task list to identify the relevant tasks to act upon. If a user's request is ambiguous (e.g., multiple tasks match a description), ask for clarification by describing the tasks you found (e.g., by title and date), not by asking for an ID.
-
-If the user provides an image, your primary tool should be 'visualTaskSnap'.
-If the user mentions their feelings or asks for ideas, consider 'getRoleBasedTaskSuggestions'.
-If the user wants to plan a large goal, use 'naturalLanguageTaskPlanning'.
-if the user wants to break down one specific task, use 'breakdownTask'.
-If the user asks to learn something, use 'generateLearningPlan'.
-If the user asks for a report on their work, use 'analyzeProductivity'.
-If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
-For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools. If multiple tasks match a deletion or update request, ask for confirmation before proceeding with all of them.
-
-The user has selected the role: ${selectedRole}.
-User's Task Context (including IDs, titles, descriptions, and completion status):
-${tasks ? JSON.stringify(tasks, null, 2) : "No task context provided."}
-`,
-    initialPrompt: 'What should I focus on today?',
+    description: "Your conversational AI partner.",
+    initialContext: `You are a helpful productivity assistant named FlowForge. You have a set of tools available to help users manage their tasks. Based on the user's prompt, you MUST decide if a tool is appropriate. If so, call the tool. If not, respond conversationally. NEVER ask for a Task ID. Use conversation context to identify tasks. If a command is ambiguous, ask for clarification by describing the tasks you found. The user has selected the role: ${selectedRole}.`,
     taskContext: {
         role: selectedRole,
         tasks: tasks,
@@ -230,11 +211,10 @@ ${tasks ? JSON.stringify(tasks, null, 2) : "No task context provided."}
         </div>
         
         <DailyProgressBar tasks={todaysTasks} />
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+
+        <div className="space-y-6">
              <Card>
-              <CardHeader className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-4">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <CalendarIcon className="w-6 h-6" />
@@ -242,7 +222,7 @@ ${tasks ? JSON.stringify(tasks, null, 2) : "No task context provided."}
                   </CardTitle>
                   <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
                 </div>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="flex items-stretch flex-col sm:flex-row sm:items-center gap-2">
                   <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
                       <DialogTrigger asChild>
                           <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
@@ -484,12 +464,10 @@ ${tasks ? JSON.stringify(tasks, null, 2) : "No task context provided."}
                 </CardContent>
               </Card>
             )}
-          </div>
-          <div className="lg:col-span-1 h-full">
-             <div className="h-full flex flex-col">
+            
+            <div className="w-full max-w-4xl mx-auto">
                <ConversationalAICard config={agentConfig} />
-             </div>
-          </div>
+            </div>
         </div>
       </div>
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
