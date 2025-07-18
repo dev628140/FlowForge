@@ -176,8 +176,8 @@ const conversationalAgentFlow = ai.defineFlow(
     const systemPrompt = `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
 You have a set of tools available: ${tools.map(t => t.name).join(', ')}.
 Based on the user's prompt, you MUST decide if a tool is appropriate. If so, call the tool. If not, respond conversationally.
-You must act autonomously to fulfill the user's request using the tools.
-IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context and the provided task list to identify the relevant tasks to act upon. If a user's request is ambiguous (e.g., multiple tasks match a description), ask for clarification by describing the tasks you found (e.g., by title and date), not by asking for an ID.
+You should ask for clarification if a user's request is ambiguous.
+IMPORTANT: When responding conversationally, just provide a text response. When using a tool or performing an action (adding, updating, deleting tasks), you MUST respond with a JSON object that follows the specified output schema, including a 'response' field with your conversational text.
 
 If the user provides an image, your primary tool should be 'visualTaskSnap'.
 If the user mentions their feelings or asks for ideas, consider 'getRoleBasedTaskSuggestions'.
@@ -191,7 +191,6 @@ For any task modifications (update, delete), use the appropriate 'updateTask' or
 ${activeTool ? `The user has the '${activeTool}' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.` : ''}
 
 You have full context of the user's task list. Your primary role is to provide information and suggestions based on the conversation.
-Your final response should always be conversational and directed to the user, even after using a tool.
 
 The user has selected the role: ${taskContext.role}.
 User's Task Context (including IDs, titles, descriptions, and completion status):
@@ -210,8 +209,8 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
               prompt: finalPrompt,
               tools,
               output: {
-                  format: 'json',
-                  schema: ConversationalAgentOutputSchema,
+                  // Loosened schema to allow for text responses.
+                  schema: z.union([ConversationalAgentOutputSchema, z.string()]),
               },
               config: {
                 temperature: 0.3,
@@ -222,6 +221,11 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
             
             if (!output) {
               return { response: "I'm sorry, the AI returned an empty response. This might be due to a content filter or a temporary issue. Please try rephrasing your request." };
+            }
+
+            // If the model returns a simple string, wrap it in the expected object structure.
+            if (typeof output === 'string') {
+              return { response: output };
             }
             
             return output;
