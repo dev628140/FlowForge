@@ -13,11 +13,29 @@ import { parseISO } from 'date-fns';
 
 type SortOption = 'order' | 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
 
+const SORT_ORDER_STORAGE_KEY = 'flowforge_all_tasks_sort_order';
+
 export default function AllTasksPage() {
   const { tasks, handleToggleTask, updateTask, handleReorderTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [sortBy, setSortBy] = React.useState<SortOption>('order');
+  const [isClient, setIsClient] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsClient(true);
+    const savedSortOrder = localStorage.getItem(SORT_ORDER_STORAGE_KEY) as SortOption;
+    if (savedSortOrder) {
+      setSortBy(savedSortOrder);
+    }
+  }, []);
+
+  const handleSortChange = (value: SortOption) => {
+    setSortBy(value);
+    if (isClient) {
+      localStorage.setItem(SORT_ORDER_STORAGE_KEY, value);
+    }
+  };
 
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -31,13 +49,11 @@ export default function AllTasksPage() {
   };
 
   const sortedTasks = React.useMemo(() => {
-    // Create a mutable copy to sort
     const sortableTasks = [...tasks]; 
 
     return sortableTasks.sort((a, b) => {
       switch (sortBy) {
         case 'order':
-          // Default to a large number if order is null/undefined to push them to the end
           return (a.order ?? Infinity) - (b.order ?? Infinity);
 
         case 'scheduledDate':
@@ -47,7 +63,6 @@ export default function AllTasksPage() {
           if (dateA !== dateB) {
             return dateA - dateB;
           }
-          // Fallback to order if dates are the same or both are unscheduled
           return (a.order ?? Infinity) - (b.order ?? Infinity);
 
         case 'createdAt-desc':
@@ -80,7 +95,7 @@ export default function AllTasksPage() {
               </h1>
               <div className="flex items-center gap-2">
                 <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
-                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                <Select value={sortBy} onValueChange={handleSortChange}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort by..." />
                   </SelectTrigger>
@@ -103,7 +118,7 @@ export default function AllTasksPage() {
                 <CardContent>
                     <TaskList 
                         tasks={sortedTasks} 
-                        allTasks={tasks} // Pass the original list for accurate reordering context
+                        allTasks={tasks}
                         onToggle={handleToggleTask} 
                         onStartFocus={handleStartFocus} 
                         onUpdateTask={updateTask} 
