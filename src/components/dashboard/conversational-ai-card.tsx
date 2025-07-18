@@ -484,7 +484,7 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                       key={convo.id}
                       onClick={() => setCurrentConversationId(convo.id)}
                       className={cn(
-                        'group relative rounded-md cursor-pointer p-2',
+                        'group relative rounded-md cursor-pointer p-2 pr-14',
                         currentConversationId === convo.id
                           ? 'bg-secondary'
                           : 'hover:bg-muted/50'
@@ -494,7 +494,7 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                         <MessageSquare className="h-4 w-4 shrink-0" />
                         <span className="truncate flex-1 text-sm">{convo.title}</span>
                       </div>
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center bg-inherit opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center bg-inherit opacity-0 group-hover:opacity-100 transition-opacity">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
