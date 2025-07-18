@@ -31,7 +31,7 @@ import {
 const taskPlanningTool = ai.defineTool(
     {
       name: 'naturalLanguageTaskPlanning',
-      description: 'Breaks down a goal into actionable tasks and can schedule them over a period. Use this when a user asks to plan something, create a schedule, or add multiple tasks based on a high-level goal.',
+      description: 'Breaks down a goal into actionable tasks and can schedule them over a period. Use this when a user asks to plan something, create a schedule, or add one or more tasks based on a high-level goal.',
       inputSchema: z.object({ goal: z.string() }),
       outputSchema: NaturalLanguageTaskPlanningOutput,
     },
@@ -107,12 +107,7 @@ const reorderAllTasksTool = ai.defineTool(
     name: 'reorderAllTasks',
     description: "Reorders tasks across multiple days to match the order of tasks on a specific 'template' day. Use when the user asks to apply one day's task order to all other days.",
     inputSchema: z.object({
-      allTasks: z.array(z.object({
-        id: z.string(),
-        title: z.string(),
-        order: z.number().optional(),
-        scheduledDate: z.string().optional(),
-      })),
+      allTasks: z.array(TaskSchema),
       templateDate: z.string().describe('The date to use as the ordering template, in YYYY-MM-DD format.'),
     }),
     outputSchema: z.object({
@@ -230,7 +225,7 @@ You should ask for clarification if a user's request is ambiguous.
 
 If the user provides an image, your primary tool should be 'visualTaskSnap'.
 If the user mentions their feelings or asks for ideas, consider 'getRoleBasedTaskSuggestions'.
-If the user wants to plan a large goal, use 'naturalLanguageTaskPlanning'.
+If the user wants to plan a large goal or create any new task, use 'naturalLanguageTaskPlanning'.
 If the user wants to break down one specific task, use 'breakdownTask'.
 If the user asks to learn something, use 'generateLearningPlan'.
 If the user asks for a report on their work, use 'analyzeProductivity'.
@@ -265,8 +260,11 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
         const taskPlanningCall = toolCalls.find(call => call.toolName === 'naturalLanguageTaskPlanning');
         if (taskPlanningCall) {
             const tasks = taskPlanningCall.output?.tasks || [];
+            const responseText = tasks.length > 0
+                ? `OK. I've added ${tasks.length} task(s) to your list.`
+                : "I couldn't identify any tasks to add from your request.";
             return {
-                response: `OK. I've added ${tasks.length} task(s) to your list.`,
+                response: responseText,
                 tasksToAdd: tasks,
             };
         }
