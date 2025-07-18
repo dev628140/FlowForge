@@ -14,7 +14,7 @@ import {
 } from 'firebase/auth';
 import { auth, storage, isFirebaseConfigured } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes, uploadString } from 'firebase/storage';
 
 interface AuthContextType {
   user: User | null;
@@ -25,7 +25,7 @@ interface AuthContextType {
   updateUserProfile: (profile: { displayName?: string }) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
-  updateUserProfilePicture: (photoFile: File) => Promise<void>;
+  updateUserProfilePicture: (photoDataUrl: string) => Promise<void>;
   removeUserProfilePicture: () => Promise<void>;
 }
 
@@ -87,12 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
-  const updateUserProfilePicture = async (photoFile: File) => {
+  const updateUserProfilePicture = async (photoDataUrl: string) => {
     if (!auth || !auth.currentUser || !storage) throw new Error("User not authenticated or storage not configured");
-    const filePath = `avatars/${auth.currentUser.uid}/${photoFile.name}`;
+    const filePath = `avatars/${auth.currentUser.uid}/avatar.png`;
     const storageRef = ref(storage, filePath);
     
-    await uploadBytes(storageRef, photoFile);
+    // Upload the data URL string directly to Firebase Storage
+    await uploadString(storageRef, photoDataUrl, 'data_url');
     const photoURL = await getDownloadURL(storageRef);
     
     await updateProfile(auth.currentUser, { photoURL });

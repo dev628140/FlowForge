@@ -122,10 +122,7 @@ export default function SettingsPage() {
     if (!generatedAvatar) return;
     setUpdatingPicture(true);
     try {
-        const blob = await (await fetch(generatedAvatar)).blob();
-        const file = new File([blob], "avatar.png", { type: "image/png" });
-
-        await updateUserProfilePicture(file);
+        await updateUserProfilePicture(generatedAvatar);
         setGeneratedAvatar(null);
         setAvatarPrompt('');
         toast({
@@ -293,9 +290,10 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2 pt-4 border-t">
-                    <Label className="text-sm font-medium">AI Avatar Generator</Label>
+                    <label htmlFor="avatar-prompt" className="text-sm font-medium">AI Avatar Generator</label>
                      <div className="flex flex-col sm:flex-row gap-2">
                         <Input 
+                            id="avatar-prompt"
                             placeholder="e.g., A cute robot reading a book, studio lighting"
                             value={avatarPrompt}
                             onChange={(e) => setAvatarPrompt(e.target.value)}
