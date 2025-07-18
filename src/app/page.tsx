@@ -179,16 +179,11 @@ IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context an
 If the user provides an image, your primary tool should be 'visualTaskSnap'.
 If the user mentions their feelings or asks for ideas, consider 'getRoleBasedTaskSuggestions'.
 If the user wants to plan a large goal, use 'naturalLanguageTaskPlanning'.
-If the user wants to break down one specific task, use 'breakdownTask'.
+if the user wants to break down one specific task, use 'breakdownTask'.
 If the user asks to learn something, use 'generateLearningPlan'.
 If the user asks for a report on their work, use 'analyzeProductivity'.
 If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
 For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools. If multiple tasks match a deletion or update request, ask for confirmation before proceeding with all of them.
-
-The user has the 'visualTaskSnap' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.
-
-You have full context of the user's task list. Your primary role is to provide information and suggestions based on the conversation.
-Your final response should always be conversational and directed to the user, even after using a tool.
 
 The user has selected the role: ${selectedRole}.
 User's Task Context (including IDs, titles, descriptions, and completion status):
@@ -239,7 +234,7 @@ ${tasks ? JSON.stringify(tasks, null, 2) : "No task context provided."}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
              <Card>
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardHeader className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <CalendarIcon className="w-6 h-6" />
@@ -498,7 +493,7 @@ ${tasks ? JSON.stringify(tasks, null, 2) : "No task context provided."}
         </div>
       </div>
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
-        handleToggleTask(focusTask.id)
+        if(focusTask) handleToggleTask(focusTask.id)
         setFocusTask(null)
       }}/>}
     </div>
