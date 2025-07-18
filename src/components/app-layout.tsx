@@ -176,7 +176,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-[68px] items-center justify-between p-4 bg-background/80 backdrop-blur-sm border-b">
+        <header className="sticky top-0 z-10 flex h-[68px] items-center justify-between p-4 bg-transparent border-b-0">
           <div className="flex items-center gap-2">
             <SidebarTrigger />
             {isOffline && (
