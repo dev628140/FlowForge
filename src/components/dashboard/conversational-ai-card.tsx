@@ -455,19 +455,17 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
             <ScrollArea className="flex-grow">
               <div className="p-2 space-y-1">
                 {sortedConversations.map((convo) => (
-                  <div key={convo.id} className="group relative flex items-center justify-between">
+                  <div key={convo.id} className="group relative flex items-center justify-between gap-2">
                     <Button
                       variant={currentConversationId === convo.id ? 'secondary' : 'ghost'}
-                      className="w-full justify-start text-left h-auto py-2 flex-1 min-w-0"
+                      className="h-auto py-2 flex-1 min-w-0 justify-start"
                       onClick={() => setCurrentConversationId(convo.id)}
                     >
-                      <div className="flex items-center flex-1 min-w-0">
                          <MessageSquare className="mr-2 h-4 w-4 shrink-0" />
-                         <span className="truncate flex-grow">{convo.title}</span>
+                         <span className="truncate flex-grow text-left">{convo.title}</span>
                          {convo.pinned && <Pin className="ml-2 h-4 w-4 shrink-0 text-amber-500" />}
-                      </div>
                     </Button>
-                    <div className="shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/30 group-hover:bg-muted/80 rounded-md">
+                    <div className="shrink-0 flex items-center absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-muted group-hover:bg-muted/80 rounded-md">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
