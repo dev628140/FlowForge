@@ -142,7 +142,7 @@ const conversationalAgentFlow = ai.defineFlow(
     outputSchema: ConversationalAgentOutputSchema,
   },
   async (input) => {
-    const { history, prompt, initialContext, taskContext, imageDataUri } = input;
+    const { history, prompt, initialContext, taskContext, imageDataUri, activeTool } = input;
     
     // Construct the full history for the model
     const fullHistory = history.map(msg => ({
@@ -168,6 +168,28 @@ const conversationalAgentFlow = ai.defineFlow(
         updateTaskTool,
         deleteTaskTool,
     ];
+
+    const systemPrompt = `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
+You have a set of tools available: ${tools.map(t => t.name).join(', ')}.
+Based on the user's prompt, you MUST decide if a tool is appropriate. If so, call the tool. If not, respond conversationally.
+If the user provides an image, your primary tool should be 'visualTaskSnap'.
+If the user mentions their feelings or asks for ideas, consider 'getRoleBasedTaskSuggestions'.
+If the user wants to plan a large goal, use 'naturalLanguageTaskPlanning'.
+If the user wants to break down one specific task, use 'breakdownTask'.
+If the user asks to learn something, use 'generateLearningPlan'.
+If the user asks for a report on their work, use 'analyzeProductivity'.
+If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
+For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools, but ALWAYS confirm the task ID if it is not provided.
+
+${activeTool ? `The user has the '${activeTool}' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.` : ''}
+
+You have full context of the user's task list. Your primary role is to provide information and suggestions based on the conversation.
+Your final response should always be conversational and directed to the user, even after using a tool.
+
+The user has selected the role: ${taskContext.role}.
+User's Task Context (including IDs, titles, descriptions, and completion status):
+${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task context provided."}
+`;
     
     let retries = 3;
     let delay = 1000; // start with 1 second
@@ -176,19 +198,7 @@ const conversationalAgentFlow = ai.defineFlow(
         try {
             const response = await ai.generate({
               model: 'googleai/gemini-1.5-flash-latest',
-              system: `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
-You have full context of the user's task list and can use tools to help them.
-Your primary role is to provide information and suggestions based on the conversation context.
-If the user explicitly asks you to create, update, or delete tasks, or plan something, you should use the appropriate tools and also generate a conversational response. 
-Confirm details with the user if their request is ambiguous. For example, if they ask to delete a task but don't specify which one, ask for clarification.
-When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
-
-When using tools that modify data (updateTask, deleteTask), the user interface will handle the actual database operations. Your role is to identify which tool to use and provide the necessary parameters (like taskId and what to update). The system will then interpret your tool call and perform the action.
-
-The user has selected the role: ${taskContext.role}.
-User's Task Context (including IDs, titles, descriptions, and completion status):
-${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task context provided."}
-`,
+              system: systemPrompt,
               history: fullHistory,
               prompt: finalPrompt,
               tools,

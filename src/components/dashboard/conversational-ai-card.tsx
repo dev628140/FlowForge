@@ -29,6 +29,7 @@ import {
   DialogClose,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { Badge } from '../ui/badge';
 
 export interface AgentConfig {
   title: string;
@@ -43,14 +44,14 @@ interface ConversationalAICardProps {
   config: AgentConfig;
 }
 
-const availableTools = [
-    { name: 'Task Planner', description: 'Breaks down a goal into actionable tasks.', promptTemplate: 'Plan my goal: ' },
-    { name: 'Task Suggester', description: 'Get suggestions based on your role and mood.', promptTemplate: 'I need some suggestions, I feel...' },
-    { name: 'Learning Planner', description: 'Creates a structured learning plan for any topic.', promptTemplate: 'Create a learning plan for: ' },
-    { name: 'Productivity Analyzer', description: 'Get a report on your productivity patterns.', promptTemplate: 'Analyze my productivity' },
-    { name: 'Progress Journal', description: 'Generates a summary of your completed tasks.', promptTemplate: 'Summarize my progress for today' },
-    { name: 'Task Breakdown', description: 'Breaks one large task into smaller subtasks.', promptTemplate: 'Break down the task: ' },
-    { name: 'Visual Task Snap', description: 'Extracts tasks from an uploaded image.', promptTemplate: 'Get the tasks from the attached image' },
+const availableTools: { name: string; description: string; promptTemplate: string; id: string }[] = [
+    { id: 'naturalLanguageTaskPlanning', name: 'Task Planner', description: 'Breaks down a goal into actionable tasks.', promptTemplate: 'Plan my goal: ' },
+    { id: 'getRoleBasedTaskSuggestions', name: 'Task Suggester', description: 'Get suggestions based on your role and mood.', promptTemplate: 'I need some suggestions, I feel...' },
+    { id: 'generateLearningPlan', name: 'Learning Planner', description: 'Creates a structured learning plan for any topic.', promptTemplate: 'Create a learning plan for: ' },
+    { id: 'analyzeProductivity', name: 'Productivity Analyzer', description: 'Get a report on your productivity patterns.', promptTemplate: 'Analyze my productivity' },
+    { id: 'progressReflectionJournal', name: 'Progress Journal', description: 'Generates a summary of your completed tasks.', promptTemplate: 'Summarize my progress for today' },
+    { id: 'breakdownTask', name: 'Task Breakdown', description: 'Breaks one large task into smaller subtasks.', promptTemplate: 'Break down the task: ' },
+    { id: 'visualTaskSnap', name: 'Visual Task Snap', description: 'Extracts tasks from an uploaded image.', promptTemplate: 'Get the tasks from the attached image' },
 ];
 
 function fileToDataUri(file: File): Promise<string> {
@@ -76,6 +77,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const [hasCameraPermission, setHasCameraPermission] = React.useState(true);
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [currentDeviceId, setCurrentDeviceId] = React.useState<string | undefined>();
+  const [activeTool, setActiveTool] = React.useState<{ id: string; name: string } | null>(null);
   
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -86,6 +88,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const processImage = React.useCallback(async (dataUri: string) => {
     setImage(dataUri);
     setPrompt("Get tasks from the attached image");
+    setActiveTool({id: 'visualTaskSnap', name: 'Visual Task Snap'});
     toast({
         title: "Image Added",
         description: "Your image has been attached. You can now ask the AI about it."
@@ -213,7 +216,8 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         prompt: prompt,
         initialContext: config.initialContext,
         taskContext: config.taskContext,
-        imageDataUri: currentImage,
+        imageDataUri: currentImage || undefined,
+        activeTool: activeTool?.id,
       });
       
       const modelMessage: Message = { role: 'model', content: [{ text: result.response }] };
@@ -254,10 +258,19 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       }
   }
 
-  const handleToolSelect = (template: string) => {
-    setPrompt(template);
+  const handleToolSelect = (tool: (typeof availableTools)[0]) => {
+    setPrompt(tool.promptTemplate);
+    setActiveTool({ id: tool.id, name: tool.name });
     setIsToolPopoverOpen(false);
-  }
+  };
+
+  const clearActiveTool = () => {
+    setActiveTool(null);
+    toast({
+        title: "Tool Cleared",
+        description: "You are now in general conversation mode.",
+    })
+  };
 
   const renderContent = (content: Content) => {
     if (content.text) return <p className="text-sm">{content.text}</p>;
@@ -268,8 +281,20 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   return (
     <Card className="flex flex-col h-full col-span-1 md:col-span-2">
       <CardHeader>
-        <CardTitle>{config.title}</CardTitle>
-        <CardDescription>{config.description}</CardDescription>
+        <div className="flex justify-between items-start">
+            <div>
+                 <CardTitle>{config.title}</CardTitle>
+                 <CardDescription>{config.description}</CardDescription>
+            </div>
+            {activeTool && (
+                <div className="text-right">
+                    <Badge variant="secondary" className="mb-1">
+                        Active Tool: {activeTool.name}
+                    </Badge>
+                     <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={clearActiveTool}>Clear</Button>
+                </div>
+            )}
+        </div>
       </CardHeader>
       <CardContent {...getRootProps({className: "flex-grow flex flex-col justify-between gap-4"})} >
         <input {...getInputProps()} />
@@ -335,7 +360,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
                         <div className="space-y-2"><h4 className="font-medium leading-none">AI Tools</h4><p className="text-sm text-muted-foreground">Select a tool to get started with a template.</p></div>
                         <div className="grid gap-2">
                             {availableTools.map((tool) => (
-                                <div key={tool.name} onClick={() => handleToolSelect(tool.promptTemplate)} className="p-2 rounded-md hover:bg-accent cursor-pointer">
+                                <div key={tool.id} onClick={() => handleToolSelect(tool)} className={cn("p-2 rounded-md hover:bg-accent cursor-pointer", activeTool?.id === tool.id && "bg-accent")}>
                                     <p className="font-semibold text-sm">{tool.name}</p>
                                     <p className="text-xs text-muted-foreground">{tool.description}</p>
                                 </div>

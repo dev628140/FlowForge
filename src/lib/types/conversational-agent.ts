@@ -23,6 +23,7 @@ export const ConversationalAgentInputSchema = z.object({
   initialContext: z.string().optional().describe("An initial prompt to set the context for the agent (e.g., 'You are a productivity coach')."),
   taskContext: z.any().optional().describe("Additional context about the user's current tasks or state."),
   imageDataUri: z.string().optional().describe("An optional image provided by the user as a data URI."),
+  activeTool: z.string().optional().describe("The tool the user has manually selected to be active for the conversation."),
 });
 export type ConversationalAgentInput = z.infer<typeof ConversationalAgentInputSchema>;
 
