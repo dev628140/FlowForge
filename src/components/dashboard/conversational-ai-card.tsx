@@ -15,9 +15,6 @@ import {
   RefreshCw,
   Plus,
   MessageSquare,
-  Trash2,
-  Pin,
-  PinOff,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -66,7 +63,6 @@ interface Conversation {
   title: string;
   messages: Message[];
   activeTool: { id: string; name: string } | null;
-  pinned: boolean;
   createdAt: string;
 }
 
@@ -186,7 +182,6 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
       title: 'New Chat',
       messages: [],
       activeTool: null,
-      pinned: false,
       createdAt: new Date().toISOString(),
     };
     setConversations(prev => [newConversation, ...prev]);
@@ -194,29 +189,9 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
     setPrompt('');
     setImage(null);
   };
-
-  const deleteConversation = (id: string) => {
-    setConversations(prev => prev.filter(c => c.id !== id));
-    if (currentConversationId === id) {
-      const remainingConversations = conversations.filter(c => c.id !== id);
-      if (remainingConversations.length > 0) {
-        setCurrentConversationId(remainingConversations[0].id);
-      } else {
-        startNewConversation();
-      }
-    }
-  };
-
-  const togglePinConversation = (id: string) => {
-    setConversations(prev =>
-      prev.map(c => (c.id === id ? { ...c, pinned: !c.pinned } : c))
-    );
-  };
   
   const sortedConversations = React.useMemo(() => {
     return [...conversations].sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [conversations]);
@@ -455,39 +430,15 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
             <ScrollArea className="flex-grow">
               <div className="p-2 space-y-1">
                 {sortedConversations.map((convo) => (
-                  <div key={convo.id} className="group relative">
                     <Button
+                      key={convo.id}
                       variant={currentConversationId === convo.id ? 'secondary' : 'ghost'}
-                      className="h-auto w-full py-2 pr-14 justify-start"
+                      className="w-full justify-start gap-2"
                       onClick={() => setCurrentConversationId(convo.id)}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                         <MessageSquare className="h-4 w-4 shrink-0" />
-                         <span className="truncate flex-grow text-left">{convo.title}</span>
-                         {convo.pinned && <Pin className="ml-auto h-4 w-4 shrink-0 text-amber-500" />}
-                      </div>
+                      <MessageSquare className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{convo.title}</span>
                     </Button>
-                    <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center rounded-md bg-muted opacity-0 transition-opacity group-hover:opacity-100 group-hover:bg-muted/80">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePinConversation(convo.id)}>
-                              {convo.pinned ? <PinOff className="h-4 w-4 text-amber-500" /> : <Pin className="h-4 w-4" />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent><p>{convo.pinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteConversation(convo.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent><p>Delete</p></TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </div>
                 ))}
               </div>
             </ScrollArea>
