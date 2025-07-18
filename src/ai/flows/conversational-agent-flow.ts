@@ -104,7 +104,7 @@ const breakdownTaskTool = ai.defineTool(
 const reorderAllTasksTool = ai.defineTool(
   {
     name: 'reorderAllTasks',
-    description: "Reorders all tasks based on a template day's order. Use when the user asks to apply a certain day's task order to all other days.",
+    description: "Reorders tasks across multiple days to match the order of tasks on a specific 'template' day. Use when the user asks to apply one day's task order to all other days.",
     inputSchema: z.object({
       allTasks: z.array(z.any()), // Full list of tasks
       templateDate: z.string().describe('The date to use as the ordering template, in YYYY-MM-DD format.'),
@@ -214,6 +214,8 @@ If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
 If the user asks to reorder tasks across multiple days based on a template (e.g., "make all days look like today"), use 'reorderAllTasks'. For simple up/down reordering of one task, use 'updateTask'.
 For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools.
 
+After using the 'reorderAllTasks' tool, you will receive an object with an 'updates' field. You MUST place the contents of this 'updates' array into the 'tasksToUpdate' field of your final response object.
+
 ${activeTool ? `The user has the '${activeTool}' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.` : ''}
 
 You have full context of the user's task list. Your primary role is to provide information and suggestions based on the conversation.
@@ -236,7 +238,6 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
               prompt: finalPrompt,
               tools,
               output: {
-                  // Loosened schema to allow for text responses.
                   schema: z.union([ConversationalAgentOutputSchema, z.string()]),
               },
               config: {
@@ -250,16 +251,19 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
               return { response: "I'm sorry, the AI returned an empty response. This might be due to a content filter or a temporary issue. Please try rephrasing your request." };
             }
 
-            // If the model returns a simple string, wrap it in the expected object structure.
             if (typeof output === 'string') {
               return { response: output };
             }
             
-            // Handle the case where the reorder tool was called and returned updates
-            if (output.tasksToUpdate && 'updates' in output.tasksToUpdate) {
-                return {
-                    response: output.response || "I've reordered the tasks as you requested.",
-                    tasksToUpdate: (output.tasksToUpdate as any).updates,
+            // Handle the case where the reorder tool was called and its result is in the history.
+            const reorderToolCall = response.history.find(m => m.role === 'tool' && m.content[0].toolResponse?.name === 'reorderAllTasks');
+            if (reorderToolCall) {
+                const toolOutput = reorderToolCall.content[0].toolResponse?.output as any;
+                if (toolOutput?.updates) {
+                    return {
+                        ...output,
+                        tasksToUpdate: toolOutput.updates,
+                    };
                 }
             }
 
@@ -267,7 +271,6 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
 
         } catch (error: any) {
              const errorMessage = error.message || '';
-            // Check for specific error types that are retryable or user-facing
             if (errorMessage.includes('429') || errorMessage.includes('exceeded your current quota')) {
                  return { response: "You've exceeded the daily limit for the AI. The quota will reset at midnight PT. Please try again tomorrow." };
             }
@@ -286,7 +289,6 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
         }
     }
 
-    // This should not be reached, but as a fallback
     return { response: "I'm sorry, I couldn't generate a response after several attempts. Please try again later." };
   }
 );
@@ -294,9 +296,8 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
 export async function conversationalAgent(input: ConversationalAgentInput): Promise<ConversationalAgentOutput> {
     const result = await conversationalAgentFlow(input);
     
-    // The reorderAllTasks tool returns a different structure which we need to handle.
-    // The tool's output might be assigned to `tasksToUpdate` by the agent.
-    if (result.tasksToUpdate && (result.tasksToUpdate as any).updates) {
+    // Final check to ensure reorder updates are passed through.
+    if (result && result.tasksToUpdate && (result.tasksToUpdate as any).updates) {
       return {
         ...result,
         response: result.response || "I've reordered your tasks as requested.",
