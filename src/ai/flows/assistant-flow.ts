@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -10,6 +11,13 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import type { Task, UserRole } from '@/lib/types';
+import {
+    breakdownTaskTool,
+    generateLearningPlanTool,
+    summarizeTaskTool,
+    analyzeProductivityTool,
+    reflectOnProgressTool,
+} from '@/ai/tools';
 
 
 // Define the input schema for the assistant
@@ -45,11 +53,20 @@ const TaskToDeleteSchema = z.object({
     taskId: z.string().describe("The unique ID of the task to delete."),
 });
 
+const SubtasksToAddSchema = z.object({
+    parentId: z.string().describe("The ID of the parent task to which these subtasks will be added."),
+    subtasks: z.array(z.object({
+        title: z.string().describe("The title of the subtask.")
+    })).describe("A list of subtasks to add.")
+});
+
+
 const AssistantOutputSchema = z.object({
-  response: z.string().describe("A concise, friendly summary of the plan you have generated. For example, 'I can add 2 tasks and delete 1.' or 'I've scheduled that for you.' If no actions are taken, provide a helpful conversational response."),
+  response: z.string().describe("A concise, friendly summary of the plan you have generated. For example, 'I can add 2 tasks and delete 1.' or 'I've scheduled that for you.' If no actions are taken, provide a helpful conversational response or the direct result from a tool (like a summary or analysis)."),
   tasksToAdd: z.array(TaskToAddSchema).optional().describe("A list of new tasks to be added based on the user's command."),
   tasksToUpdate: z.array(TaskToUpdateSchema).optional().describe("A list of existing tasks to be updated."),
   tasksToDelete: z.array(TaskToDeleteSchema).optional().describe("A list of existing tasks to be deleted."),
+  subtasksToAdd: z.array(SubtasksToAddSchema).optional().describe("A list of subtasks to add to existing parent tasks.")
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
@@ -65,14 +82,21 @@ const assistantPrompt = ai.definePrompt({
     name: 'assistantPrompt',
     input: { schema: AssistantInputSchema },
     output: { schema: AssistantOutputSchema },
-    prompt: `You are FlowForge, an expert AI task management assistant. Your goal is to understand a user's command and create a structured plan of action which will be reviewed and confirmed by the user.
+    tools: [
+        breakdownTaskTool,
+        generateLearningPlanTool,
+        summarizeTaskTool,
+        analyzeProductivityTool,
+        reflectOnProgressTool,
+    ],
+    prompt: `You are FlowForge, an expert AI task management assistant. Your goal is to understand a user's command and create a structured plan of action which will be reviewed and confirmed by the user. You can also answer questions and provide analysis using your available tools.
 
     Current Date: {{{date}}}
     User's Role: {{{role}}}
 
-    You have the user's current task list for context. You MUST use the provided task IDs when generating a plan to update or delete tasks.
-    Based on the user's prompt, generate a plan. If the user's request is unclear, ask for clarification in your response and do not generate any tasks.
-    If the command is conversational (e.g., "hello", "thank you"), just provide a friendly text response and do not generate any tasks.
+    You have the user's current task list for context. You MUST use the provided task IDs when a tool requires one.
+    Based on the user's prompt, generate a plan. If the user's request is unclear, ask for clarification in your response and do not generate any actions.
+    If the command is conversational (e.g., "hello", "thank you"), just provide a friendly text response and do not generate any actions.
 
     User's Command: "{{{prompt}}}"
 
@@ -85,7 +109,7 @@ const assistantPrompt = ai.definePrompt({
       The user has no tasks.
     {{/if}}
 
-    Now, generate the plan based on the user's command. Your response should summarize the plan.
+    Now, generate the plan based on the user's command. Your response should summarize the plan or provide the direct tool output.
     `,
 });
 
@@ -105,3 +129,4 @@ const assistantFlow = ai.defineFlow(
     return output;
   }
 );
+

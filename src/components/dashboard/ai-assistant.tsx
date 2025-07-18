@@ -1,7 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import type { Task, UserRole } from '@/lib/types';
 import { runAssistant, type AssistantOutput } from '@/ai/flows/assistant-flow';
 import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -19,7 +21,7 @@ interface AIAssistantProps {
 }
 
 export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
-  const { handleAddTasks, updateTask, handleDeleteTask } = useAppContext();
+  const { handleAddTasks, updateTask, handleDeleteTask, handleAddSubtasks } = useAppContext();
   const { toast } = useToast();
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -50,15 +52,19 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
         throw new Error("I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?");
       }
 
-      // Check if there are any actions to take. If not, just show the response as a simple message.
       const hasActions = (result.tasksToAdd && result.tasksToAdd.length > 0) ||
                          (result.tasksToUpdate && result.tasksToUpdate.length > 0) ||
-                         (result.tasksToDelete && result.tasksToDelete.length > 0);
+                         (result.tasksToDelete && result.tasksToDelete.length > 0) ||
+                         (result.subtasksToAdd && result.subtasksToAdd.length > 0);
 
       if (hasActions) {
         setAiPlan(result);
       } else {
-         toast({ title: 'AI Assistant', description: result.response });
+         toast({
+            title: 'AI Assistant', 
+            description: <p className="whitespace-pre-wrap">{result.response}</p>, 
+            duration: 8000 
+        });
          setPrompt('');
       }
 
@@ -75,7 +81,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
     setLoading(true);
     try {
-      // Create a promise array to run all updates in parallel
       const promises = [];
       if (aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0) {
         promises.push(handleAddTasks(aiPlan.tasksToAdd));
@@ -88,6 +93,11 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       if (aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0) {
         for (const task of aiPlan.tasksToDelete) {
           promises.push(handleDeleteTask(task.taskId));
+        }
+      }
+      if (aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0) {
+        for (const parent of aiPlan.subtasksToAdd) {
+            promises.push(handleAddSubtasks(parent.parentId, parent.subtasks));
         }
       }
       
@@ -114,6 +124,18 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     setPrompt('');
   }
 
+  const PlanSection: React.FC<{title: string; icon: React.ReactNode; className: string; children: React.ReactNode}> = ({ title, icon, className, children }) => (
+    <div>
+        <div className={cn("font-medium flex items-center gap-2", className)}>
+            {icon} {title}:
+        </div>
+        <ul className="list-disc pl-8 mt-1 space-y-1 text-muted-foreground">
+            {children}
+        </ul>
+    </div>
+  );
+
+
   return (
     <Card>
       <CardHeader>
@@ -122,7 +144,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           FlowForge Assistant
         </CardTitle>
         <CardDescription>
-          Tell me what to do. Example: "Add a task to read for 1 hour tomorrow at 10am" or "Mark 'finish report' as complete".
+          Tell me what to do. Try: "break down my 'finish report' task" or "create a plan to learn piano".
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -165,44 +187,44 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                   <p className="text-sm text-muted-foreground italic mb-4">"{aiPlan.response}"</p>
                 </div>
 
-                <div className="space-y-3 text-sm">
+                <div className="space-y-4 text-sm">
                     {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
-                        <div>
-                            <p className="font-medium text-green-600 dark:text-green-400">Add:</p>
-                            <ul className="list-disc pl-5 text-muted-foreground">
-                                {aiPlan.tasksToAdd.map((t, i) => (
-                                    <li key={`add-${i}`}>
-                                        {t.title}
-                                        {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                        <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
+                           {aiPlan.tasksToAdd.map((t, i) => (
+                                <li key={`add-${i}`}>
+                                    {t.title}
+                                    {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
+                                </li>
+                            ))}
+                        </PlanSection>
+                    )}
+                     {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
+                        <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
+                           {aiPlan.subtasksToAdd.map((item, i) => (
+                                <li key={`subtask-${i}`}>
+                                   To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
+                                </li>
+                            ))}
+                        </PlanSection>
                     )}
                      {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
-                        <div>
-                            <p className="font-medium text-amber-600 dark:text-amber-400">Update:</p>
-                            <ul className="list-disc pl-5 text-muted-foreground">
-                                {aiPlan.tasksToUpdate.map((t, i) => {
-                                    const originalTask = allTasks.find(task => task.id === t.taskId);
-                                    const updates = Object.entries(t.updates)
-                                        .map(([key, value]) => {
-                                            if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
-                                            return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
-                                        })
-                                        .join(', ');
-                                    return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
-                                })}
-                            </ul>
-                        </div>
+                        <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
+                            {aiPlan.tasksToUpdate.map((t, i) => {
+                                const originalTask = allTasks.find(task => task.id === t.taskId);
+                                const updates = Object.entries(t.updates)
+                                    .map(([key, value]) => {
+                                        if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
+                                        return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
+                                    })
+                                    .join(', ');
+                                return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
+                            })}
+                        </PlanSection>
                     )}
                      {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
-                        <div>
-                            <p className="font-medium text-red-600 dark:text-red-500">Delete:</p>
-                            <ul className="list-disc pl-5 text-muted-foreground">
-                                {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
-                            </ul>
-                        </div>
+                        <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
+                            {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
+                        </PlanSection>
                     )}
                 </div>
 

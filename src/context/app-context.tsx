@@ -14,7 +14,7 @@ interface AppContextType {
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   showConfetti: boolean;
   handleToggleTask: (id: string, parentId?: string) => Promise<void>;
-  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>) => Promise<void>;
+  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => Promise<void>;
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
@@ -212,7 +212,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
        }
        const parentTask = docSnap.data() as Task;
        
-       const maxSubtaskOrder = parentTask.subtasks?.reduce((max, sub) => Math.max(sub.order || 0, max), 0) || 0;
+       const maxSubtaskOrder = parentTask.subtasks?.reduce((max, sub) => Math.max(sub.order || 0, max), -1) ?? -1;
 
        const newSubtasks: Task[] = subtasks.map((sub, index) => ({
           id: uuidv4(),
