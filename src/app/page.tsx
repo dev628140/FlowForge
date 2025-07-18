@@ -170,8 +170,30 @@ export default function DashboardPage() {
   const agentConfig: AgentConfig = {
     title: 'FlowForge Assistant',
     description: "Your conversational AI partner. Ask me to plan goals, get suggestions, or analyze your productivity.",
-    initialContext: `You are a helpful productivity assistant named FlowForge. You have access to a set of tools to help the user. Your primary role is to provide information and suggestions based on the conversation context and the user's task list. If the user explicitly asks you to create tasks, plan something, or add items to their list, you should use the appropriate tools and also generate a conversational response. Confirm details with the user if their request is ambiguous. When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
-IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context and the provided task list to identify the relevant tasks to act upon. If a user's request is ambiguous (e.g., multiple tasks match a description), ask for clarification by describing the tasks you found (e.g., by title and date), not by asking for an ID.`,
+    initialContext: `You are a helpful productivity assistant named FlowForge.
+You have a set of tools available: naturalLanguageTaskPlanning, getRoleBasedTaskSuggestions, generateLearningPlan, analyzeProductivity, progressReflectionJournal, visualTaskSnap, breakdownTask, updateTask, deleteTask.
+Based on the user's prompt, you MUST decide if a tool is appropriate. If so, call the tool. If not, respond conversationally.
+You must act autonomously to fulfill the user's request using the tools.
+IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context and the provided task list to identify the relevant tasks to act upon. If a user's request is ambiguous (e.g., multiple tasks match a description), ask for clarification by describing the tasks you found (e.g., by title and date), not by asking for an ID.
+
+If the user provides an image, your primary tool should be 'visualTaskSnap'.
+If the user mentions their feelings or asks for ideas, consider 'getRoleBasedTaskSuggestions'.
+If the user wants to plan a large goal, use 'naturalLanguageTaskPlanning'.
+If the user wants to break down one specific task, use 'breakdownTask'.
+If the user asks to learn something, use 'generateLearningPlan'.
+If the user asks for a report on their work, use 'analyzeProductivity'.
+If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
+For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools. If multiple tasks match a deletion or update request, ask for confirmation before proceeding with all of them.
+
+The user has the 'visualTaskSnap' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.
+
+You have full context of the user's task list. Your primary role is to provide information and suggestions based on the conversation.
+Your final response should always be conversational and directed to the user, even after using a tool.
+
+The user has selected the role: ${selectedRole}.
+User's Task Context (including IDs, titles, descriptions, and completion status):
+${tasks ? JSON.stringify(tasks, null, 2) : "No task context provided."}
+`,
     initialPrompt: 'What should I focus on today?',
     taskContext: {
         role: selectedRole,
@@ -214,8 +236,8 @@ IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context an
         
         <DailyProgressBar tasks={todaysTasks} />
         
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-1 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
              <Card>
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -399,81 +421,81 @@ IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context an
               </CardContent>
             </Card>
             <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
+            {overdueTasks.length > 0 && (
+              <Card className="border-destructive/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between text-destructive">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-6 h-6" />
+                      Pending Tasks
+                    </div>
+                    <Badge variant="destructive">{overdueTasks.length}</Badge>
+                  </CardTitle>
+                  <CardDescription>Tasks that are past their due date.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {overdueTasks.map(task => {
+                      const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
+                      return (
+                        <div key={task.id} className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
+                            <div className="flex-1">
+                              <span className={cn("font-medium text-card-foreground")}>
+                                {task.title}
+                              </span>
+                              <p className="text-xs text-destructive">
+                                {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
+                              </p>
+                            </div>
+                            <div className={cn("flex items-center transition-opacity", "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="hover:bg-primary/10 hover:text-primary"
+                                    aria-label={`Reschedule task ${task.title}`}
+                                    onClick={() => onReschedule(task)}
+                                  >
+                                    <CalendarPlus className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="hover:bg-destructive/10 hover:text-destructive"
+                                      aria-label={`Delete task ${task.title}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the task "{task.title}".
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
-          <div className="xl:col-span-2">
-            <ConversationalAICard config={agentConfig} />
+          <div className="lg:col-span-1 h-full">
+             <div className="h-full flex flex-col">
+               <ConversationalAICard config={agentConfig} />
+             </div>
           </div>
         </div>
-        
-        {overdueTasks.length > 0 && (
-          <Card className="border-destructive/50">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-destructive">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-6 h-6" />
-                  Pending Tasks
-                </div>
-                 <Badge variant="destructive">{overdueTasks.length}</Badge>
-              </CardTitle>
-              <CardDescription>Tasks that are past their due date.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {overdueTasks.map(task => {
-                  const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
-                  return (
-                     <div key={task.id} className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
-                        <div className="flex-1">
-                          <span className={cn("font-medium text-card-foreground")}>
-                            {task.title}
-                          </span>
-                          <p className="text-xs text-destructive">
-                            {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
-                          </p>
-                        </div>
-                        <div className={cn("flex items-center transition-opacity", "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
-                             <Button
-                                variant="ghost"
-                                size="icon"
-                                className="hover:bg-primary/10 hover:text-primary"
-                                aria-label={`Reschedule task ${task.title}`}
-                                onClick={() => onReschedule(task)}
-                              >
-                                <CalendarPlus className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="hover:bg-destructive/10 hover:text-destructive"
-                                  aria-label={`Delete task ${task.title}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the task "{task.title}".
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                     </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
       </div>
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
         handleToggleTask(focusTask.id)

@@ -425,7 +425,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   }
 
   return (
-    <Card className="flex flex-col h-full col-span-1 md:col-span-2">
+    <Card className="flex flex-col h-full w-full">
       <div className="flex h-full">
          {/* Chat History Sidebar */}
         <div className={cn(
