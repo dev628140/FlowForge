@@ -484,10 +484,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         </div>
 
         {/* This wrapper ensures the main content area resizes correctly */}
-        <div className={cn(
-          "flex-1 flex flex-col min-w-0",
-          !isHistoryCollapsed && "hidden md:flex"
-        )}>
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Main Chat Area */}
           <CardHeader>
             <div className="flex justify-between items-start sm:items-center gap-2">
