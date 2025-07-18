@@ -1,60 +1,171 @@
+'use client';
 
-'use server';
+import * as React from 'react';
+import { Pause, Play, RotateCcw, X, Brain, Coffee } from 'lucide-react';
+import type { Task } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
-/**
- * @fileOverview An AI flow for generating a short, Lo-fi focus playlist and finding a suitable YouTube stream.
- *
- * - `generateFocusPlaylist` - A function that creates a playlist based on a task title.
- * - `FocusPlaylistInput` - The input type for the `generateFocusPlaylist` function.
- * - `FocusPlaylistOutput` - The output type for the `generateFocusPlaylist` function.
- */
-
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const FocusPlaylistInputSchema = z.object({
-  taskTitle: z.string().describe('The title of the task the user is focusing on.'),
-});
-export type FocusPlaylistInput = z.infer<typeof FocusPlaylistInputSchema>;
-
-const SongSchema = z.object({
-    title: z.string().describe('The title of the song.'),
-    artist: z.string().describe('The artist of the song.'),
-});
-
-const FocusPlaylistOutputSchema = z.object({
-  playlist: z.array(SongSchema).describe('A list of 3-5 instrumental lo-fi hip hop tracks suitable for focus.'),
-  youtubeVideoId: z.string().optional().describe('The video ID of a suitable, embeddable YouTube lofi hip hop livestream. Example: "jfKfPfyJRdk" for lo-fi girl.'),
-});
-export type FocusPlaylistOutput = z.infer<typeof FocusPlaylistOutputSchema>;
-
-export async function generateFocusPlaylist(input: FocusPlaylistInput): Promise<FocusPlaylistOutput> {
-  return focusPlaylistFlow(input);
+interface FocusModeProps {
+  task: Task;
+  onClose: () => void;
+  onComplete: () => void;
 }
 
-const prompt = ai.definePrompt({
-  name: 'focusPlaylistPrompt',
-  input: {schema: FocusPlaylistInputSchema},
-  output: {schema: FocusPlaylistOutputSchema},
-  prompt: `You are a music curator specializing in instrumental lo-fi hip hop for focus and concentration.
-Based on the user's task, generate a short playlist of 3-5 songs.
-The songs should be chill, instrumental, and conducive to deep work. Avoid tracks with prominent vocals.
-Also, provide a suitable YouTube video ID for a popular, embeddable 'lofi hip hop radio' live stream that can be played in the background. A good default is 'jfKfPfyJRdk'.
+const MIN_FOCUS = 10;
+const MAX_FOCUS = 60;
+const MIN_BREAK = 5;
+const MAX_BREAK = 30;
+const DEFAULT_FOCUS = 25;
+const DEFAULT_BREAK = 5;
 
-Task: {{{taskTitle}}}
 
-Generate the playlist and YouTube video ID now.
-`,
-});
+export default function FocusMode({ task, onClose, onComplete }: FocusModeProps) {
+  const [focusDuration, setFocusDuration] = React.useState(DEFAULT_FOCUS * 60);
+  const [breakDuration, setBreakDuration] = React.useState(DEFAULT_BREAK * 60);
+  const [timeLeft, setTimeLeft] = React.useState(focusDuration);
+  const [isActive, setIsActive] = React.useState(false);
+  const [isBreak, setIsBreak] = React.useState(false);
+  
+  const [autoStartBreaks, setAutoStartBreaks] = React.useState(false);
+  const [autoStartFocus, setAutoStartFocus] = React.useState(false);
+  const [cyclesCompleted, setCyclesCompleted] = React.useState(0);
+  
 
-const focusPlaylistFlow = ai.defineFlow(
-  {
-    name: 'focusPlaylistFlow',
-    inputSchema: FocusPlaylistInputSchema,
-    outputSchema: FocusPlaylistOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+  // Update timeLeft when duration settings are changed while paused
+  React.useEffect(() => {
+    if (!isActive) {
+      setTimeLeft(isBreak ? breakDuration : focusDuration);
+    }
+  }, [focusDuration, breakDuration, isBreak, isActive]);
+
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (isActive && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(time => time - 1);
+      }, 1000);
+    } else if (timeLeft === 0 && isActive) {
+      // Timer reached zero while active
+      const sound = isBreak ? '/sounds/success.mp3' : '/sounds/bell.mp3';
+      new Audio(sound).play().catch(e => console.error("Audio play failed", e));
+      
+      if (isBreak) { // Break just ended
+        setIsBreak(false);
+        setTimeLeft(focusDuration);
+        if (!autoStartFocus) {
+          setIsActive(false);
+        }
+      } else { // Focus session just ended
+        setIsBreak(true);
+        setCyclesCompleted(c => c + 1);
+        setTimeLeft(breakDuration);
+        if (!autoStartBreaks) {
+          setIsActive(false);
+        }
+      }
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isActive, timeLeft, isBreak, autoStartBreaks, autoStartFocus, breakDuration, focusDuration]);
+
+  const toggleTimer = () => setIsActive(!isActive);
+  
+  const resetTimer = () => {
+    setIsActive(false);
+    setIsBreak(false);
+    setTimeLeft(focusDuration);
+  };
+  
+  const handleComplete = () => {
+    onComplete();
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-lg m-4 p-6 md:p-8 text-center flex flex-col items-center relative">
+        <Button variant="ghost" size="icon" className="absolute top-4 right-4" onClick={onClose}>
+            <X className="h-5 w-5" />
+            <span className="sr-only">Close Focus Mode</span>
+        </Button>
+        
+        <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-primary">
+            {isBreak ? <Coffee className="h-5 w-5"/> : <Brain className="h-5 w-5" />}
+            <span>{isBreak ? 'BREAK TIME' : 'FOCUSING ON'}</span>
+        </div>
+
+        {!isBreak && <h1 className="text-xl md:text-2xl font-bold font-headline mb-4 text-card-foreground">{task.title}</h1>}
+        
+        <div className="font-mono font-bold text-6xl sm:text-7xl md:text-8xl text-card-foreground my-4">
+          {formatTime(timeLeft)}
+        </div>
+        
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="outline" size="icon" onClick={resetTimer}>
+            <RotateCcw className="w-5 h-5" />
+            <span className="sr-only">Reset Timer</span>
+          </Button>
+          <Button size="lg" className="w-24 h-16 md:w-32 md:h-16 rounded-full text-lg shadow-lg" onClick={toggleTimer}>
+            {isActive ? <Pause className="w-8 h-8"/> : <Play className="w-8 h-8"/>}
+            <span className="sr-only">{isActive ? 'Pause timer' : 'Start timer'}</span>
+
+          </Button>
+           <div className="w-12 h-12" /> {/* Spacer */}
+        </div>
+        
+        <div className="w-full space-y-4 mb-6">
+            <div className="space-y-3">
+              <Label htmlFor="focus-duration">Focus Duration: {focusDuration / 60} mins</Label>
+              <Slider
+                id="focus-duration"
+                min={MIN_FOCUS}
+                max={MAX_FOCUS}
+                step={5}
+                value={[focusDuration / 60]}
+                onValueChange={(value) => setFocusDuration(value[0] * 60)}
+                disabled={isActive}
+              />
+            </div>
+             <div className="space-y-3">
+              <Label htmlFor="break-duration">Break Duration: {breakDuration / 60} mins</Label>
+              <Slider
+                id="break-duration"
+                min={MIN_BREAK}
+                max={MAX_BREAK}
+                step={5}
+                value={[breakDuration / 60]}
+                onValueChange={(value) => setBreakDuration(value[0] * 60)}
+                disabled={isActive}
+              />
+            </div>
+             <div className="flex flex-col sm:flex-row justify-around items-center gap-4 pt-2">
+                <div className="flex items-center space-x-2">
+                    <Switch id="auto-start-breaks" checked={autoStartBreaks} onCheckedChange={setAutoStartBreaks} />
+                    <Label htmlFor="auto-start-breaks">Auto-start Breaks</Label>
+                </div>
+                 <div className="flex items-center space-x-2">
+                    <Switch id="auto-start-focus" checked={autoStartFocus} onCheckedChange={setAutoStartFocus} />
+                    <Label htmlFor="auto-start-focus">Auto-start Focus</Label>
+                </div>
+            </div>
+        </div>
+
+        <Button onClick={handleComplete} variant="secondary" className="w-full mb-4">
+          Mark as Complete
+        </Button>
+        <p className="text-sm text-muted-foreground mb-4">Cycles completed: {cyclesCompleted}</p>
+        
+      </div>
+    </div>
+  );
+}

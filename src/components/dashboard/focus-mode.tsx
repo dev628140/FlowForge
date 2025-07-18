@@ -2,15 +2,12 @@
 'use client';
 
 import * as React from 'react';
-import { Pause, Play, RotateCcw, X, Brain, Coffee, Music, Loader2 } from 'lucide-react';
+import { Pause, Play, RotateCcw, X, Brain, Coffee } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { generateFocusPlaylist, FocusPlaylistOutput } from '@/ai/flows/focus-playlist-flow';
-import { Skeleton } from '../ui/skeleton';
-import { Separator } from '../ui/separator';
 
 interface FocusModeProps {
   task: Task;
@@ -37,24 +34,6 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   const [autoStartFocus, setAutoStartFocus] = React.useState(false);
   const [cyclesCompleted, setCyclesCompleted] = React.useState(0);
   
-  const [playlist, setPlaylist] = React.useState<FocusPlaylistOutput | null>(null);
-  const [playlistLoading, setPlaylistLoading] = React.useState(false);
-
-
-  const fetchPlaylist = async () => {
-    setPlaylistLoading(true);
-    setPlaylist(null);
-    try {
-      const result = await generateFocusPlaylist({ taskTitle: task.title });
-      setPlaylist(result);
-    } catch (error) {
-      console.error("Failed to generate playlist:", error);
-      setPlaylist(null); // Set to null on error
-    } finally {
-      setPlaylistLoading(false);
-    }
-  };
-
 
   // Update timeLeft when duration settings are changed while paused
   React.useEffect(() => {
@@ -187,40 +166,6 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
         </Button>
         <p className="text-sm text-muted-foreground mb-4">Cycles completed: {cyclesCompleted}</p>
         
-        <Separator className="my-4" />
-        
-        <div className="w-full text-left">
-            <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2 mb-2">
-                <Music className="h-4 w-4" />
-                Focus Music
-            </h3>
-            {playlistLoading ? (
-                <div className="space-y-2">
-                    <Skeleton className="h-24 w-full" />
-                </div>
-            ) : playlist && playlist.youtubeVideoId ? (
-                <div className="aspect-video w-full">
-                    <iframe
-                        className="w-full h-full rounded-lg"
-                        src={`https://www.youtube.com/embed/${playlist.youtubeVideoId}?autoplay=1&mute=1`}
-                        title="YouTube video player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                    ></iframe>
-                </div>
-            ) : (
-                 <div className="text-center">
-                    <p className="text-xs text-muted-foreground mb-2">
-                        {playlist === null ? 'Click below to generate focus music.' : 'Could not generate a playlist.'}
-                    </p>
-                    <Button onClick={fetchPlaylist} disabled={playlistLoading} size="sm" variant="ghost">
-                        {playlistLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Music className="mr-2 h-4 w-4" />}
-                        Generate Music
-                    </Button>
-                 </div>
-            )}
-        </div>
       </div>
     </div>
   );
