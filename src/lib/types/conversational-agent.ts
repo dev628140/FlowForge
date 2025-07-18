@@ -22,6 +22,8 @@ export const TaskSchema = z.object({
   title: z.string(),
   order: z.number().optional(),
   scheduledDate: z.string().optional(),
+  completed: z.boolean().optional(),
+  description: z.string().optional(),
 });
 
 export const ConversationalAgentInputSchema = z.object({
@@ -49,6 +51,7 @@ const TaskToUpdateSchema = z.object({
         description: z.string().optional(),
         completed: z.boolean().optional(),
         scheduledDate: z.string().optional(),
+        order: z.number().optional(),
     }).describe("The fields to update.")
 });
 

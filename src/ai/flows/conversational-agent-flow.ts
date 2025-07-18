@@ -262,21 +262,44 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
     const toolCalls = response.toolCalls;
 
     if (toolCalls && toolCalls.length > 0) {
-        const taskPlanningCall = toolCalls.find(call => call.toolName === 'naturalLanguageTaskPlanning');
-        if (taskPlanningCall && taskPlanningCall.output) {
-            const tasks = taskPlanningCall.output.tasks || [];
-            if (tasks.length > 0) {
-                result.response = `OK. I've added ${tasks.length} task(s) to your list.`;
-                result.tasksToAdd = tasks;
+      for (const call of toolCalls) {
+        switch (call.toolName) {
+          case 'naturalLanguageTaskPlanning':
+            const planningOutput = call.output as NaturalLanguageTaskPlanningOutput;
+            if (planningOutput.tasks && planningOutput.tasks.length > 0) {
+              result.tasksToAdd = planningOutput.tasks;
+              result.response = `OK. I've added ${planningOutput.tasks.length} task(s) to your list. Anything else?`;
             } else {
-                result.response = "I couldn't identify any tasks to add from your request.";
+              result.response = "I couldn't identify any tasks to add from your request.";
             }
-        } else {
-          // Handle other tool calls here if necessary in the future
-          result.response = response.text || "I've processed your request using a tool.";
+            break;
+
+          case 'updateTask':
+            const updateInput = call.input as any;
+            result.tasksToUpdate.push({ taskId: updateInput.taskId, updates: updateInput.updates });
+            result.response = `OK, I've updated the task.`;
+            break;
+          
+          case 'deleteTask':
+            const deleteInput = call.input as any;
+            result.tasksToDelete.push({ taskId: deleteInput.taskId });
+            result.response = `OK, I've deleted the task.`;
+            break;
+
+          // In a real app, you would handle the output of other tools here
+          // For now, we'll just use the text response if it exists.
+          default:
+            result.response = response.text || `I've processed your request using the ${call.toolName} tool.`;
+            break;
         }
+      }
     } else {
         result.response = response.text;
+    }
+    
+    // If after all that, there's no response text, provide a default.
+    if (!result.response) {
+      result.response = "OK. Is there anything else I can help with?";
     }
     
     return result;
