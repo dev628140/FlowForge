@@ -17,6 +17,7 @@ import {
     analyzeProductivityTool,
     reflectOnProgressTool,
 } from '@/ai/tools';
+import { format } from 'date-fns';
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -36,19 +37,19 @@ export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 // Define the structured output (the "plan") the AI should generate.
 const TaskToAddSchema = z.object({
     title: z.string().describe('The title of the new task.'),
-    description: z.string().optional().describe('A brief description of the task.'),
-    scheduledDate: z.string().optional().describe('The scheduled date for the task in YYYY-MM-DD format.'),
-    scheduledTime: z.string().optional().describe('The scheduled time for the task in HH:mm 24-hour format.'),
+    description: z.string().optional().nullable().describe('A brief description of the task.'),
+    scheduledDate: z.string().optional().nullable().describe('The scheduled date for the task in YYYY-MM-DD format.'),
+    scheduledTime: z.string().optional().nullable().describe('The scheduled time for the task in HH:mm 24-hour format.'),
 });
 
 const TaskToUpdateSchema = z.object({
     taskId: z.string().describe("The unique ID of the task to update."),
     updates: z.object({
-        title: z.string().optional(),
-        description: z.string().optional(),
-        completed: z.boolean().optional(),
-        scheduledDate: z.string().optional(),
-        scheduledTime: z.string().optional(),
+        title: z.string().optional().nullable(),
+        description: z.string().optional().nullable(),
+        completed: z.boolean().optional().nullable(),
+        scheduledDate: z.string().optional().nullable(),
+        scheduledTime: z.string().optional().nullable(),
     }).describe("The fields of the task to update."),
 });
 
@@ -66,10 +67,10 @@ const SubtasksToAddSchema = z.object({
 
 const AssistantOutputSchema = z.object({
   response: z.string().describe("A concise, friendly summary of the plan you have generated, or a conversational response if you are asking for clarification or providing information. For example, 'I can add 2 tasks and delete 1.' or 'I've scheduled that for you.' or 'Which task are you referring to?'. If no actions are taken, provide a helpful conversational response or the direct result from a tool (like a summary or analysis)."),
-  tasksToAdd: z.array(TaskToAddSchema).optional().describe("A list of new tasks to be added based on the user's command."),
-  tasksToUpdate: z.array(TaskToUpdateSchema).optional().describe("A list of existing tasks to be updated."),
-  tasksToDelete: z.array(TaskToDeleteSchema).optional().describe("A list of existing tasks to be deleted."),
-  subtasksToAdd: z.array(SubtasksToAddSchema).optional().describe("A list of subtasks to add to existing parent tasks.")
+  tasksToAdd: z.array(TaskToAddSchema).optional().nullable().describe("A list of new tasks to be added based on the user's command."),
+  tasksToUpdate: z.array(TaskToUpdateSchema).optional().nullable().describe("A list of existing tasks to be updated."),
+  tasksToDelete: z.array(TaskToDeleteSchema).optional().nullable().describe("A list of existing tasks to be deleted."),
+  subtasksToAdd: z.array(SubtasksToAddSchema).optional().nullable().describe("A list of subtasks to add to existing parent tasks.")
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
