@@ -483,8 +483,8 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
         <div className="flex-1 flex flex-col min-w-0">
           {/* Main Chat Area */}
           <CardHeader>
-            <div className="flex flex-wrap justify-between items-start sm:items-center gap-2">
-              <div className="flex items-center gap-2 flex-shrink min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -497,13 +497,13 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <div className="min-w-0">
-                  <CardTitle className="truncate">{config.title}</CardTitle>
-                  <CardDescription className="truncate">{config.description}</CardDescription>
+                <div>
+                  <CardTitle>{config.title}</CardTitle>
+                  <CardDescription>{config.description}</CardDescription>
                 </div>
               </div>
               {currentConversation?.activeTool && (
-                <div className="text-right flex-shrink-0">
+                <div className="text-right">
                   <Badge variant="secondary" className="mb-1">
                     Active Tool: {currentConversation.activeTool.name}
                   </Badge>
