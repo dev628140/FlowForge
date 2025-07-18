@@ -176,11 +176,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky top-0 z-10 flex items-center justify-between p-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger />
             {isOffline && (
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground animate-pulse">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground animate-pulse rounded-full bg-background/70 p-2 backdrop-blur-sm">
                 <WifiOff className="w-4 h-4" />
                 <span>Offline</span>
               </div>
@@ -188,7 +188,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <UserProfile user={user} />
         </header>
-        <main>{children}</main>
+        <main className="-mt-[68px]">
+          <div className="pt-[68px]">
+             {children}
+          </div>
+        </main>
         <Toaster />
       </SidebarInset>
     </SidebarProvider>
