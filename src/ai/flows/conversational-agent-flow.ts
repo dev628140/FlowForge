@@ -230,12 +230,12 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
              const errorMessage = error.message || '';
             // Check for specific error types that are retryable or user-facing
             if (errorMessage.includes('429') || errorMessage.includes('exceeded your current quota')) {
-                 throw new Error("You've exceeded the daily limit for the AI. The quota will reset at midnight PT. Please try again tomorrow.");
+                 return { response: "You've exceeded the daily limit for the AI. The quota will reset at midnight PT. Please try again tomorrow." };
             }
             if (errorMessage.includes('503 Service Unavailable')) {
                 retries--;
                 if (retries === 0) {
-                    throw new Error("The AI model is currently overloaded. Please try again in a few moments.");
+                    return { response: "The AI model is currently overloaded. Please try again in a few moments." };
                 }
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2; // Exponential backoff
