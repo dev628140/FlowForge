@@ -52,13 +52,13 @@ import {
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import ConversationalAICard, { type AgentConfig } from '@/components/dashboard/conversational-ai-card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
 import { Badge } from '@/components/ui/badge';
 import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import AIAssistant from '@/components/dashboard/ai-assistant';
 
 
 const taskFormSchema = z.object({
@@ -177,17 +177,6 @@ export default function DashboardPage() {
   );
   
   const userRoles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
-  
-  const agentConfig: AgentConfig = {
-    title: 'FlowForge Assistant',
-    description: "Your conversational AI partner.",
-    initialContext: `You are a helpful productivity assistant named FlowForge. You have a set of tools available to help users manage their tasks. Based on the user's prompt, you MUST decide if a tool is appropriate. If so, call the tool. If not, respond conversationally. NEVER ask for a Task ID. Use conversation context to identify tasks. If a command is ambiguous, ask for clarification by describing the tasks you found. The user has selected the role: ${selectedRole}.`,
-    taskContext: {
-        role: selectedRole,
-        tasks: tasks,
-    },
-  };
-
 
   if (authLoading) {
      return (
@@ -221,7 +210,10 @@ export default function DashboardPage() {
           </div>
         </div>
         
+        <AIAssistant allTasks={tasks} role={selectedRole} />
+
         <DailyProgressBar tasks={todaysTasks} />
+
           <Card>
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
               <div>
@@ -481,8 +473,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           )}
-          
-        <ConversationalAICard config={agentConfig} />
       </div>
 
        {/* Floating Action Button for Mobile */}
