@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -58,10 +57,6 @@ export interface AgentConfig {
   initialPrompt?: string;
   taskContext: any;
   children?: React.ReactNode;
-}
-
-interface ConversationalAICardProps {
-  config: AgentConfig;
 }
 
 interface Conversation {
