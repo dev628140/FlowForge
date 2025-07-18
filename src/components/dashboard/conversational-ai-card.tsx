@@ -150,6 +150,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       console.error("Failed to load conversations from localStorage", e);
       startNewConversation();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   // Save conversations to localStorage whenever they change
@@ -173,12 +174,12 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
     return conversations.find(c => c.id === currentConversationId);
   }, [conversations, currentConversationId]);
 
-  const updateCurrentConversation = (updates: Partial<Conversation>) => {
+  const updateCurrentConversation = React.useCallback((updates: Partial<Conversation>) => {
     if (!currentConversationId) return;
     setConversations(prev =>
       prev.map(c => (c.id === currentConversationId ? { ...c, ...updates } : c))
     );
-  };
+  }, [currentConversationId]);
   
   const startNewConversation = () => {
     const newId = uuidv4();
@@ -426,7 +427,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
 
   return (
     <Card className="flex flex-col h-full w-full overflow-hidden">
-      <div className="flex h-full overflow-x-hidden">
+      <div className="flex h-full">
          {/* Chat History Sidebar */}
         <div className={cn(
             "border-r bg-muted/30 flex flex-col transition-all duration-300 flex-shrink-0",
@@ -480,7 +481,8 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex flex-col w-full h-full">
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -622,6 +624,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
                   </Button>
               </form>
             </CardContent>
+          </div>
         </div>
       </div>
     </Card>
