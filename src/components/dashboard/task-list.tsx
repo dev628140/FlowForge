@@ -7,7 +7,6 @@ import TaskItem from './task-item';
 
 interface TaskListProps {
   tasks: Task[];
-  allTasks?: Task[]; // Pass the original, unsorted list for context
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
@@ -17,7 +16,7 @@ interface TaskListProps {
   parentId?: string;
 }
 
-export default function TaskList({ tasks, allTasks, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
+export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
   
   // The `tasks` prop is already sorted by the parent component.
   // We no longer need to sort it here.

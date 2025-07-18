@@ -163,7 +163,13 @@ export default function DashboardPage() {
     });
   }
 
-  const todaysTasks = tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate)));
+  const todaysTasks = React.useMemo(() => 
+    tasks
+      .filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate)))
+      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity)),
+    [tasks]
+  );
+  
   const overdueTasks = tasks.filter(task => 
     !task.completed && 
     task.scheduledDate && 
@@ -397,11 +403,10 @@ export default function DashboardPage() {
             <CardContent>
               <TaskList
                 tasks={todaysTasks}
-                allTasks={tasks}
                 onToggle={handleToggleTask} 
                 onStartFocus={handleStartFocus} 
                 onUpdateTask={updateTask} 
-                onReorder={handleReorderTask}
+                onReorder={(taskId, direction) => handleReorderTask(taskId, direction, todaysTasks)}
                 isSubtaskList={false}
                 emptyMessage="No tasks for today. Add one to get started!" 
               />

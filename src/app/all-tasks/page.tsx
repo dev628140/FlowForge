@@ -117,12 +117,11 @@ export default function AllTasksPage() {
                 </CardHeader>
                 <CardContent>
                     <TaskList 
-                        tasks={sortedTasks} 
-                        allTasks={tasks}
+                        tasks={sortedTasks}
                         onToggle={handleToggleTask} 
                         onStartFocus={handleStartFocus} 
                         onUpdateTask={updateTask} 
-                        onReorder={handleReorderTask} 
+                        onReorder={(taskId, direction) => handleReorderTask(taskId, direction, sortedTasks)}
                         emptyMessage="No tasks found."
                     />
                 </CardContent>

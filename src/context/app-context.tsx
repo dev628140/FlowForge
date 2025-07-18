@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -17,7 +18,7 @@ interface AppContextType {
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  handleReorderTask: (taskId: string, direction: 'up' | 'down') => Promise<void>;
+  handleReorderTask: (taskId: string, direction: 'up' | 'down', contextTasks: Task[]) => Promise<void>;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -131,7 +132,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => {
     if (!user || !db) return;
 
-    const maxOrder = tasks.length > 0 ? Math.max(...tasks.map(t => t.order || 0)) : -1;
+    const maxOrder = tasks.length > 0 ? Math.max(...tasks.map(t => t.order || 0).filter(o => isFinite(o))) : -1;
     
     try {
       const batch = writeBatch(db);
@@ -254,40 +255,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleReorderTask = async (taskId: string, direction: 'up' | 'down') => {
+  const handleReorderTask = async (taskId: string, direction: 'up' | 'down', contextTasks: Task[]) => {
     if (!user || !db) return;
   
-    const taskToMove = tasks.find(t => t.id === taskId);
-    if (!taskToMove) return;
+    // Use the provided context list (the list the user is actually seeing)
+    const taskList = contextTasks;
+    const currentIndex = taskList.findIndex(t => t.id === taskId);
   
-    // Filter for tasks in the same group (i.e., same scheduledDate) and sort them by order
-    const siblingTasks = tasks
-      .filter(t => t.scheduledDate === taskToMove.scheduledDate)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
-  
-    const currentIndex = siblingTasks.findIndex(t => t.id === taskId);
-    if (currentIndex === -1) return; // Should not happen
-  
-    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-  
-    // Check if the swap is possible within the sibling group
-    if (swapIndex < 0 || swapIndex >= siblingTasks.length) {
+    if (currentIndex === -1) {
+      console.error("Task not found in the provided context list.");
       return;
     }
   
-    const taskToSwapWith = siblingTasks[swapIndex];
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+  
+    if (swapIndex < 0 || swapIndex >= taskList.length) {
+      return; // Cannot move further
+    }
+  
+    const taskToMove = taskList[currentIndex];
+    const taskToSwapWith = taskList[swapIndex];
   
     // The new order values are the existing order values of the tasks being swapped
     const newOrderForMoved = taskToSwapWith.order;
     const newOrderForSwapped = taskToMove.order;
   
-    // Optimistically update UI
-    const newTasks = tasks.map(t => {
+    // Optimistically update UI by reordering the main state
+    const newGlobalTasks = tasks.map(t => {
       if (t.id === taskToMove.id) return { ...t, order: newOrderForMoved };
       if (t.id === taskToSwapWith.id) return { ...t, order: newOrderForSwapped };
       return t;
     });
-    setTasks(newTasks);
+    setTasks(newGlobalTasks);
   
     // Update in Firestore
     try {
