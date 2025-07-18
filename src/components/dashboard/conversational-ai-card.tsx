@@ -2,7 +2,23 @@
 'use client';
 
 import * as React from 'react';
-import { Bot, Send, User, Loader2, Sparkles, AlertTriangle, Camera, UploadCloud, X, Wand2, RefreshCw } from 'lucide-react';
+import {
+  Bot,
+  Send,
+  User,
+  Loader2,
+  AlertTriangle,
+  Camera,
+  UploadCloud,
+  X,
+  Wand2,
+  RefreshCw,
+  Plus,
+  MessageSquare,
+  Trash2,
+  Pin,
+  PinOff,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -30,6 +46,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '../ui/badge';
+import { v4 as uuidv4 } from 'uuid';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 export interface AgentConfig {
   title: string;
@@ -44,14 +62,23 @@ interface ConversationalAICardProps {
   config: AgentConfig;
 }
 
+interface Conversation {
+  id: string;
+  title: string;
+  messages: Message[];
+  activeTool: { id: string; name: string } | null;
+  pinned: boolean;
+  createdAt: string;
+}
+
 const availableTools: { name: string; description: string; promptTemplate: string; id: string }[] = [
-    { id: 'naturalLanguageTaskPlanning', name: 'Task Planner', description: 'Breaks down a goal into actionable tasks.', promptTemplate: 'Plan my goal: ' },
-    { id: 'getRoleBasedTaskSuggestions', name: 'Task Suggester', description: 'Get suggestions based on your role and mood.', promptTemplate: 'I need some suggestions, I feel...' },
-    { id: 'generateLearningPlan', name: 'Learning Planner', description: 'Creates a structured learning plan for any topic.', promptTemplate: 'Create a learning plan for: ' },
-    { id: 'analyzeProductivity', name: 'Productivity Analyzer', description: 'Get a report on your productivity patterns.', promptTemplate: 'Analyze my productivity' },
-    { id: 'progressReflectionJournal', name: 'Progress Journal', description: 'Generates a summary of your completed tasks.', promptTemplate: 'Summarize my progress for today' },
-    { id: 'breakdownTask', name: 'Task Breakdown', description: 'Breaks one large task into smaller subtasks.', promptTemplate: 'Break down the task: ' },
-    { id: 'visualTaskSnap', name: 'Visual Task Snap', description: 'Extracts tasks from an uploaded image.', promptTemplate: 'Get the tasks from the attached image' },
+  { id: 'naturalLanguageTaskPlanning', name: 'Task Planner', description: 'Breaks down a goal into actionable tasks.', promptTemplate: 'Plan my goal: ' },
+  { id: 'getRoleBasedTaskSuggestions', name: 'Task Suggester', description: 'Get suggestions based on your role and mood.', promptTemplate: 'I need some suggestions, I feel...' },
+  { id: 'generateLearningPlan', name: 'Learning Planner', description: 'Creates a structured learning plan for any topic.', promptTemplate: 'Create a learning plan for: ' },
+  { id: 'analyzeProductivity', name: 'Productivity Analyzer', description: 'Get a report on your productivity patterns.', promptTemplate: 'Analyze my productivity' },
+  { id: 'progressReflectionJournal', name: 'Progress Journal', description: 'Generates a summary of your completed tasks.', promptTemplate: 'Summarize my progress for today' },
+  { id: 'breakdownTask', name: 'Task Breakdown', description: 'Breaks one large task into smaller subtasks.', promptTemplate: 'Break down the task: ' },
+  { id: 'visualTaskSnap', name: 'Visual Task Snap', description: 'Extracts tasks from an uploaded image.', promptTemplate: 'Get the tasks from the attached image' },
 ];
 
 function fileToDataUri(file: File): Promise<string> {
@@ -63,10 +90,15 @@ function fileToDataUri(file: File): Promise<string> {
   });
 }
 
+const CONVERSATIONS_STORAGE_KEY = 'flowforge_conversations';
+const CURRENT_CONVERSATION_ID_KEY = 'flowforge_current_conversation_id';
+
 export default function ConversationalAICard({ config }: ConversationalAICardProps) {
   const { handleAddTasks, updateTask, handleDeleteTask } = useAppContext();
   const { toast } = useToast();
-  const [messages, setMessages] = React.useState<Message[]>([]);
+  const [conversations, setConversations] = React.useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = React.useState<string | null>(null);
+
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -77,23 +109,110 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const [hasCameraPermission, setHasCameraPermission] = React.useState(true);
   const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
   const [currentDeviceId, setCurrentDeviceId] = React.useState<string | undefined>();
-  const [activeTool, setActiveTool] = React.useState<{ id: string; name: string } | null>(null);
   
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
   const isOffline = useOfflineStatus();
-  const draftKey = `agent-draft-${config.title.replace(/\s+/g, '-')}`;
+
+  // Load conversations from localStorage on mount
+  React.useEffect(() => {
+    try {
+      const storedConversations = localStorage.getItem(CONVERSATIONS_STORAGE_KEY);
+      const storedId = localStorage.getItem(CURRENT_CONVERSATION_ID_KEY);
+      if (storedConversations) {
+        const parsedConvos = JSON.parse(storedConversations);
+        setConversations(parsedConvos);
+        
+        if (storedId && parsedConvos.some((c: Conversation) => c.id === storedId)) {
+          setCurrentConversationId(storedId);
+        } else if (parsedConvos.length > 0) {
+          setCurrentConversationId(parsedConvos[0].id);
+        } else {
+          startNewConversation();
+        }
+      } else {
+        startNewConversation();
+      }
+    } catch (e) {
+      console.error("Failed to load conversations from localStorage", e);
+      startNewConversation();
+    }
+  }, []);
+  
+  // Save conversations to localStorage whenever they change
+  React.useEffect(() => {
+    if (conversations.length > 0) {
+      localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(conversations));
+    }
+    if (currentConversationId) {
+      localStorage.setItem(CURRENT_CONVERSATION_ID_KEY, currentConversationId);
+    }
+  }, [conversations, currentConversationId]);
+
+
+  const currentConversation = React.useMemo(() => {
+    return conversations.find(c => c.id === currentConversationId);
+  }, [conversations, currentConversationId]);
+
+  const updateCurrentConversation = (updates: Partial<Conversation>) => {
+    if (!currentConversationId) return;
+    setConversations(prev =>
+      prev.map(c => (c.id === currentConversationId ? { ...c, ...updates } : c))
+    );
+  };
+  
+  const startNewConversation = () => {
+    const newId = uuidv4();
+    const newConversation: Conversation = {
+      id: newId,
+      title: 'New Chat',
+      messages: [],
+      activeTool: null,
+      pinned: false,
+      createdAt: new Date().toISOString(),
+    };
+    setConversations(prev => [newConversation, ...prev]);
+    setCurrentConversationId(newId);
+    setPrompt('');
+    setImage(null);
+  };
+
+  const deleteConversation = (id: string) => {
+    setConversations(prev => prev.filter(c => c.id !== id));
+    if (currentConversationId === id) {
+      const remainingConversations = conversations.filter(c => c.id !== id);
+      if (remainingConversations.length > 0) {
+        setCurrentConversationId(remainingConversations[0].id);
+      } else {
+        startNewConversation();
+      }
+    }
+  };
+
+  const togglePinConversation = (id: string) => {
+    setConversations(prev =>
+      prev.map(c => (c.id === id ? { ...c, pinned: !c.pinned } : c))
+    );
+  };
+  
+  const sortedConversations = React.useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [conversations]);
 
   const processImage = React.useCallback(async (dataUri: string) => {
     setImage(dataUri);
     setPrompt("Get tasks from the attached image");
-    setActiveTool({id: 'visualTaskSnap', name: 'Visual Task Snap'});
+    updateCurrentConversation({ activeTool: {id: 'visualTaskSnap', name: 'Visual Task Snap'} });
     toast({
         title: "Image Added",
         description: "Your image has been attached. You can now ask the AI about it."
     });
-  }, [toast]);
+  }, [toast, updateCurrentConversation]);
   
   const onDrop = React.useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -181,19 +300,9 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
     }
   };
 
-  React.useEffect(() => {
-    const savedDraft = localStorage.getItem(draftKey);
-    if (savedDraft) setPrompt(savedDraft);
-  }, [draftKey]);
-
-  const handlePromptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPrompt(e.target.value);
-    localStorage.setItem(draftKey, e.target.value);
-  }
-
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!prompt.trim() || isOffline) {
+    if (!prompt.trim() || isOffline || !currentConversation) {
         if (isOffline) toast({ title: "You are offline", description: "AI features are unavailable.", variant: 'destructive' });
         return;
     }
@@ -202,26 +311,40 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
     if (image) userContent.unshift({ media: { url: image } });
 
     const userMessage: Message = { role: 'user', content: userContent };
-    setMessages(prev => [...prev, userMessage]);
+    
+    const isFirstMessage = currentConversation.messages.length === 0;
+    const newTitle = isFirstMessage ? prompt.substring(0, 30) + (prompt.length > 30 ? '...' : '') : currentConversation.title;
+
+    updateCurrentConversation({
+      messages: [...currentConversation.messages, userMessage],
+      title: newTitle,
+    });
+
     setPrompt('');
     const currentImage = image; // Keep image for this turn
     setImage(null);
-    localStorage.removeItem(draftKey);
     setLoading(true);
     setError(null);
 
     try {
       const result = await conversationalAgent({
-        history: messages,
+        history: currentConversation.messages,
         prompt: prompt,
         initialContext: config.initialContext,
         taskContext: config.taskContext,
         imageDataUri: currentImage || undefined,
-        activeTool: activeTool?.id,
+        activeTool: currentConversation.activeTool?.id,
       });
       
+      if (!result) {
+        throw new Error("I'm sorry, the AI returned an empty response. This might be due to a content filter or a temporary issue. Please try rephrasing your request.");
+      }
+      
       const modelMessage: Message = { role: 'model', content: [{ text: result.response }] };
-      setMessages(prev => [...prev, modelMessage]);
+      
+      updateCurrentConversation({
+          messages: [...currentConversation.messages, userMessage, modelMessage]
+      });
 
       if (result.tasksToAdd && result.tasksToAdd.length > 0) {
         await handleAddTasks(result.tasksToAdd);
@@ -244,7 +367,9 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       console.error(`Error in ${config.title}:`, err);
       const errorMessage = err.message || "I'm sorry, something went wrong. Please try again.";
       const modelErrorMessage: Message = { role: 'model', content: [{ text: errorMessage }] };
-      setMessages(prev => [...prev, modelErrorMessage]);
+      updateCurrentConversation({
+          messages: [...currentConversation.messages, userMessage, modelErrorMessage]
+      });
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -254,18 +379,21 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const handleInitialPrompt = () => {
       if (config.initialPrompt) {
           setPrompt(config.initialPrompt);
-          localStorage.setItem(draftKey, config.initialPrompt);
       }
   }
 
   const handleToolSelect = (tool: (typeof availableTools)[0]) => {
     setPrompt(tool.promptTemplate);
-    setActiveTool({ id: tool.id, name: tool.name });
+    if(currentConversation) {
+        updateCurrentConversation({ activeTool: { id: tool.id, name: tool.name } });
+    }
     setIsToolPopoverOpen(false);
   };
 
   const clearActiveTool = () => {
-    setActiveTool(null);
+    if(currentConversation) {
+      updateCurrentConversation({ activeTool: null });
+    }
     toast({
         title: "Tool Cleared",
         description: "You are now in general conversation mode.",
@@ -280,133 +408,186 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
 
   return (
     <Card className="flex flex-col h-full col-span-1 md:col-span-2">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-            <div>
-                 <CardTitle>{config.title}</CardTitle>
-                 <CardDescription>{config.description}</CardDescription>
-            </div>
-            {activeTool && (
-                <div className="text-right">
-                    <Badge variant="secondary" className="mb-1">
-                        Active Tool: {activeTool.name}
-                    </Badge>
-                     <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={clearActiveTool}>Clear</Button>
-                </div>
-            )}
-        </div>
-      </CardHeader>
-      <CardContent {...getRootProps({className: "flex-grow flex flex-col justify-between gap-4"})} >
-        <input {...getInputProps()} />
-        {config.children}
-        <ScrollArea className="flex-grow h-64 pr-4 -mr-4">
-          <div className="space-y-4">
-            {messages.length === 0 && (
-                <div className="text-center text-sm text-muted-foreground p-4">
-                    {isOffline ? (
-                       <span className="text-destructive">AI features are disabled while offline.</span>
-                    ) : config.initialPrompt ? (
-                        <>
-                            <span>Start by asking a question, or try this:</span>
-                            <Button variant="link" className="p-1 h-auto" onClick={handleInitialPrompt}>
-                                "{config.initialPrompt}"
-                            </Button>
-                        </>
-                    ) : (
-                        <span>Type a message below to start the conversation.</span>
-                    )}
-                </div>
-            )}
-            {messages.map((message, index) => (
-              <div key={index} className={cn("flex items-start gap-3", message.role === 'user' ? 'justify-end' : 'justify-start')}>
-                {message.role === 'model' && <Avatar className="w-8 h-8 border"><AvatarFallback><Bot size={16} /></AvatarFallback></Avatar>}
-                <div className={cn("p-3 rounded-lg max-w-xs md:max-w-md space-y-2", message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-                  {message.content.map((part, i) => <div key={i}>{renderContent(part)}</div>)}
-                </div>
-                {message.role === 'user' && <Avatar className="w-8 h-8 border"><AvatarFallback><User size={16} /></AvatarFallback></Avatar>}
-              </div>
-            ))}
-            {loading && (
-                <div className="flex items-start gap-3 justify-start">
-                    <Avatar className="w-8 h-8 border"><AvatarFallback><Bot size={16} /></AvatarFallback></Avatar>
-                    <div className="p-3 rounded-lg bg-muted"><Skeleton className="h-4 w-16" /></div>
-                </div>
-            )}
-            {error && !isOffline && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
-            {isDragActive && (
-                 <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary rounded-lg flex items-center justify-center">
-                    <p className="text-primary font-bold">Drop image here</p>
-                </div>
-            )}
-          </div>
-        </ScrollArea>
-
-        {image && (
-            <div className="relative p-2 border rounded-md self-start">
-                <Image src={image} alt="Image preview" width={60} height={60} className="object-cover rounded-md" />
-                <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 bg-muted rounded-full" onClick={() => setImage(null)}>
-                    <X className="h-4 w-4" />
+      <div className="flex h-full">
+         {/* Chat History Sidebar */}
+        <div className="w-64 border-r bg-muted/30 flex flex-col">
+            <div className="p-2 border-b">
+                <Button variant="outline" className="w-full" onClick={startNewConversation}>
+                    <Plus className="mr-2" /> New Chat
                 </Button>
             </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-           <Popover open={isToolPopoverOpen} onOpenChange={setIsToolPopoverOpen}>
-                <PopoverTrigger asChild>
-                    <Button type="button" variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Select a tool"><Wand2 /></Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                    <div className="grid gap-4">
-                        <div className="space-y-2"><h4 className="font-medium leading-none">AI Tools</h4><p className="text-sm text-muted-foreground">Select a tool to get started with a template.</p></div>
-                        <div className="grid gap-2">
-                            {availableTools.map((tool) => (
-                                <div key={tool.id} onClick={() => handleToolSelect(tool)} className={cn("p-2 rounded-md hover:bg-accent cursor-pointer", activeTool?.id === tool.id && "bg-accent")}>
-                                    <p className="font-semibold text-sm">{tool.name}</p>
-                                    <p className="text-xs text-muted-foreground">{tool.description}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </PopoverContent>
-            </Popover>
-            <Popover open={isImageMenuOpen} onOpenChange={setIsImageMenuOpen}>
-              <PopoverTrigger asChild>
-                 <Button type="button" variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Add image"><Camera /></Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 p-2">
-                 <Button variant="ghost" className="w-full justify-start" onClick={openFilePicker}><UploadCloud className="mr-2" /> Upload</Button>
-                 <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start" onClick={() => setIsImageMenuOpen(false)}><Camera className="mr-2"/> Take Picture</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader><DialogTitle>Take a Picture</DialogTitle><DialogDescription>Line up your notes and snap a photo.</DialogDescription></DialogHeader>
-                        <div className="relative">
-                           <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
-                           <canvas ref={canvasRef} className="hidden" />
-                           {!hasCameraPermission && (
-                               <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                    <Alert variant="destructive" className="m-4"><AlertTitle>Camera Access Denied</AlertTitle><AlertDescription>Please enable camera permissions.</AlertDescription></Alert>
-                               </div>
-                           )}
-                        </div>
-                        <DialogFooter className="sm:justify-between">
-                            {videoDevices.length > 1 && <Button variant="outline" onClick={handleSwitchCamera} disabled={!hasCameraPermission}><RefreshCw className="mr-2" /> Switch Camera</Button>}
-                            <div className="ml-auto">
-                                <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                                <Button onClick={handleSnap} disabled={!hasCameraPermission}>Snap Photo</Button>
+            <ScrollArea className="flex-grow">
+                <div className="p-2 space-y-1">
+                    {sortedConversations.map(convo => (
+                        <div key={convo.id} className="group relative">
+                            <Button
+                                variant={currentConversationId === convo.id ? "secondary" : "ghost"}
+                                className="w-full justify-start text-left h-auto py-2"
+                                onClick={() => setCurrentConversationId(convo.id)}
+                            >
+                                <MessageSquare className="mr-2 shrink-0" />
+                                <span className="truncate flex-grow">{convo.title}</span>
+                                {convo.pinned && <Pin className="ml-2 h-4 w-4 shrink-0 text-amber-500" />}
+                            </Button>
+                             <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-md">
+                                <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePinConversation(convo.id)}>
+                                            {convo.pinned ? <PinOff className="text-amber-500" /> : <Pin />}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>{convo.pinned ? "Unpin" : "Pin"}</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                     <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteConversation(convo.id)}>
+                                            <Trash2 />
+                                        </Button>
+                                     </TooltipTrigger>
+                                     <TooltipContent><p>Delete</p></TooltipContent>
+                                </Tooltip>
+                                </TooltipProvider>
                             </div>
-                        </DialogFooter>
-                    </DialogContent>
-                 </Dialog>
-              </PopoverContent>
-            </Popover>
-            <Input value={prompt} onChange={handlePromptChange} placeholder={isOffline ? "Offline - AI disabled" : "Ask me anything..."} disabled={loading || isOffline} />
-            <Button type="submit" disabled={loading || isOffline}>
-                {loading ? <Loader2 className="animate-spin" /> : <Send />}
-            </Button>
-        </form>
-      </CardContent>
+                        </div>
+                    ))}
+                </div>
+            </ScrollArea>
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col">
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>{config.title}</CardTitle>
+                        <CardDescription>{config.description}</CardDescription>
+                    </div>
+                    {currentConversation?.activeTool && (
+                        <div className="text-right">
+                            <Badge variant="secondary" className="mb-1">
+                                Active Tool: {currentConversation.activeTool.name}
+                            </Badge>
+                            <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={clearActiveTool}>Clear</Button>
+                        </div>
+                    )}
+                </div>
+            </CardHeader>
+            <CardContent {...getRootProps({className: "flex-grow flex flex-col justify-between gap-4"})} >
+              <input {...getInputProps()} />
+              {config.children}
+              <ScrollArea className="flex-grow h-64 pr-4 -mr-4">
+                <div className="space-y-4">
+                  {(!currentConversation || currentConversation.messages.length === 0) && (
+                      <div className="text-center text-sm text-muted-foreground p-4">
+                          {isOffline ? (
+                            <span className="text-destructive">AI features are disabled while offline.</span>
+                          ) : config.initialPrompt ? (
+                              <>
+                                  <span>Start by asking a question, or try this:</span>
+                                  <Button variant="link" className="p-1 h-auto" onClick={handleInitialPrompt}>
+                                      "{config.initialPrompt}"
+                                  </Button>
+                              </>
+                          ) : (
+                              <span>Type a message below to start the conversation.</span>
+                          )}
+                      </div>
+                  )}
+                  {currentConversation?.messages.map((message, index) => (
+                    <div key={index} className={cn("flex items-start gap-3", message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                      {message.role === 'model' && <Avatar className="w-8 h-8 border"><AvatarFallback><Bot size={16} /></AvatarFallback></Avatar>}
+                      <div className={cn("p-3 rounded-lg max-w-xs md:max-w-md space-y-2", message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                        {message.content.map((part, i) => <div key={i}>{renderContent(part)}</div>)}
+                      </div>
+                      {message.role === 'user' && <Avatar className="w-8 h-8 border"><AvatarFallback><User size={16} /></AvatarFallback></Avatar>}
+                    </div>
+                  ))}
+                  {loading && (
+                      <div className="flex items-start gap-3 justify-start">
+                          <Avatar className="w-8 h-8 border"><AvatarFallback><Bot size={16} /></AvatarFallback></Avatar>
+                          <div className="p-3 rounded-lg bg-muted"><Skeleton className="h-4 w-16" /></div>
+                      </div>
+                  )}
+                  {error && !isOffline && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+                  {isDragActive && (
+                      <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary rounded-lg flex items-center justify-center">
+                          <p className="text-primary font-bold">Drop image here</p>
+                      </div>
+                  )}
+                </div>
+              </ScrollArea>
+
+              {image && (
+                  <div className="relative p-2 border rounded-md self-start">
+                      <Image src={image} alt="Image preview" width={60} height={60} className="object-cover rounded-md" />
+                      <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 bg-muted rounded-full" onClick={() => setImage(null)}>
+                          <X className="h-4 w-4" />
+                      </Button>
+                  </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="flex items-center gap-2">
+                <Popover open={isToolPopoverOpen} onOpenChange={setIsToolPopoverOpen}>
+                      <PopoverTrigger asChild>
+                          <Button type="button" variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Select a tool"><Wand2 /></Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80">
+                          <div className="grid gap-4">
+                              <div className="space-y-2"><h4 className="font-medium leading-none">AI Tools</h4><p className="text-sm text-muted-foreground">Select a tool to get started with a template.</p></div>
+                              <div className="grid gap-2">
+                                  {availableTools.map((tool) => (
+                                      <div key={tool.id} onClick={() => handleToolSelect(tool)} className={cn("p-2 rounded-md hover:bg-accent cursor-pointer", currentConversation?.activeTool?.id === tool.id && "bg-accent")}>
+                                          <p className="font-semibold text-sm">{tool.name}</p>
+                                          <p className="text-xs text-muted-foreground">{tool.description}</p>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      </PopoverContent>
+                  </Popover>
+                  <Popover open={isImageMenuOpen} onOpenChange={setIsImageMenuOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Add image"><Camera /></Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2">
+                      <Button variant="ghost" className="w-full justify-start" onClick={openFilePicker}><UploadCloud className="mr-2" /> Upload</Button>
+                      <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
+                          <DialogTrigger asChild>
+                              <Button variant="ghost" className="w-full justify-start" onClick={() => setIsImageMenuOpen(false)}><Camera className="mr-2"/> Take Picture</Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                              <DialogHeader><DialogTitle>Take a Picture</DialogTitle><DialogDescription>Line up your notes and snap a photo.</DialogDescription></DialogHeader>
+                              <div className="relative">
+                                <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
+                                <canvas ref={canvasRef} className="hidden" />
+                                {!hasCameraPermission && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                                          <Alert variant="destructive" className="m-4"><AlertTitle>Camera Access Denied</AlertTitle><AlertDescription>Please enable camera permissions.</AlertDescription></Alert>
+                                    </div>
+                                )}
+                              </div>
+                              <DialogFooter className="sm:justify-between">
+                                  {videoDevices.length > 1 && <Button variant="outline" onClick={handleSwitchCamera} disabled={!hasCameraPermission}><RefreshCw className="mr-2" /> Switch Camera</Button>}
+                                  <div className="ml-auto">
+                                      <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                                      <Button onClick={handleSnap} disabled={!hasCameraPermission}>Snap Photo</Button>
+                                  </div>
+                              </DialogFooter>
+                          </DialogContent>
+                      </Dialog>
+                    </PopoverContent>
+                  </Popover>
+                  <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={isOffline ? "Offline - AI disabled" : "Ask me anything..."} disabled={loading || isOffline} />
+                  <Button type="submit" disabled={loading || isOffline}>
+                      {loading ? <Loader2 className="animate-spin" /> : <Send />}
+                  </Button>
+              </form>
+            </CardContent>
+        </div>
+      </div>
     </Card>
   );
 }
+
+    
