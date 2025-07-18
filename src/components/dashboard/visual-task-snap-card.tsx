@@ -147,7 +147,7 @@ export default function VisualTaskSnapCard() {
     if (!file) return;
     const dataUri = await fileToDataUri(file);
     processImage(dataUri);
-  }, []);
+  }, [processImage]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Bot, Send, User, Loader2, Sparkles, AlertTriangle, Camera, UploadCloud, X, CheckCircle, RefreshCw } from 'lucide-react';
+import { Bot, Send, User, Loader2, Sparkles, AlertTriangle, Camera, UploadCloud, X, CheckCircle, RefreshCw, Wand2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useOfflineStatus } from '@/hooks/use-offline-status';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export interface AgentConfig {
   title: string;
@@ -31,6 +32,44 @@ export interface AgentConfig {
 interface ConversationalAICardProps {
   config: AgentConfig;
 }
+
+const availableTools = [
+    {
+        name: 'Task Planner',
+        description: 'Breaks down a high-level goal into actionable tasks.',
+        promptTemplate: 'Plan my goal: ',
+    },
+    {
+        name: 'Task Suggester',
+        description: 'Get suggestions based on your role and mood.',
+        promptTemplate: 'I need some suggestions, I feel...',
+    },
+    {
+        name: 'Learning Planner',
+        description: 'Creates a structured learning plan for any topic.',
+        promptTemplate: 'Create a learning plan for: ',
+    },
+    {
+        name: 'Productivity Analyzer',
+        description: 'Get a report on your productivity patterns.',
+        promptTemplate: 'Analyze my productivity',
+    },
+    {
+        name: 'Progress Journal',
+        description: 'Generates a summary of your completed tasks.',
+        promptTemplate: 'Summarize my progress for today',
+    },
+    {
+        name: 'Task Breakdown',
+        description: 'Breaks one large task into smaller subtasks.',
+        promptTemplate: 'Break down the task: ',
+    },
+     {
+        name: 'Visual Task Snap',
+        description: 'Extracts tasks from an uploaded image.',
+        promptTemplate: 'Get the tasks from the attached image',
+    },
+];
 
 function fileToDataUri(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -49,6 +88,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [image, setImage] = React.useState<string | null>(null);
+  const [isToolPopoverOpen, setIsToolPopoverOpen] = React.useState(false);
   const isOffline = useOfflineStatus();
   
   const draftKey = `agent-draft-${config.title.replace(/\s+/g, '-')}`;
@@ -58,6 +98,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
     if (!file) return;
     const dataUri = await fileToDataUri(file);
     setImage(dataUri);
+    setPrompt("Get the tasks from the attached image");
     toast({
         title: "Image Added",
         description: "Your image has been attached. You can now ask the AI about it."
@@ -148,6 +189,11 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
           setPrompt(config.initialPrompt);
           localStorage.setItem(draftKey, config.initialPrompt);
       }
+  }
+
+  const handleToolSelect = (template: string) => {
+    setPrompt(template);
+    setIsToolPopoverOpen(false);
   }
 
   const renderContent = (content: Content) => {
@@ -251,6 +297,35 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         )}
 
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
+           <Popover open={isToolPopoverOpen} onOpenChange={setIsToolPopoverOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Select a tool">
+                        <Wand2 />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                    <div className="grid gap-4">
+                        <div className="space-y-2">
+                            <h4 className="font-medium leading-none">AI Tools</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Select a tool to get started with a template.
+                            </p>
+                        </div>
+                        <div className="grid gap-2">
+                            {availableTools.map((tool) => (
+                                <div
+                                    key={tool.name}
+                                    onClick={() => handleToolSelect(tool.promptTemplate)}
+                                    className="p-2 rounded-md hover:bg-accent cursor-pointer"
+                                >
+                                    <p className="font-semibold text-sm">{tool.name}</p>
+                                    <p className="text-xs text-muted-foreground">{tool.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </PopoverContent>
+            </Popover>
           <Input
             value={prompt}
             onChange={handlePromptChange}

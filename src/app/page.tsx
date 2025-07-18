@@ -176,9 +176,7 @@ You have access to a set of tools to help the user.
 Your primary role is to provide information and suggestions based on the conversation context and the user's task list.
 If the user explicitly asks you to create tasks, plan something, or add items to their list, you should use the appropriate tools and also generate a conversational response. 
 Confirm details with the user if their request is ambiguous.
-When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
-The user has selected the role: ${selectedRole}.
-Completed tasks have a 'completedAt' timestamp.`,
+When you need to use a tool, use it, but your final response should always be conversational and directed to the user.`,
     initialPrompt: 'What should I focus on today?',
     taskContext: {
         role: selectedRole,

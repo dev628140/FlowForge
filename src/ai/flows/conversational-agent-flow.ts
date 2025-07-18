@@ -134,6 +134,7 @@ If the user explicitly asks you to create tasks, plan something, or add items to
 Confirm details with the user if their request is ambiguous.
 When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
 
+The user has selected the role: ${taskContext.role}.
 User's Task Context:
 ${taskContext ? JSON.stringify(taskContext, null, 2) : "No task context provided."}
 `,
