@@ -483,12 +483,12 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
         <div className="flex-1 flex flex-col min-w-0">
           {/* Main Chat Area */}
           <CardHeader>
-            <div className="flex justify-between items-start sm:items-center gap-2">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap justify-between items-start sm:items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink min-w-0">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={toggleHistoryCollapse} className="h-8 w-8">
+                      <Button variant="ghost" size="icon" onClick={toggleHistoryCollapse} className="h-8 w-8 flex-shrink-0">
                         {isHistoryCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
                       </Button>
                     </TooltipTrigger>
@@ -497,9 +497,9 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <div>
-                  <CardTitle>{config.title}</CardTitle>
-                  <CardDescription>{config.description}</CardDescription>
+                <div className="min-w-0">
+                  <CardTitle className="truncate">{config.title}</CardTitle>
+                  <CardDescription className="truncate">{config.description}</CardDescription>
                 </div>
               </div>
               {currentConversation?.activeTool && (
