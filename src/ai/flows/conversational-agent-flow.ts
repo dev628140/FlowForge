@@ -16,6 +16,7 @@ import { analyzeProductivity } from './productivity-dna-tracker';
 import { progressReflectionJournal } from './progress-reflection-journal';
 import { visualTaskSnap } from './visual-task-snap';
 import { breakdownTask } from './breakdown-task-flow';
+import { reorderAllTasks } from './reorder-all-tasks-flow';
 import {
   ConversationalAgentInput,
   ConversationalAgentInputSchema,
@@ -100,6 +101,37 @@ const breakdownTaskTool = ai.defineTool(
     async (input) => breakdownTask(input)
 );
 
+const reorderAllTasksTool = ai.defineTool(
+    {
+      name: 'reorderAllTasks',
+      description:
+        "Reorders all tasks based on a template day's order. Use when the user asks to apply a certain day's task order to all other days.",
+      inputSchema: z.object({
+        allTasks: z.array(z.any()), // Full list of tasks
+        templateDate: z.string().describe('The date to use as the ordering template, in YYYY-MM-DD format.'),
+      }),
+      outputSchema: z.object({
+        tasksToUpdate: z
+          .array(
+            z.object({
+              taskId: z.string(),
+              updates: z.object({ order: z.number() }),
+            })
+          )
+          .describe('A list of tasks with their new order values.'),
+      }),
+    },
+    async ({ allTasks, templateDate }) => {
+        // This is a placeholder for the client-side interpretation.
+        // The real logic is in the flow, but we need to define the tool for the agent.
+        const result = await reorderAllTasks({ allTasks, templateDate });
+        // The conversational agent expects a certain output structure that we can map here.
+        // The actual update will be handled by the client receiving the `tasksToUpdate` field.
+        return { tasksToUpdate: result.updates };
+    }
+);
+
+
 const updateTaskTool = ai.defineTool(
     {
         name: 'updateTask',
@@ -169,6 +201,7 @@ const conversationalAgentFlow = ai.defineFlow(
         progressJournalTool,
         visualTaskSnapTool,
         breakdownTaskTool,
+        reorderAllTasksTool,
         updateTaskTool,
         deleteTaskTool,
     ];
@@ -186,12 +219,14 @@ If the user wants to break down one specific task, use 'breakdownTask'.
 If the user asks to learn something, use 'generateLearningPlan'.
 If the user asks for a report on their work, use 'analyzeProductivity'.
 If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
+If the user asks to reorder tasks across multiple days based on a template (e.g., "make all days look like today"), use 'reorderAllTasks'. For simple up/down reordering of one task, use 'updateTask'.
 For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools.
 
 ${activeTool ? `The user has the '${activeTool}' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.` : ''}
 
 You have full context of the user's task list. Your primary role is to provide information and suggestions based on the conversation.
 
+Today's date is ${new Date().toISOString().split('T')[0]}.
 The user has selected the role: ${taskContext.role}.
 User's Task Context (including IDs, titles, descriptions, and completion status):
 ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task context provided."}
@@ -228,6 +263,14 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
               return { response: output };
             }
             
+            // Handle the case where the reorder tool was called and returned updates
+            if (output.tasksToUpdate && 'updates' in output.tasksToUpdate) {
+                return {
+                    response: output.response || "I've reordered the tasks as you requested.",
+                    tasksToUpdate: (output.tasksToUpdate as any).updates,
+                }
+            }
+
             return output;
 
         } catch (error: any) {
@@ -261,5 +304,16 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
 );
 
 export async function conversationalAgent(input: ConversationalAgentInput): Promise<ConversationalAgentOutput> {
-    return conversationalAgentFlow(input);
+    const result = await conversationalAgentFlow(input);
+    
+    // The agent might return a nested `tasksToUpdate` from the tool call.
+    // This flattens it to the structure the client expects.
+    if (result.tasksToUpdate && (result.tasksToUpdate as any).tasksToUpdate) {
+      return {
+        ...result,
+        tasksToUpdate: (result.tasksToUpdate as any).tasksToUpdate,
+      };
+    }
+
+    return result;
 }

@@ -13,3 +13,5 @@ import '@/ai/flows/progress-reflection-journal.ts';
 import '@/ai/flows/role-based-task-suggestions.ts';
 import '@/ai/flows/summarize-task.ts';
 import '@/ai/flows/visual-task-snap.ts';
+import '@/ai/flows/reorder-all-tasks-flow.ts';
+

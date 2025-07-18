@@ -50,6 +50,7 @@ import {
 import { Badge } from '../ui/badge';
 import { v4 as uuidv4 } from 'uuid';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { format } from 'date-fns';
 
 export interface AgentConfig {
   title: string;
@@ -77,6 +78,7 @@ const availableTools: { name: string; description: string; promptTemplate: strin
   { id: 'progressReflectionJournal', name: 'Progress Journal', description: 'Generates a summary of your completed tasks.', promptTemplate: 'Summarize my progress for today' },
   { id: 'breakdownTask', name: 'Task Breakdown', description: 'Breaks one large task into smaller subtasks.', promptTemplate: 'Break down the task: ' },
   { id: 'visualTaskSnap', name: 'Visual Task Snap', description: 'Extracts tasks from an uploaded image.', promptTemplate: 'Get the tasks from the attached image' },
+  { id: 'reorderAllTasks', name: 'Bulk Reorder', description: 'Applies today\'s task order to all other days.', promptTemplate: `Make all my other days' task order the same as today's.` },
 ];
 
 function fileToDataUri(file: File): Promise<string> {
@@ -342,14 +344,21 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
     setError(null);
 
     try {
-      const result = await conversationalAgent({
+      // For reordering, we need to pass the template date
+      const agentInput = {
         history: currentConversation.messages,
         prompt: prompt,
         initialContext: config.initialContext,
         taskContext: config.taskContext,
         imageDataUri: currentImage || undefined,
         activeTool: currentConversation.activeTool?.id,
-      });
+      };
+
+      if (currentConversation.activeTool?.id === 'reorderAllTasks') {
+        (agentInput.taskContext as any).templateDate = format(new Date(), 'yyyy-MM-dd');
+      }
+
+      const result = await conversationalAgent(agentInput);
       
       if (!result) {
         throw new Error("I'm sorry, the AI returned an empty response. This might be due to a content filter or a temporary issue. Please try rephrasing your request.");
@@ -388,6 +397,10 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
       setError(errorMessage);
     } finally {
       setLoading(false);
+      // Clear the active tool after it's used
+      if (currentConversation.activeTool) {
+        updateCurrentConversation({ activeTool: null });
+      }
     }
   };
 
