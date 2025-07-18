@@ -215,7 +215,8 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
     });
   }, [conversations, pinnedIds]);
 
-  const handlePinToggle = (convoId: string) => {
+  const handlePinToggle = (e: React.MouseEvent, convoId: string) => {
+    e.stopPropagation();
     setPinnedIds(prev => {
       const newPinned = new Set(prev);
       if (newPinned.has(convoId)) {
@@ -479,32 +480,44 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                 {sortedConversations.map((convo) => {
                   const isPinned = pinnedIds.has(convo.id);
                   return (
-                    <div key={convo.id} className="group relative">
-                      <Button
-                        variant={currentConversationId === convo.id ? 'secondary' : 'ghost'}
-                        className="w-full justify-start gap-2 pr-14" // Add padding for buttons
-                        onClick={() => setCurrentConversationId(convo.id)}
-                      >
-                        <MessageSquare className="h-4 w-4 shrink-0" />
-                        <span className="truncate">{convo.title}</span>
-                      </Button>
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div
+                      key={convo.id}
+                      onClick={() => setCurrentConversationId(convo.id)}
+                      className={cn(
+                        'group flex items-center gap-1 rounded-md cursor-pointer',
+                        currentConversationId === convo.id
+                          ? 'bg-secondary'
+                          : 'hover:bg-muted/50'
+                      )}
+                    >
+                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity p-1">
                         <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handlePinToggle(convo.id)}>
-                                        {isPinned ? <PinOff className="h-4 w-4 text-primary" /> : <Pin className="h-4 w-4" />}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top"><p>{isPinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
-                            </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => handlePinToggle(e, convo.id)}
+                              >
+                                {isPinned ? (
+                                  <PinOff className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <Pin className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>{isPinned ? 'Unpin' : 'Pin'}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </TooltipProvider>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <TooltipProvider>
+                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
@@ -528,6 +541,13 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
+                      <Button
+                        variant="ghost"
+                        className="w-full h-full justify-start gap-2 flex-1 min-w-0 bg-transparent hover:bg-transparent"
+                      >
+                        <MessageSquare className="h-4 w-4 shrink-0" />
+                        <span className="truncate flex-1 text-left">{convo.title}</span>
+                      </Button>
                     </div>
                   );
                 })}
