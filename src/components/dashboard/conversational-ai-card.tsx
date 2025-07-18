@@ -482,7 +482,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
             <CardHeader>
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <TooltipProvider>
                             <Tooltip>
