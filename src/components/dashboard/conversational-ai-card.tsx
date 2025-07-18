@@ -484,16 +484,16 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                       key={convo.id}
                       onClick={() => setCurrentConversationId(convo.id)}
                       className={cn(
-                        'group relative rounded-md cursor-pointer p-2 pr-14',
+                        'group relative rounded-md cursor-pointer',
                         currentConversationId === convo.id
                           ? 'bg-secondary'
                           : 'hover:bg-muted/50'
                       )}
                     >
-                      <div className="flex items-center gap-2">
+                      <button className="flex w-full items-center gap-2 p-2 pr-14 text-left">
                         <MessageSquare className="h-4 w-4 shrink-0" />
                         <span className="truncate flex-1 text-sm">{convo.title}</span>
-                      </div>
+                      </button>
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center bg-inherit opacity-0 group-hover:opacity-100 transition-opacity">
                         <TooltipProvider>
                           <Tooltip>
