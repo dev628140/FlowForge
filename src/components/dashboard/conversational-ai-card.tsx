@@ -430,7 +430,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       <div className="flex h-full">
          {/* Chat History Sidebar */}
         <div className={cn(
-            "border-r bg-muted/30 flex flex-col transition-all duration-300 flex-shrink-0",
+            "border-r bg-muted/30 flex-shrink-0 flex flex-col transition-all duration-300",
             isHistoryCollapsed ? 'w-0' : 'w-64'
         )}>
            <div className={cn('flex flex-col h-full', isHistoryCollapsed && 'hidden')}>
@@ -482,9 +482,8 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex flex-col w-full h-full">
             <CardHeader>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start sm:items-center gap-2">
                     <div className="flex items-center gap-2">
                         <TooltipProvider>
                             <Tooltip>
@@ -504,7 +503,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
                         </div>
                     </div>
                     {currentConversation?.activeTool && (
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0">
                             <Badge variant="secondary" className="mb-1">
                                 Active Tool: {currentConversation.activeTool.name}
                             </Badge>
@@ -624,7 +623,6 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
                   </Button>
               </form>
             </CardContent>
-          </div>
         </div>
       </div>
     </Card>
