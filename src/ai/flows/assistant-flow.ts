@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -18,7 +17,7 @@ const AssistantInputSchema = z.object({
   prompt: z.string().describe("The user's command or request."),
   tasks: z.array(z.any()).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status."),
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
-  date: z.string().describe("The current date in ISO 8601 format."),
+  date: z.string().describe("The current date in YYYY-MM-DD format."),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -44,7 +43,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
         prompt,
         tasks: allTasks,
         role,
-        date: new Date().toISOString(),
+        date: format(new Date(), 'yyyy-MM-dd'),
       });
 
       if (!result) {
