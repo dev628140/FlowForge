@@ -103,7 +103,7 @@ const breakdownTaskTool = ai.defineTool(
 const updateTaskTool = ai.defineTool(
     {
         name: 'updateTask',
-        description: "Updates an existing task (e.g., mark as complete, change title, reschedule). You MUST know the task's ID to update it. If you don't know the ID, ask the user to clarify which task they mean from their task list.",
+        description: "Updates one or more existing tasks. Use the user's request and the provided task list to identify the correct task(s) by their title, description, or other attributes. If the request is ambiguous (e.g., multiple tasks match), ask the user for clarification by describing the options, not by asking for an ID.",
         inputSchema: z.object({
             taskId: z.string().describe("The unique identifier of the task to update."),
             updates: z.object({
@@ -126,7 +126,7 @@ const updateTaskTool = ai.defineTool(
 const deleteTaskTool = ai.defineTool(
     {
         name: 'deleteTask',
-        description: "Deletes a task. You MUST know the task's ID to delete it. If you don't know the ID, ask the user to clarify which task they mean from their task list before using this tool.",
+        description: "Deletes one or more tasks. Use the user's request and the provided task list to identify the correct task(s) by their title, description, or other attributes. If the request is ambiguous (e.g., multiple tasks match), ask the user for clarification by describing the options, not by asking for an ID. If the user confirms to delete multiple tasks, call this tool for each task.",
         inputSchema: z.object({ taskId: z.string().describe("The unique identifier of the task to delete.") }),
         outputSchema: z.object({ success: z.boolean() }),
     },
@@ -176,6 +176,9 @@ const conversationalAgentFlow = ai.defineFlow(
     const systemPrompt = `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
 You have a set of tools available: ${tools.map(t => t.name).join(', ')}.
 Based on the user's prompt, you MUST decide if a tool is appropriate. If so, call the tool. If not, respond conversationally.
+You must act autonomously to fulfill the user's request using the tools.
+IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context and the provided task list to identify the relevant tasks to act upon. If a user's request is ambiguous (e.g., multiple tasks match a description), ask for clarification by describing the tasks you found (e.g., by title and date), not by asking for an ID.
+
 If the user provides an image, your primary tool should be 'visualTaskSnap'.
 If the user mentions their feelings or asks for ideas, consider 'getRoleBasedTaskSuggestions'.
 If the user wants to plan a large goal, use 'naturalLanguageTaskPlanning'.
@@ -183,7 +186,7 @@ If the user wants to break down one specific task, use 'breakdownTask'.
 If the user asks to learn something, use 'generateLearningPlan'.
 If the user asks for a report on their work, use 'analyzeProductivity'.
 If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
-For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools, but ALWAYS confirm the task ID if it is not provided.
+For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools.
 
 ${activeTool ? `The user has the '${activeTool}' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.` : ''}
 
