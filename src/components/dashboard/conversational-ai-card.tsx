@@ -2,20 +2,22 @@
 'use client';
 
 import * as React from 'react';
-import { Bot, Send, User, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
+import { Bot, Send, User, Loader2, Sparkles, AlertTriangle, Camera, UploadCloud, X, CheckCircle, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
 import { conversationalAgent } from '@/ai/flows/conversational-agent-flow';
-import type { Message } from '@/lib/types/conversational-agent';
+import type { Content, Message } from '@/lib/types/conversational-agent';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useOfflineStatus } from '@/hooks/use-offline-status';
+import { useDropzone } from 'react-dropzone';
+import Image from 'next/image';
 
 export interface AgentConfig {
   title: string;
@@ -30,6 +32,15 @@ interface ConversationalAICardProps {
   config: AgentConfig;
 }
 
+function fileToDataUri(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ConversationalAICard({ config }: ConversationalAICardProps) {
   const { handleAddTasks } = useAppContext();
   const { toast } = useToast();
@@ -37,9 +48,29 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [image, setImage] = React.useState<string | null>(null);
   const isOffline = useOfflineStatus();
   
   const draftKey = `agent-draft-${config.title.replace(/\s+/g, '-')}`;
+
+  const onDrop = React.useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+    const dataUri = await fileToDataUri(file);
+    setImage(dataUri);
+    toast({
+        title: "Image Added",
+        description: "Your image has been attached. You can now ask the AI about it."
+    });
+  }, [toast]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': ['.jpeg', '.png', '.jpg', '.webp'] },
+    multiple: false,
+    noClick: true,
+    noKeyboard: true,
+  });
 
   // Load draft from localStorage on mount
   React.useEffect(() => {
@@ -68,9 +99,15 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         return;
     }
 
-    const userMessage: Message = { role: 'user', content: prompt };
+    const userContent: Content[] = [{ text: prompt }];
+    if (image) {
+      userContent.unshift({ media: { url: image } });
+    }
+
+    const userMessage: Message = { role: 'user', content: userContent };
     setMessages(prev => [...prev, userMessage]);
     setPrompt('');
+    setImage(null);
     localStorage.removeItem(draftKey);
     setLoading(true);
     setError(null);
@@ -81,9 +118,10 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         prompt: prompt,
         initialContext: config.initialContext,
         taskContext: config.taskContext,
+        imageDataUri: image,
       });
       
-      const modelMessage: Message = { role: 'model', content: result.response };
+      const modelMessage: Message = { role: 'model', content: [{ text: result.response }] };
       setMessages(prev => [...prev, modelMessage]);
 
       if (result.tasksToAdd && result.tasksToAdd.length > 0) {
@@ -97,7 +135,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
     } catch (err: any) {
       console.error(`Error in ${config.title}:`, err);
       const errorMessage = err.message || "I'm sorry, something went wrong. Please try again.";
-      const modelErrorMessage: Message = { role: 'model', content: errorMessage };
+      const modelErrorMessage: Message = { role: 'model', content: [{ text: errorMessage }] };
       setMessages(prev => [...prev, modelErrorMessage]);
       setError(errorMessage);
     } finally {
@@ -112,15 +150,26 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       }
   }
 
+  const renderContent = (content: Content) => {
+    if (content.text) {
+        return <p className="text-sm">{content.text}</p>;
+    }
+    if (content.media?.url) {
+        return <Image src={content.media.url} alt="User upload" width={150} height={150} className="rounded-md object-contain border" />;
+    }
+    return null;
+  }
+
   return (
-    <Card className="flex flex-col h-full">
+    <Card className="flex flex-col h-full col-span-1 md:col-span-2">
       <CardHeader>
         <CardTitle>{config.title}</CardTitle>
         <CardDescription>{config.description}</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow flex flex-col justify-between gap-4">
+      <CardContent {...getRootProps({className: "flex-grow flex flex-col justify-between gap-4"})} >
+        <input {...getInputProps()} />
         {config.children}
-        <ScrollArea className="flex-grow h-48 pr-4 -mr-4">
+        <ScrollArea className="flex-grow h-64 pr-4 -mr-4">
           <div className="space-y-4">
             {messages.length === 0 && (
                 <div className="text-center text-sm text-muted-foreground p-4">
@@ -153,13 +202,13 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
                 )}
                 <div
                   className={cn(
-                    "p-3 rounded-lg max-w-xs md:max-w-sm",
+                    "p-3 rounded-lg max-w-xs md:max-w-md space-y-2",
                     message.role === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground'
                   )}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  {message.content.map((part, i) => <div key={i}>{renderContent(part)}</div>)}
                 </div>
                  {message.role === 'user' && (
                   <Avatar className="w-8 h-8 border">
@@ -184,13 +233,28 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
+            {isDragActive && (
+                 <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary rounded-lg flex items-center justify-center">
+                    <p className="text-primary font-bold">Drop image here</p>
+                </div>
+            )}
           </div>
         </ScrollArea>
+
+        {image && (
+            <div className="relative p-2 border rounded-md">
+                <Image src={image} alt="Image preview" width={60} height={60} className="object-cover rounded-md" />
+                <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-6 w-6" onClick={() => setImage(null)}>
+                    <X className="h-4 w-4" />
+                </Button>
+            </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <Input
             value={prompt}
             onChange={handlePromptChange}
-            placeholder={isOffline ? "Offline - AI disabled" : "Ask me anything..."}
+            placeholder={isOffline ? "Offline - AI disabled" : "Ask me anything, or drag an image here..."}
             disabled={loading || isOffline}
           />
           <Button type="submit" disabled={loading || isOffline}>

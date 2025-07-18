@@ -1,12 +1,19 @@
+
 /**
  * @fileOverview Type definitions for the conversational agent.
  */
 
 import { z } from 'genkit';
 
+export const ContentSchema = z.union([
+  z.object({ text: z.string() }),
+  z.object({ media: z.object({ url: z.string() }) }),
+]);
+export type Content = z.infer<typeof ContentSchema>;
+
 export const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
-  content: z.string(),
+  content: z.array(ContentSchema),
 });
 export type Message = z.infer<typeof MessageSchema>;
 
@@ -15,6 +22,7 @@ export const ConversationalAgentInputSchema = z.object({
   prompt: z.string().describe("The user's latest prompt."),
   initialContext: z.string().optional().describe("An initial prompt to set the context for the agent (e.g., 'You are a productivity coach')."),
   taskContext: z.any().optional().describe("Additional context about the user's current tasks or state."),
+  imageDataUri: z.string().optional().describe("An optional image provided by the user as a data URI."),
 });
 export type ConversationalAgentInput = z.infer<typeof ConversationalAgentInputSchema>;
 

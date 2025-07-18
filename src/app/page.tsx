@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, Zap, Calendar as CalendarIcon, AlertTriangle, Trash2, LayoutDashboard, CalendarPlus } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,7 +57,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
 import { Badge } from '@/components/ui/badge';
 import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-card';
-import VisualTaskSnapCard from '@/components/dashboard/visual-task-snap-card';
 
 
 const taskFormSchema = z.object({
@@ -118,8 +117,6 @@ export default function DashboardPage() {
     defaultValues: { title: "", description: "" },
   });
   
-  // Dummy form for components that need Form context but don't submit
-  const dummyForm = useForm();
   
   const handleAddTaskSubmit = (values: TaskFormValues) => {
     handleAddTasks([{ 
@@ -169,91 +166,25 @@ export default function DashboardPage() {
   );
   
   const userRoles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
-  const moods: Mood[] = [
-    { emoji: '⚡', label: 'High Energy' },
-    { emoji: '😊', label: 'Motivated' },
-    { emoji: '😌', label: 'Calm' },
-    { emoji: '😵', label: 'Stressed' },
-    { emoji: '🫠', label: 'Low Energy' },
-  ];
-
-  const agentConfigs: AgentConfig[] = [
-    {
-        title: 'AI Task Planner',
-        description: 'Describe a goal, and let me break it down into actionable tasks.',
-        initialContext: 'You are an AI Task Planner. Your job is to help the user break down their goals into smaller, manageable tasks. You can also schedule these tasks.',
-        initialPrompt: 'I want to plan...',
-        taskContext: null,
+  
+  const agentConfig: AgentConfig = {
+    title: 'FlowForge Assistant',
+    description: "Your conversational AI partner. Ask me to plan goals, get suggestions, or analyze your productivity.",
+    initialContext: `You are a helpful productivity assistant named FlowForge.
+You have access to a set of tools to help the user.
+Your primary role is to provide information and suggestions based on the conversation context and the user's task list.
+If the user explicitly asks you to create tasks, plan something, or add items to their list, you should use the appropriate tools and also generate a conversational response. 
+Confirm details with the user if their request is ambiguous.
+When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
+The user has selected the role: ${selectedRole}.
+Completed tasks have a 'completedAt' timestamp.`,
+    initialPrompt: 'What should I focus on today?',
+    taskContext: {
+        role: selectedRole,
+        mood: selectedMood?.label || 'Neutral',
+        tasks: tasks,
     },
-    {
-        title: 'Emotion-Adaptive Assistant',
-        description: 'Feeling stuck? Get suggestions tailored to your role and mood.',
-        initialContext: "You are an empathetic AI productivity assistant. Your goal is to provide task suggestions, timeboxing advice, and motivational nudges tailored to a user's role and mood.",
-        initialPrompt: `I'm a ${selectedRole} feeling ${selectedMood?.label || 'Neutral'} and I want to...`,
-        taskContext: {
-            role: selectedRole,
-            mood: selectedMood?.label || 'Neutral',
-        },
-        children: (
-            <Form {...dummyForm}>
-              <div className="space-y-4">
-                  <Select value={selectedRole} onValueChange={handleRoleChange}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select your role..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {userRoles.map(role => (
-                              <SelectItem key={role} value={role}>{role}</SelectItem>
-                          ))}
-                        </SelectContent>
-                  </Select>
-                  <div>
-                    <FormLabel className="text-sm font-medium">How are you feeling?</FormLabel>
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {moods.map(mood => (
-                        <Button 
-                          key={mood.label} 
-                          variant={selectedMood?.label === mood.label ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedMood(mood)}
-                          className="flex-grow"
-                        >
-                          <span className="mr-2">{mood.emoji}</span>
-                          {mood.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-              </div>
-            </Form>
-        )
-    },
-    {
-        title: 'AI Learning Planner',
-        description: 'Tell me what you want to master, and I will create a step-by-step plan for you.',
-        initialContext: 'You are an expert curriculum developer. A user wants to learn about a specific topic. Create a structured, step-by-step learning plan for them, including resources.',
-        initialPrompt: 'I want to learn about...',
-        taskContext: null,
-    },
-    {
-        title: 'Progress Journal',
-        description: 'Reflect on your completed tasks for a motivational boost.',
-        initialContext: 'You are a motivational AI assistant. Your job is to provide an end-of-day summary based on the tasks a user has completed today.',
-        initialPrompt: 'How did I do today?',
-        taskContext: {
-            tasksCompleted: tasks.filter(t => t.completed && t.completedAt && isToday(parseISO(t.completedAt))).map(t => t.title)
-        }
-    },
-     {
-        title: 'Productivity DNA',
-        description: 'Discover your peak productivity times and habits.',
-        initialContext: 'You are a productivity expert. Your job is to analyze the user\'s completed tasks to identify patterns in their productivity.',
-        initialPrompt: 'Analyze my productivity',
-        taskContext: {
-            tasks: tasks.filter(t => t.completed && t.completedAt).map(t => ({ title: t.title, completedAt: t.completedAt }))
-        }
-    },
-  ];
+  };
 
 
   if (authLoading) {
@@ -273,6 +204,19 @@ export default function DashboardPage() {
             <LayoutDashboard className="w-8 h-8" />
             Dashboard
           </CardTitle>
+           <div className="flex items-center gap-2">
+              <Label htmlFor="user-role-select" className="text-sm font-medium">Your Role:</Label>
+              <Select value={selectedRole} onValueChange={handleRoleChange}>
+                    <SelectTrigger id="user-role-select" className="w-[180px]">
+                      <SelectValue placeholder="Select your role..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userRoles.map(role => (
+                          <SelectItem key={role} value={role}>{role}</SelectItem>
+                      ))}
+                    </SelectContent>
+              </Select>
+          </div>
         </div>
         
         <DailyProgressBar tasks={todaysTasks} />
@@ -532,11 +476,8 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <VisualTaskSnapCard />
-          {agentConfigs.map((config) => (
-             <ConversationalAICard key={config.title} config={config} />
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ConversationalAICard config={agentConfig} />
         </div>
       </div>
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {

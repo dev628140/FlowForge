@@ -107,7 +107,7 @@ const conversationalAgentFlow = ai.defineFlow(
     // Construct the full history for the model
     const fullHistory = history.map(msg => ({
         role: msg.role,
-        content: [{ text: msg.content }]
+        content: msg.content
     }));
 
     const tools = [
@@ -128,13 +128,14 @@ const conversationalAgentFlow = ai.defineFlow(
             const response = await ai.generate({
               model: 'googleai/gemini-1.5-flash-latest',
               system: `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
-You are a helpful assistant. Your primary role is to provide information and suggestions based on the conversation context.
-If the user explicitly asks you to create tasks, plan something, or add items to their list, you should generate a conversational response and ALSO populate the 'tasksToAdd' array in the JSON output. 
+You have full context of the user's task list and can use tools to help them.
+Your primary role is to provide information and suggestions based on the conversation context.
+If the user explicitly asks you to create tasks, plan something, or add items to their list, you should use the appropriate tools and also generate a conversational response. 
 Confirm details with the user if their request is ambiguous.
 When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
 
 User's Task Context:
-${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
+${taskContext ? JSON.stringify(taskContext, null, 2) : "No task context provided."}
 `,
               history: fullHistory,
               prompt: prompt,
@@ -151,7 +152,6 @@ ${taskContext ? JSON.stringify(taskContext, null, 2) : "No tasks provided."}
             const output = response.output;
             
             if (!output) {
-              // This is the key change: handle the null output case gracefully.
               return { response: "I'm sorry, the AI returned an empty response. This might be due to a content filter or a temporary issue. Please try rephrasing your request." };
             }
             
