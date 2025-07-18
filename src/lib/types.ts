@@ -9,6 +9,7 @@ export interface Task {
   scheduledTime?: string; // HH:mm
   userId: string;
   createdAt?: string;
+  order?: number;
 }
 
 export type UserRole = 'Student' | 'Developer' | 'Founder' | 'Freelancer';

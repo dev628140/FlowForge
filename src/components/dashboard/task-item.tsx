@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -64,11 +64,14 @@ interface TaskItemProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onReorder: (taskId: string, direction: 'up' | 'down') => void;
   isSubtask?: boolean;
   parentId?: string;
+  isFirst: boolean;
+  isLast: boolean;
 }
 
-export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, isSubtask = false, parentId }: TaskItemProps) {
+export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtask = false, parentId, isFirst, isLast }: TaskItemProps) {
   const { handleAddSubtasks, handleDeleteTask } = useAppContext();
   const [summary, setSummary] = React.useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = React.useState(false);
@@ -264,6 +267,16 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
           "flex items-center transition-opacity", 
           "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
       )}>
+        {!isSubtask && (
+            <div className="flex flex-col -space-y-2.5">
+                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onReorder(task.id, 'up')} disabled={isFirst}>
+                    <ArrowUp className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onReorder(task.id, 'down')} disabled={isLast}>
+                    <ArrowDown className="h-4 w-4" />
+                </Button>
+            </div>
+        )}
         {hasSubtasks && (
            <CollapsibleTrigger asChild>
              <Button variant="ghost" size="icon" aria-label="Toggle subtasks">
@@ -539,6 +552,7 @@ export default function TaskItem({ task, onToggle, onStartFocus, onUpdateTask, i
               onToggle={handleToggleSubtask}
               onStartFocus={handleStartFocusSubtask}
               onUpdateTask={onUpdateTask}
+              onReorder={() => {}} // Reordering subtasks is not supported in this implementation
               isSubtaskList={true}
               parentId={task.id}
             />

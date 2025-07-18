@@ -14,10 +14,11 @@ interface AppContextType {
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   showConfetti: boolean;
   handleToggleTask: (id: string, parentId?: string) => Promise<void>;
-  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => Promise<void>;
+  handleAddTasks: (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>) => Promise<void>;
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  handleReorderTask: (taskId: string, direction: 'up' | 'down') => Promise<void>;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -108,10 +109,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
   const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => {
     if (!user || !db) return;
+
+    // Find the highest current order value to ensure new tasks are added to the end
+    const maxOrder = tasks.reduce((max, task) => Math.max(task.order || 0, max), 0);
     
     try {
       const batch = writeBatch(db);
-      newTasks.forEach(task => {
+      newTasks.forEach((task, index) => {
         const taskId = uuidv4();
         const taskRef = doc(db, 'tasks', taskId);
         
@@ -121,6 +125,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completed: false,
           createdAt: new Date().toISOString(),
           title: task.title || 'Untitled Task',
+          order: maxOrder + index + 1, // Assign new order
         };
 
         if (task.description) {
@@ -185,14 +190,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
          throw new Error("Parent task not found");
        }
        const parentTask = docSnap.data() as Task;
+       
+       const maxSubtaskOrder = parentTask.subtasks?.reduce((max, sub) => Math.max(sub.order || 0, max), 0) || 0;
 
-       const newSubtasks: Task[] = subtasks.map(sub => ({
+       const newSubtasks: Task[] = subtasks.map((sub, index) => ({
           id: uuidv4(),
           title: sub.title,
           description: sub.description || '',
           completed: false,
           userId: user.uid,
           createdAt: new Date().toISOString(),
+          order: maxSubtaskOrder + index + 1
        }));
 
        const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
@@ -226,6 +234,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const handleReorderTask = async (taskId: string, direction: 'up' | 'down') => {
+    if (!user || !db) return;
+
+    const sortedTasks = [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
+
+    const taskToMove = sortedTasks[taskIndex];
+    const relatedTasks = sortedTasks.filter(t => t.title === taskToMove.title);
+    const nonRelatedTasks = sortedTasks.filter(t => t.title !== taskToMove.title);
+
+    let targetIndex = direction === 'up' ? taskIndex - 1 : taskIndex + relatedTasks.length;
+
+    if (targetIndex < 0 || targetIndex > sortedTasks.length) return;
+
+    // Remove related tasks from their positions
+    relatedTasks.forEach(t => {
+        const idx = nonRelatedTasks.findIndex(nt => nt.id === t.id);
+        if (idx > -1) nonRelatedTasks.splice(idx, 1);
+    });
+
+    // Find the correct insertion point in non-related tasks
+    if (direction === 'up') {
+        const taskBefore = sortedTasks[targetIndex];
+        const newIndex = nonRelatedTasks.findIndex(t => t.id === taskBefore.id);
+        nonRelatedTasks.splice(newIndex, 0, ...relatedTasks);
+    } else {
+        if (targetIndex >= sortedTasks.length) {
+             nonRelatedTasks.push(...relatedTasks);
+        } else {
+            const taskAfter = sortedTasks[targetIndex];
+            const newIndex = nonRelatedTasks.findIndex(t => t.id === taskAfter.id);
+            nonRelatedTasks.splice(newIndex, 0, ...relatedTasks);
+        }
+    }
+    
+    const reorderedTasks = nonRelatedTasks;
+
+    try {
+        const batch = writeBatch(db);
+        reorderedTasks.forEach((task, index) => {
+            if (task.order !== index + 1) {
+                const taskRef = doc(db, 'tasks', task.id);
+                batch.update(taskRef, { order: index + 1 });
+            }
+        });
+        await batch.commit();
+    } catch (error) {
+        console.error("Error reordering tasks:", error);
+        toast({ title: "Error", description: "Could not reorder tasks.", variant: "destructive" });
+    }
+  };
+
+
   return (
     <AppContext.Provider value={{
       tasks, setTasks,
@@ -234,7 +296,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleAddTasks,
       handleAddSubtasks,
       handleDeleteTask,
-      updateTask
+      updateTask,
+      handleReorderTask
     }}>
       {children}
     </AppContext.Provider>

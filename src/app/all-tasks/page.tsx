@@ -11,13 +11,13 @@ import FocusMode from '@/components/dashboard/focus-mode';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { parseISO } from 'date-fns';
 
-type SortOption = 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
+type SortOption = 'order' | 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
 
 export default function AllTasksPage() {
-  const { tasks, handleToggleTask, updateTask } = useAppContext();
+  const { tasks, handleToggleTask, updateTask, handleReorderTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
-  const [sortBy, setSortBy] = React.useState<SortOption>('scheduledDate');
+  const [sortBy, setSortBy] = React.useState<SortOption>('order');
 
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -34,6 +34,8 @@ export default function AllTasksPage() {
     const sortableTasks = [...tasks];
     return sortableTasks.sort((a, b) => {
       switch (sortBy) {
+        case 'order':
+          return (a.order || 0) - (b.order || 0);
         case 'scheduledDate':
           if (a.scheduledDate && b.scheduledDate) {
             return parseISO(a.scheduledDate).getTime() - parseISO(b.scheduledDate).getTime();
@@ -79,6 +81,7 @@ export default function AllTasksPage() {
                     <SelectValue placeholder="Sort by..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="order">Priority</SelectItem>
                     <SelectItem value="scheduledDate">Scheduled Date</SelectItem>
                     <SelectItem value="createdAt-desc">Newest First</SelectItem>
                     <SelectItem value="createdAt-asc">Oldest First</SelectItem>
@@ -94,7 +97,7 @@ export default function AllTasksPage() {
                     <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks found." />
+                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} onReorder={handleReorderTask} emptyMessage="No tasks found." />
                 </CardContent>
             </Card>
         </div>

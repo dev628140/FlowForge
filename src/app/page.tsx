@@ -84,6 +84,7 @@ export default function DashboardPage() {
     handleAddTasks,
     handleDeleteTask,
     updateTask,
+    handleReorderTask,
   } = useAppContext();
 
   const { toast } = useToast();
@@ -394,7 +395,7 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks for today. Add one to get started!" />
+                <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} onReorder={handleReorderTask} emptyMessage="No tasks for today. Add one to get started!" />
               </CardContent>
             </Card>
             <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
