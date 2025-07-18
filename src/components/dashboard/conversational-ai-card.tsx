@@ -17,6 +17,9 @@ import {
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
+  Pin,
+  PinOff,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,6 +37,17 @@ import { useOfflineStatus } from '@/hooks/use-offline-status';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -89,7 +103,7 @@ function fileToDataUri(file: File): Promise<string> {
 const CONVERSATIONS_STORAGE_KEY = 'flowforge_conversations';
 const CURRENT_CONVERSATION_ID_KEY = 'flowforge_current_conversation_id';
 const HISTORY_COLLAPSED_KEY = 'flowforge_history_collapsed';
-
+const PINNED_CONVERSATIONS_KEY = 'flowforge_pinned_conversations';
 
 export default function ConversationalAICard({ config }: { config: AgentConfig }) {
   const { handleAddTasks, updateTask, handleDeleteTask } = useAppContext();
@@ -97,7 +111,7 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = React.useState<string | null>(null);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = React.useState(true);
-
+  const [pinnedIds, setPinnedIds] = React.useState<Set<string>>(new Set());
 
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -115,16 +129,16 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
 
   const isOffline = useOfflineStatus();
 
-  // Load conversations and collapsed state from localStorage on mount
+  // Load conversations and UI state from localStorage on mount
   React.useEffect(() => {
     try {
       const storedConversations = localStorage.getItem(CONVERSATIONS_STORAGE_KEY);
       const storedId = localStorage.getItem(CURRENT_CONVERSATION_ID_KEY);
       const storedCollapsed = localStorage.getItem(HISTORY_COLLAPSED_KEY);
+      const storedPinned = localStorage.getItem(PINNED_CONVERSATIONS_KEY);
       
-      if (storedCollapsed) {
-        setIsHistoryCollapsed(JSON.parse(storedCollapsed));
-      }
+      if (storedCollapsed) setIsHistoryCollapsed(JSON.parse(storedCollapsed));
+      if (storedPinned) setPinnedIds(new Set(JSON.parse(storedPinned)));
 
       if (storedConversations) {
         const parsedConvos = JSON.parse(storedConversations);
@@ -147,7 +161,7 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  // Save conversations to localStorage whenever they change
+  // Save conversations and pinned state to localStorage whenever they change
   React.useEffect(() => {
     if (conversations.length > 0) {
       localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(conversations));
@@ -155,7 +169,8 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
     if (currentConversationId) {
       localStorage.setItem(CURRENT_CONVERSATION_ID_KEY, currentConversationId);
     }
-  }, [conversations, currentConversationId]);
+    localStorage.setItem(PINNED_CONVERSATIONS_KEY, JSON.stringify(Array.from(pinnedIds)));
+  }, [conversations, currentConversationId, pinnedIds]);
 
   const toggleHistoryCollapse = () => {
     const newCollapsedState = !isHistoryCollapsed;
@@ -192,9 +207,41 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
   
   const sortedConversations = React.useMemo(() => {
     return [...conversations].sort((a, b) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        const aIsPinned = pinnedIds.has(a.id);
+        const bIsPinned = pinnedIds.has(b.id);
+        if (aIsPinned && !bIsPinned) return -1;
+        if (!aIsPinned && bIsPinned) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [conversations]);
+  }, [conversations, pinnedIds]);
+
+  const handlePinToggle = (convoId: string) => {
+    setPinnedIds(prev => {
+      const newPinned = new Set(prev);
+      if (newPinned.has(convoId)) {
+        newPinned.delete(convoId);
+      } else {
+        newPinned.add(convoId);
+      }
+      return newPinned;
+    });
+  };
+
+  const handleDeleteConversation = (convoId: string) => {
+    const remainingConvos = conversations.filter(c => c.id !== convoId);
+    setConversations(remainingConvos);
+    
+    // If the deleted conversation was the current one, select another.
+    if (currentConversationId === convoId) {
+      if (remainingConvos.length > 0) {
+        // Find the most recent remaining conversation.
+        const nextConvo = [...remainingConvos].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        setCurrentConversationId(nextConvo.id);
+      } else {
+        startNewConversation();
+      }
+    }
+  };
 
   const processImage = React.useCallback(async (dataUri: string) => {
     setImage(dataUri);
@@ -429,17 +476,61 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
             </div>
             <ScrollArea className="flex-grow">
               <div className="p-2 space-y-1">
-                {sortedConversations.map((convo) => (
-                    <Button
-                      key={convo.id}
-                      variant={currentConversationId === convo.id ? 'secondary' : 'ghost'}
-                      className="w-full justify-start gap-2"
-                      onClick={() => setCurrentConversationId(convo.id)}
-                    >
-                      <MessageSquare className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{convo.title}</span>
-                    </Button>
-                ))}
+                {sortedConversations.map((convo) => {
+                  const isPinned = pinnedIds.has(convo.id);
+                  return (
+                    <div key={convo.id} className="group relative">
+                      <Button
+                        variant={currentConversationId === convo.id ? 'secondary' : 'ghost'}
+                        className="w-full justify-start gap-2 pr-14" // Add padding for buttons
+                        onClick={() => setCurrentConversationId(convo.id)}
+                      >
+                        <MessageSquare className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{convo.title}</span>
+                      </Button>
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handlePinToggle(convo.id)}>
+                                        {isPinned ? <PinOff className="h-4 w-4 text-primary" /> : <Pin className="h-4 w-4" />}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top"><p>{isPinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top"><p>Delete</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete the chat "{convo.title}". This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteConversation(convo.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </ScrollArea>
           </div>
