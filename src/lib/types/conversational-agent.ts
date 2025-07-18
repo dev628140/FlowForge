@@ -34,8 +34,25 @@ const TaskToAddSchema = z.object({
     scheduledTime: z.string().optional().describe('The scheduled time for the task in HH:mm format if provided.'),
 });
 
+const TaskToUpdateSchema = z.object({
+    taskId: z.string().describe("The ID of the task to update."),
+    updates: z.object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        completed: z.boolean().optional(),
+        scheduledDate: z.string().optional(),
+    }).describe("The fields to update.")
+});
+
+const TaskToDeleteSchema = z.object({
+    taskId: z.string().describe("The ID of the task to delete."),
+});
+
+
 export const ConversationalAgentOutputSchema = z.object({
   response: z.string().describe("The agent's text response to the user."),
-  tasksToAdd: z.array(TaskToAddSchema).optional().describe("A list of tasks to be added to the user's to-do list, based on the conversation. Only populate this if the user explicitly asks to create tasks or a plan."),
+  tasksToAdd: z.array(TaskToAddSchema).optional().describe("A list of new tasks to be added."),
+  tasksToUpdate: z.array(TaskToUpdateSchema).optional().describe("A list of tasks to be updated."),
+  tasksToDelete: z.array(TaskToDeleteSchema).optional().describe("A list of tasks to be deleted."),
 });
 export type ConversationalAgentOutput = z.infer<typeof ConversationalAgentOutputSchema>;

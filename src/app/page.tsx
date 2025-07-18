@@ -10,7 +10,7 @@ import { useAppContext } from '@/context/app-context';
 import { format, isToday, parseISO, isBefore, startOfToday, differenceInDays } from 'date-fns';
 
 import TaskList from '@/components/dashboard/task-list';
-import type { Task, Mood, UserRole } from '@/lib/types';
+import type { Task, UserRole } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Confetti from '@/components/confetti';
@@ -91,7 +91,6 @@ export default function DashboardPage() {
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
-  const [selectedMood, setSelectedMood] = React.useState<Mood | null>({ emoji: '😊', label: 'Motivated' });
   const [selectedRole, setSelectedRole] = React.useState<UserRole>('Developer');
 
   // Load role from localStorage on mount
@@ -180,7 +179,6 @@ When you need to use a tool, use it, but your final response should always be co
     initialPrompt: 'What should I focus on today?',
     taskContext: {
         role: selectedRole,
-        mood: selectedMood?.label || 'Neutral',
         tasks: tasks,
     },
   };
@@ -220,7 +218,12 @@ When you need to use a tool, use it, but your final response should always be co
         
         <DailyProgressBar tasks={todaysTasks} />
         
-        <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ConversationalAICard config={agentConfig} />
+            <div className="space-y-6">
+              <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
+            </div>
+        </div>
 
 
         <Card>
@@ -475,9 +478,6 @@ When you need to use a tool, use it, but your final response should always be co
           </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ConversationalAICard config={agentConfig} />
-        </div>
       </div>
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
         handleToggleTask(focusTask.id)

@@ -145,44 +145,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     if (!user || !db) return;
     try {
-        // Find the task, whether it's a main task or a subtask
-        let taskFound = false;
-        const newTasks = tasks.map(t => {
-            if (t.id === taskId) {
-                taskFound = true;
-                return { ...t, ...updates };
-            }
-            if (t.subtasks) {
-                let subtaskUpdated = false;
-                const newSubtasks = t.subtasks.map(st => {
-                    if (st.id === taskId) {
-                        subtaskUpdated = true;
-                        return { ...st, ...updates };
-                    }
-                    return st;
-                });
-                if (subtaskUpdated) {
-                    taskFound = true;
-                    return { ...t, subtasks: newSubtasks };
-                }
-            }
-            return t;
-        });
+        let parentTask: Task | null = null;
+        let isSubtask = false;
 
-        if (taskFound) {
+        // Check if it's a subtask
+        for (const task of tasks) {
+            if (task.subtasks?.some(st => st.id === taskId)) {
+                parentTask = task;
+                isSubtask = true;
+                break;
+            }
+        }
+
+        if (isSubtask && parentTask) {
+            // Handle subtask update
+            const parentTaskRef = doc(db, 'tasks', parentTask.id);
+            const updatedSubtasks = parentTask.subtasks!.map(st => 
+                st.id === taskId ? { ...st, ...updates } : st
+            );
+            await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
+        } else {
+            // Handle main task update
             const taskRef = doc(db, 'tasks', taskId);
             await updateDoc(taskRef, updates);
-        } else {
-             console.warn("Task to update not found in main tasks, checking subtasks...");
-             // This part handles updating subtasks that might be nested
-             for (const task of tasks) {
-                 if (task.subtasks?.some(st => st.id === taskId)) {
-                     const parentTaskRef = doc(db, 'tasks', task.id);
-                     const updatedSubtasks = task.subtasks.map(st => st.id === taskId ? {...st, ...updates} : st);
-                     await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
-                     break;
-                 }
-             }
         }
     } catch (error) {
         console.error("Error updating task:", error);

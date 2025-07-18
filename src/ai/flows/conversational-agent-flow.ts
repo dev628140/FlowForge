@@ -22,6 +22,8 @@ import {
   ConversationalAgentOutput,
   ConversationalAgentOutputSchema,
 } from '@/lib/types/conversational-agent';
+import { Task } from '@/lib/types';
+
 
 // Define tools that the conversational agent can use.
 const taskPlanningTool = ai.defineTool(
@@ -94,6 +96,44 @@ const breakdownTaskTool = ai.defineTool(
     async (input) => breakdownTask(input)
 );
 
+const updateTaskTool = ai.defineTool(
+    {
+        name: 'updateTask',
+        description: "Updates an existing task (e.g., mark as complete, change title, reschedule). You MUST know the task's ID to update it. If you don't know the ID, ask the user to clarify which task they mean from their task list.",
+        inputSchema: z.object({
+            taskId: z.string().describe("The unique identifier of the task to update."),
+            updates: z.object({
+                title: z.string().optional(),
+                description: z.string().optional(),
+                completed: z.boolean().optional(),
+                scheduledDate: z.string().optional().describe("Date in YYYY-MM-DD format."),
+            }).describe("The fields to update.")
+        }),
+        outputSchema: z.object({ success: z.boolean() }),
+    },
+    async ({ taskId, updates }) => {
+        // This is a placeholder. The actual update will be handled client-side
+        // by interpreting the `tasksToUpdate` field in the agent's output.
+        console.log(`AI requests to update task ${taskId} with`, updates);
+        return { success: true };
+    }
+);
+
+const deleteTaskTool = ai.defineTool(
+    {
+        name: 'deleteTask',
+        description: "Deletes a task. You MUST know the task's ID to delete it. If you don't know the ID, ask the user to clarify which task they mean from their task list before using this tool.",
+        inputSchema: z.object({ taskId: z.string().describe("The unique identifier of the task to delete.") }),
+        outputSchema: z.object({ success: z.boolean() }),
+    },
+    async ({ taskId }) => {
+        // This is a placeholder. The actual deletion will be handled client-side
+        // by interpreting the `tasksToDelete` field in the agent's output.
+        console.log(`AI requests to delete task ${taskId}`);
+        return { success: true };
+    }
+);
+
 
 const conversationalAgentFlow = ai.defineFlow(
   {
@@ -102,13 +142,20 @@ const conversationalAgentFlow = ai.defineFlow(
     outputSchema: ConversationalAgentOutputSchema,
   },
   async (input) => {
-    const { history, prompt, initialContext, taskContext } = input;
+    const { history, prompt, initialContext, taskContext, imageDataUri } = input;
     
     // Construct the full history for the model
     const fullHistory = history.map(msg => ({
         role: msg.role,
         content: msg.content
     }));
+
+    // If an image is provided, add a system message to guide the AI
+    let finalPrompt = prompt;
+    if (imageDataUri) {
+        fullHistory.unshift({ role: 'user', content: [{ media: { url: imageDataUri } }, { text: prompt }] });
+        finalPrompt = `The user has uploaded an image and prompted: "${prompt}". Your default action should be to analyze this image for tasks using the 'visualTaskSnap' tool, but also be ready to answer other questions about it.`;
+    }
 
     const tools = [
         taskPlanningTool, 
@@ -118,6 +165,8 @@ const conversationalAgentFlow = ai.defineFlow(
         progressJournalTool,
         visualTaskSnapTool,
         breakdownTaskTool,
+        updateTaskTool,
+        deleteTaskTool,
     ];
     
     let retries = 3;
@@ -130,16 +179,18 @@ const conversationalAgentFlow = ai.defineFlow(
               system: `${initialContext || 'You are a helpful productivity assistant named FlowForge.'}
 You have full context of the user's task list and can use tools to help them.
 Your primary role is to provide information and suggestions based on the conversation context.
-If the user explicitly asks you to create tasks, plan something, or add items to their list, you should use the appropriate tools and also generate a conversational response. 
-Confirm details with the user if their request is ambiguous.
+If the user explicitly asks you to create, update, or delete tasks, or plan something, you should use the appropriate tools and also generate a conversational response. 
+Confirm details with the user if their request is ambiguous. For example, if they ask to delete a task but don't specify which one, ask for clarification.
 When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
 
+When using tools that modify data (updateTask, deleteTask), the user interface will handle the actual database operations. Your role is to identify which tool to use and provide the necessary parameters (like taskId and what to update). The system will then interpret your tool call and perform the action.
+
 The user has selected the role: ${taskContext.role}.
-User's Task Context:
-${taskContext ? JSON.stringify(taskContext, null, 2) : "No task context provided."}
+User's Task Context (including IDs, titles, descriptions, and completion status):
+${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task context provided."}
 `,
               history: fullHistory,
-              prompt: prompt,
+              prompt: finalPrompt,
               tools,
               output: {
                   format: 'json',
@@ -174,6 +225,10 @@ ${taskContext ? JSON.stringify(taskContext, null, 2) : "No task context provided
             } else {
                 // For any other error, throw it immediately
                 console.error("Unhandled AI Error:", error);
+                 if (error.message && error.message.includes('Schema validation failed')) {
+                    const friendlyError = "I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?";
+                    return { response: friendlyError };
+                }
                 throw new Error("An unexpected error occurred with the AI service.");
             }
         }
