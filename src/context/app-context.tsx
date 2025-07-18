@@ -132,7 +132,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => {
     if (!user || !db) return;
 
-    const maxOrder = tasks.reduce((max, task) => Math.max(task.order || 0, max), 0);
+    const maxOrder = tasks.length > 0 ? Math.max(...tasks.map(t => t.order || 0)) : -1;
     
     try {
       const batch = writeBatch(db);
@@ -146,7 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completed: false,
           createdAt: new Date().toISOString(),
           title: task.title || 'Untitled Task',
-          order: tasks.length > 0 ? maxOrder + index + 1 : index,
+          order: maxOrder + 1 + index,
         };
 
         if (task.description) {
@@ -258,38 +258,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleReorderTask = async (taskId: string, direction: 'up' | 'down') => {
     if (!user || !db) return;
 
-    // We need to operate on the incomplete tasks list, sorted by order
-    const sortedTasks = [...tasks]
-      .filter(t => !t.completed)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
-      
-    const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
+    const sortedList = [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const currentIndex = sortedList.findIndex(t => t.id === taskId);
 
-    if (taskIndex === -1) return; // Task not in the sortable list
+    if (currentIndex === -1) return;
 
-    const swapIndex = direction === 'up' ? taskIndex - 1 : taskIndex + 1;
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
 
-    if (swapIndex < 0 || swapIndex >= sortedTasks.length) return; // Cannot move outside of list bounds
+    if (swapIndex < 0 || swapIndex >= sortedList.length) return;
 
-    const taskToMove = sortedTasks[taskIndex];
-    const taskToSwapWith = sortedTasks[swapIndex];
-
-    // Swap order properties
+    const taskToMove = sortedList[currentIndex];
+    const taskToSwapWith = sortedList[swapIndex];
+    
+    // Swap the order property
     const newOrderForMoved = taskToSwapWith.order;
     const newOrderForSwapped = taskToMove.order;
 
-    // Optimistically update the UI
-    const updatedTasks = tasks.map(t => {
-      if (t.id === taskToMove.id) return { ...t, order: newOrderForMoved };
-      if (t.id === taskToSwapWith.id) return { ...t, order: newOrderForSwapped };
+    // Create a new array with the updated orders for immediate UI feedback
+    const newTasks = tasks.map(t => {
+      if (t.id === taskToMove.id) {
+        return { ...t, order: newOrderForMoved };
+      }
+      if (t.id === taskToSwapWith.id) {
+        return { ...t, order: newOrderForSwapped };
+      }
       return t;
     });
-    setTasks(updatedTasks);
-    
+
+    // Optimistically update UI
+    setTasks(newTasks);
+
     // Persist changes to Firestore
     try {
       const batch = writeBatch(db);
-      
       const movedTaskRef = doc(db, 'tasks', taskToMove.id);
       batch.update(movedTaskRef, { order: newOrderForMoved });
 
@@ -300,8 +301,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Error reordering tasks:", error);
       toast({ title: "Error", description: "Could not save the new order.", variant: "destructive" });
-      // If error, revert optimistic update
-      setTasks(tasks);
+      // Revert UI on failure
+      setTasks(tasks); 
     }
   };
 
