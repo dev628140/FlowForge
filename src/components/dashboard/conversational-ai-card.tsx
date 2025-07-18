@@ -18,6 +18,8 @@ import {
   Trash2,
   Pin,
   PinOff,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -92,12 +94,16 @@ function fileToDataUri(file: File): Promise<string> {
 
 const CONVERSATIONS_STORAGE_KEY = 'flowforge_conversations';
 const CURRENT_CONVERSATION_ID_KEY = 'flowforge_current_conversation_id';
+const HISTORY_COLLAPSED_KEY = 'flowforge_history_collapsed';
+
 
 export default function ConversationalAICard({ config }: ConversationalAICardProps) {
   const { handleAddTasks, updateTask, handleDeleteTask } = useAppContext();
   const { toast } = useToast();
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = React.useState<string | null>(null);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = React.useState(false);
+
 
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -115,11 +121,17 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
 
   const isOffline = useOfflineStatus();
 
-  // Load conversations from localStorage on mount
+  // Load conversations and collapsed state from localStorage on mount
   React.useEffect(() => {
     try {
       const storedConversations = localStorage.getItem(CONVERSATIONS_STORAGE_KEY);
       const storedId = localStorage.getItem(CURRENT_CONVERSATION_ID_KEY);
+      const storedCollapsed = localStorage.getItem(HISTORY_COLLAPSED_KEY);
+      
+      if (storedCollapsed) {
+        setIsHistoryCollapsed(JSON.parse(storedCollapsed));
+      }
+
       if (storedConversations) {
         const parsedConvos = JSON.parse(storedConversations);
         setConversations(parsedConvos);
@@ -149,6 +161,12 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
       localStorage.setItem(CURRENT_CONVERSATION_ID_KEY, currentConversationId);
     }
   }, [conversations, currentConversationId]);
+
+  const toggleHistoryCollapse = () => {
+    const newCollapsedState = !isHistoryCollapsed;
+    setIsHistoryCollapsed(newCollapsedState);
+    localStorage.setItem(HISTORY_COLLAPSED_KEY, JSON.stringify(newCollapsedState));
+  };
 
 
   const currentConversation = React.useMemo(() => {
@@ -410,58 +428,78 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
     <Card className="flex flex-col h-full col-span-1 md:col-span-2">
       <div className="flex h-full">
          {/* Chat History Sidebar */}
-        <div className="w-64 border-r bg-muted/30 flex flex-col">
-            <div className="p-2 border-b">
-                <Button variant="outline" className="w-full" onClick={startNewConversation}>
-                    <Plus className="mr-2" /> New Chat
-                </Button>
-            </div>
-            <ScrollArea className="flex-grow">
-                <div className="p-2 space-y-1">
-                    {sortedConversations.map(convo => (
-                        <div key={convo.id} className="group relative">
-                            <Button
-                                variant={currentConversationId === convo.id ? "secondary" : "ghost"}
-                                className="w-full justify-start text-left h-auto py-2"
-                                onClick={() => setCurrentConversationId(convo.id)}
-                            >
-                                <MessageSquare className="mr-2 shrink-0" />
-                                <span className="truncate flex-grow">{convo.title}</span>
-                                {convo.pinned && <Pin className="ml-2 h-4 w-4 shrink-0 text-amber-500" />}
-                            </Button>
-                             <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-md">
-                                <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePinConversation(convo.id)}>
-                                            {convo.pinned ? <PinOff className="text-amber-500" /> : <Pin />}
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>{convo.pinned ? "Unpin" : "Pin"}</p></TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                     <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteConversation(convo.id)}>
-                                            <Trash2 />
-                                        </Button>
-                                     </TooltipTrigger>
-                                     <TooltipContent><p>Delete</p></TooltipContent>
-                                </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                        </div>
-                    ))}
+        <div className={cn(
+            "border-r bg-muted/30 flex flex-col transition-all duration-300",
+            isHistoryCollapsed ? 'w-0' : 'w-64'
+        )}>
+           <div className={cn('flex flex-col h-full', isHistoryCollapsed && 'hidden')}>
+                <div className="p-2 border-b flex items-center justify-between">
+                    <span className="font-semibold text-sm px-2">Chat History</span>
+                    <Button variant="outline" size="sm" onClick={startNewConversation}>
+                        <Plus className="mr-2 h-4 w-4" /> New
+                    </Button>
                 </div>
-            </ScrollArea>
+                <ScrollArea className="flex-grow">
+                    <div className="p-2 space-y-1">
+                        {sortedConversations.map(convo => (
+                            <div key={convo.id} className="group relative">
+                                <Button
+                                    variant={currentConversationId === convo.id ? "secondary" : "ghost"}
+                                    className="w-full justify-start text-left h-auto py-2"
+                                    onClick={() => setCurrentConversationId(convo.id)}
+                                >
+                                    <MessageSquare className="mr-2 shrink-0" />
+                                    <span className="truncate flex-grow">{convo.title}</span>
+                                    {convo.pinned && <Pin className="ml-2 h-4 w-4 shrink-0 text-amber-500" />}
+                                </Button>
+                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-md">
+                                    <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePinConversation(convo.id)}>
+                                                {convo.pinned ? <PinOff className="text-amber-500" /> : <Pin />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>{convo.pinned ? "Unpin" : "Pin"}</p></TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteConversation(convo.id)}>
+                                                <Trash2 />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Delete</p></TooltipContent>
+                                    </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+           </div>
         </div>
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
             <CardHeader>
                 <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle>{config.title}</CardTitle>
-                        <CardDescription>{config.description}</CardDescription>
+                    <div className="flex items-center gap-2">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={toggleHistoryCollapse} className="h-8 w-8">
+                                        {isHistoryCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{isHistoryCollapsed ? 'Open History' : 'Collapse History'}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <div>
+                            <CardTitle>{config.title}</CardTitle>
+                            <CardDescription>{config.description}</CardDescription>
+                        </div>
                     </div>
                     {currentConversation?.activeTool && (
                         <div className="text-right">
@@ -589,5 +627,3 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
     </Card>
   );
 }
-
-    
