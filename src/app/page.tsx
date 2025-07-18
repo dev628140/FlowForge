@@ -234,7 +234,7 @@ ${tasks ? JSON.stringify(tasks, null, 2) : "No task context provided."}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
              <Card>
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardHeader className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <CalendarIcon className="w-6 h-6" />
