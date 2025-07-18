@@ -484,13 +484,20 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                       key={convo.id}
                       onClick={() => setCurrentConversationId(convo.id)}
                       className={cn(
-                        'group flex items-center gap-1 rounded-md cursor-pointer',
+                        'group relative flex items-center gap-2 rounded-md cursor-pointer',
                         currentConversationId === convo.id
                           ? 'bg-secondary'
                           : 'hover:bg-muted/50'
                       )}
                     >
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity p-1">
+                      <Button
+                        variant="ghost"
+                        className="w-full h-full justify-start gap-2 flex-1 min-w-0 bg-transparent hover:bg-transparent pr-14"
+                      >
+                        <MessageSquare className="h-4 w-4 shrink-0" />
+                        <span className="truncate flex-1 text-left">{convo.title}</span>
+                      </Button>
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -541,13 +548,6 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
-                      <Button
-                        variant="ghost"
-                        className="w-full h-full justify-start gap-2 flex-1 min-w-0 bg-transparent hover:bg-transparent"
-                      >
-                        <MessageSquare className="h-4 w-4 shrink-0" />
-                        <span className="truncate flex-1 text-left">{convo.title}</span>
-                      </Button>
                     </div>
                   );
                 })}
