@@ -19,5 +19,3 @@ export interface Mood {
   emoji: string;
   label: MoodLabel;
 }
-
-    
