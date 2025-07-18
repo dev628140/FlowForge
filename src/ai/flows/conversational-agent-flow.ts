@@ -16,7 +16,7 @@ import { analyzeProductivity } from './productivity-dna-tracker';
 import { progressReflectionJournal } from './progress-reflection-journal';
 import { visualTaskSnap } from './visual-task-snap';
 import { breakdownTask } from './breakdown-task-flow';
-import { reorderAllTasks } from './reorder-all-tasks-flow';
+import { reorderAllTasks, ReorderAllTasksInput } from './reorder-all-tasks-flow';
 import {
   ConversationalAgentInput,
   ConversationalAgentInputSchema,
@@ -171,6 +171,25 @@ const conversationalAgentFlow = ai.defineFlow(
   },
   async (input) => {
     const { history, prompt, initialContext, taskContext, imageDataUri, activeTool } = input;
+
+    // Direct path for reorder tool to avoid LLM confusion
+    if (activeTool === 'reorderAllTasks') {
+        const reorderInput: ReorderAllTasksInput = {
+            allTasks: taskContext.tasks,
+            templateDate: taskContext.templateDate,
+        };
+        const result = await reorderAllTasks(reorderInput);
+        if (result.updates.length > 0) {
+            return {
+                response: `I've reordered your tasks on other days to match the order for ${taskContext.templateDate}.`,
+                tasksToUpdate: result.updates,
+            };
+        } else {
+            return {
+                response: "I couldn't find any tasks to reorder based on today's schedule.",
+            };
+        }
+    }
     
     // Construct the full history for the model
     const fullHistory = history.map(msg => ({
@@ -214,8 +233,6 @@ If the user wants a summary of completed tasks, use 'progressReflectionJournal'.
 If the user asks to reorder tasks across multiple days based on a template (e.g., "make all days look like today"), use 'reorderAllTasks'. For simple up/down reordering of one task, use 'updateTask'.
 For any task modifications (update, delete), use the appropriate 'updateTask' or 'deleteTask' tools.
 
-After using the 'reorderAllTasks' tool, you will receive an object with an 'updates' field. You MUST place the contents of this 'updates' array into the 'tasksToUpdate' field of your final response object.
-
 ${activeTool ? `The user has the '${activeTool}' tool active. Prioritize using this tool if the conversation aligns with its purpose. However, you can still use other tools or answer conversationally if the user's prompt deviates.` : ''}
 
 You have full context of the user's task list. Your primary role is to provide information and suggestions based on the conversation.
@@ -255,18 +272,6 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
               return { response: output };
             }
             
-            // Handle the case where the reorder tool was called and its result is in the history.
-            const reorderToolCall = response.history.find(m => m.role === 'tool' && m.content[0].toolResponse?.name === 'reorderAllTasks');
-            if (reorderToolCall) {
-                const toolOutput = reorderToolCall.content[0].toolResponse?.output as any;
-                if (toolOutput?.updates) {
-                    return {
-                        ...output,
-                        tasksToUpdate: toolOutput.updates,
-                    };
-                }
-            }
-
             return output;
 
         } catch (error: any) {
@@ -294,16 +299,5 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
 );
 
 export async function conversationalAgent(input: ConversationalAgentInput): Promise<ConversationalAgentOutput> {
-    const result = await conversationalAgentFlow(input);
-    
-    // Final check to ensure reorder updates are passed through.
-    if (result && result.tasksToUpdate && (result.tasksToUpdate as any).updates) {
-      return {
-        ...result,
-        response: result.response || "I've reordered your tasks as requested.",
-        tasksToUpdate: (result.tasksToUpdate as any).updates,
-      };
-    }
-
-    return result;
+    return conversationalAgentFlow(input);
 }
