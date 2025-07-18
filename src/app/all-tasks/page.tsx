@@ -97,7 +97,14 @@ export default function AllTasksPage() {
                     <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} onReorder={handleReorderTask} emptyMessage="No tasks found." />
+                    <TaskList 
+                        tasks={sortedTasks} 
+                        onToggle={handleToggleTask} 
+                        onStartFocus={handleStartFocus} 
+                        onUpdateTask={updateTask} 
+                        onReorder={handleReorderTask} 
+                        emptyMessage="No tasks found."
+                    />
                 </CardContent>
             </Card>
         </div>

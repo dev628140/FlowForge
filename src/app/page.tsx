@@ -214,7 +214,8 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6 lg:col-span-1">
             <DailyProgressBar tasks={todaysTasks} />
              <Card>
               <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
@@ -395,7 +396,14 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} onReorder={handleReorderTask} emptyMessage="No tasks for today. Add one to get started!" />
+                <TaskList
+                  tasks={todaysTasks} 
+                  onToggle={handleToggleTask} 
+                  onStartFocus={handleStartFocus} 
+                  onUpdateTask={updateTask} 
+                  onReorder={handleReorderTask} 
+                  emptyMessage="No tasks for today. Add one to get started!" 
+                />
               </CardContent>
             </Card>
             <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
@@ -468,9 +476,10 @@ export default function DashboardPage() {
               </Card>
             )}
             
-            <div className="w-full mx-auto">
-               <ConversationalAICard config={agentConfig} />
-            </div>
+          </div>
+          <div className="lg:col-span-1">
+             <ConversationalAICard config={agentConfig} />
+          </div>
         </div>
       </div>
 

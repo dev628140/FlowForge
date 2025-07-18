@@ -43,7 +43,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         querySnapshot.forEach((doc) => {
           userTasks.push({ id: doc.id, ...doc.data() } as Task);
         });
-        setTasks(userTasks);
+        // Assign order if it's missing
+        const tasksToUpdate: Task[] = [];
+        const orderedTasks = userTasks
+          .sort((a,b) => (a.createdAt || "").localeCompare(b.createdAt || ""))
+          .map((task, index) => {
+            if (task.order === undefined || task.order === null) {
+              const newTask = { ...task, order: index };
+              tasksToUpdate.push(newTask);
+              return newTask;
+            }
+            return task;
+          });
+        
+        if (tasksToUpdate.length > 0) {
+          const batch = writeBatch(db);
+          tasksToUpdate.forEach(task => {
+            const taskRef = doc(db, 'tasks', task.id);
+            batch.update(taskRef, { order: task.order });
+          });
+          batch.commit().catch(e => console.error("Failed to set default order", e));
+        }
+
+        setTasks(orderedTasks);
       }, (error) => {
         console.error("Error listening to tasks:", error);
         toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
@@ -110,7 +132,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleAddTasks = async (newTasks: Partial<Omit<Task, 'id' | 'completed' | 'userId'>>[]) => {
     if (!user || !db) return;
 
-    // Find the highest current order value to ensure new tasks are added to the end
     const maxOrder = tasks.reduce((max, task) => Math.max(task.order || 0, max), 0);
     
     try {
@@ -125,7 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completed: false,
           createdAt: new Date().toISOString(),
           title: task.title || 'Untitled Task',
-          order: maxOrder + index + 1, // Assign new order
+          order: tasks.length > 0 ? maxOrder + index + 1 : index,
         };
 
         if (task.description) {
@@ -237,63 +258,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleReorderTask = async (taskId: string, direction: 'up' | 'down') => {
     if (!user || !db) return;
 
-    // Create a mutable, sorted copy of the tasks
     const sortedTasks = [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
 
-    const taskToMove = sortedTasks.find(t => t.id === taskId);
-    if (!taskToMove) return;
+    if (taskIndex === -1) return;
 
-    // Find all tasks with the same title to move them as a group
-    const relatedTasks = sortedTasks.filter(t => t.title === taskToMove.title);
-    const otherTasks = sortedTasks.filter(t => t.title !== taskToMove.title);
-    
-    // Find the index of the first task in the group to determine the block's position
-    const firstTaskOfGroupIndex = sortedTasks.findIndex(t => t.id === relatedTasks[0].id);
+    const swapIndex = direction === 'up' ? taskIndex - 1 : taskIndex + 1;
 
-    if (direction === 'up') {
-        // Find the task immediately before the group
-        const targetIndex = firstTaskOfGroupIndex - 1;
-        if (targetIndex < 0) return; // Already at the top
+    if (swapIndex < 0 || swapIndex >= sortedTasks.length) return;
 
-        const taskToSwapWith = sortedTasks[targetIndex];
-        
-        // Find the group of tasks to swap with (all tasks with the same title as taskToSwapWith)
-        const swapGroup = otherTasks.filter(t => t.title === taskToSwapWith.title);
-        
-        // Find the index of the swap group in the 'otherTasks' array
-        const swapGroupIndexInOthers = otherTasks.findIndex(t => t.id === swapGroup[0].id);
-        
-        // Re-insert the moved group before the swap group
-        otherTasks.splice(swapGroupIndexInOthers, 0, ...relatedTasks);
+    const taskToMove = sortedTasks[taskIndex];
+    const taskToSwap = sortedTasks[swapIndex];
 
-    } else { // Moving down
-        // Find the task immediately after the group
-        const lastTaskOfGroupIndex = firstTaskOfGroupIndex + relatedTasks.length - 1;
-        const targetIndex = lastTaskOfGroupIndex + 1;
-        if (targetIndex >= sortedTasks.length) return; // Already at the bottom
+    const newOrderForMoved = taskToSwap.order;
+    const newOrderForSwapped = taskToMove.order;
 
-        const taskToSwapWith = sortedTasks[targetIndex];
-        
-        // Find the group of tasks to swap with
-        const swapGroup = otherTasks.filter(t => t.title === taskToSwapWith.title);
-        const lastOfSwapGroup = swapGroup[swapGroup.length - 1];
-
-        // Find the index of the last task of the swap group in 'otherTasks'
-        const swapGroupEndIndexInOthers = otherTasks.findIndex(t => t.id === lastOfSwapGroup.id);
-        
-        // Re-insert the moved group after the swap group
-        otherTasks.splice(swapGroupEndIndexInOthers + 1, 0, ...relatedTasks);
-    }
-    
-    // Update the order for all tasks and commit to Firestore
     try {
         const batch = writeBatch(db);
-        otherTasks.forEach((task, index) => {
-            if (task.order !== index) {
-                const taskRef = doc(db, 'tasks', task.id);
-                batch.update(taskRef, { order: index });
-            }
-        });
+        
+        const movedTaskRef = doc(db, 'tasks', taskToMove.id);
+        batch.update(movedTaskRef, { order: newOrderForMoved });
+
+        const swappedTaskRef = doc(db, 'tasks', taskToSwap.id);
+        batch.update(swappedTaskRef, { order: newOrderForSwapped });
+
         await batch.commit();
     } catch (error) {
         console.error("Error reordering tasks:", error);
