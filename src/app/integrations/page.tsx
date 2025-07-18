@@ -74,7 +74,7 @@ export default function IntegrationsPage() {
                   alt={`${integration.name} logo`} 
                   width={40} 
                   height={40}
-                  className={cn(isConnected && 'grayscale-0', !isConnected && 'grayscale')}
+                  className={cn('rounded-md', isConnected ? 'grayscale-0' : 'grayscale')}
                   data-ai-hint={integration.dataAiHint}
                 />
                 <div>
@@ -90,12 +90,12 @@ export default function IntegrationsPage() {
                 >
                   {isConnected ? (
                     <>
-                      <CheckCircle className="mr-2" />
+                      <CheckCircle className="mr-2 h-4 w-4" />
                       Connected
                     </>
                   ) : (
                     <>
-                      <Zap className="mr-2" />
+                      <Zap className="mr-2 h-4 w-4" />
                       Connect
                     </>
                   )}

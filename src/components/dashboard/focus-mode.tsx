@@ -159,12 +159,11 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
             <RotateCcw className="w-5 h-5" />
             <span className="sr-only">Reset Timer</span>
           </Button>
-          <Button size="lg" className="w-24 h-16 md:w-32 md:h-16 rounded-full text-lg shadow-lg" onClick={toggleTimer}>
+          <Button size="lg" className="w-24 h-16 rounded-full text-lg shadow-lg" onClick={toggleTimer}>
             {isActive ? <Pause className="w-8 h-8"/> : <Play className="w-8 h-8"/>}
             <span className="sr-only">{isActive ? 'Pause timer' : 'Start timer'}</span>
-
           </Button>
-           <div className="w-12 h-12" /> {/* Spacer */}
+           <div className="w-8 h-8" /> {/* Spacer */}
         </div>
         
         <div className="w-full space-y-4 mb-6">

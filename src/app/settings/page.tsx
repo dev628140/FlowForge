@@ -92,7 +92,7 @@ export default function SettingsPage() {
     <div className="p-4 md:p-6 space-y-6">
       <h1 className="text-3xl font-bold font-headline">Settings</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
             <CardHeader>
             <CardTitle>Profile</CardTitle>

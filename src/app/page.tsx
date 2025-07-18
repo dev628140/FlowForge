@@ -170,12 +170,8 @@ export default function DashboardPage() {
   const agentConfig: AgentConfig = {
     title: 'FlowForge Assistant',
     description: "Your conversational AI partner. Ask me to plan goals, get suggestions, or analyze your productivity.",
-    initialContext: `You are a helpful productivity assistant named FlowForge.
-You have access to a set of tools to help the user.
-Your primary role is to provide information and suggestions based on the conversation context and the user's task list.
-If the user explicitly asks you to create tasks, plan something, or add items to their list, you should use the appropriate tools and also generate a conversational response. 
-Confirm details with the user if their request is ambiguous.
-When you need to use a tool, use it, but your final response should always be conversational and directed to the user.`,
+    initialContext: `You are a helpful productivity assistant named FlowForge. You have access to a set of tools to help the user. Your primary role is to provide information and suggestions based on the conversation context and the user's task list. If the user explicitly asks you to create tasks, plan something, or add items to their list, you should use the appropriate tools and also generate a conversational response. Confirm details with the user if their request is ambiguous. When you need to use a tool, use it, but your final response should always be conversational and directed to the user.
+IMPORTANT: NEVER ask the user for a "Task ID". Use the conversational context and the provided task list to identify the relevant tasks to act upon. If a user's request is ambiguous (e.g., multiple tasks match a description), ask for clarification by describing the tasks you found (e.g., by title and date), not by asking for an ID.`,
     initialPrompt: 'What should I focus on today?',
     taskContext: {
         role: selectedRole,
@@ -204,7 +200,7 @@ When you need to use a tool, use it, but your final response should always be co
            <div className="flex items-center gap-2">
               <Label htmlFor="user-role-select" className="text-sm font-medium">Your Role:</Label>
               <Select value={selectedRole} onValueChange={handleRoleChange}>
-                    <SelectTrigger id="user-role-select" className="w-[180px]">
+                    <SelectTrigger id="user-role-select" className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Select your role..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -220,7 +216,7 @@ When you need to use a tool, use it, but your final response should always be co
         
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-1 space-y-6">
-            <Card>
+             <Card>
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle className="flex items-center gap-2">
@@ -333,12 +329,12 @@ When you need to use a tool, use it, but your final response should always be co
                               </FormItem>
                             )}
                           />
-                          <div className="flex gap-4">
+                          <div className="flex flex-col sm:flex-row gap-4">
                             <FormField
                                 control={form.control}
                                 name="scheduledDate"
                                 render={({ field }) => (
-                                  <FormItem className="flex flex-col w-1/2">
+                                  <FormItem className="flex flex-col flex-1">
                                     <FormLabel>Date</FormLabel>
                                     <Popover>
                                       <PopoverTrigger asChild>
@@ -376,7 +372,7 @@ When you need to use a tool, use it, but your final response should always be co
                                   control={form.control}
                                   name="scheduledTime"
                                   render={({ field }) => (
-                                    <FormItem className="w-1/2">
+                                    <FormItem className="flex-1">
                                       <FormLabel>Time (optional)</FormLabel>
                                       <FormControl>
                                         <Input type="time" {...field} />
