@@ -494,7 +494,7 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                         <MessageSquare className="h-4 w-4 shrink-0" />
                         <span className="truncate flex-1 text-sm">{convo.title}</span>
                       </div>
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-inherit opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center bg-inherit opacity-0 group-hover:opacity-100 transition-opacity">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
