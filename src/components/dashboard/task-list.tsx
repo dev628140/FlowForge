@@ -7,7 +7,7 @@ import TaskItem from './task-item';
 
 interface TaskListProps {
   tasks: Task[];
-  allTasks?: Task[]; // Make this optional for subtask lists
+  allTasks?: Task[]; // Pass the original, unsorted list for context
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
@@ -19,9 +19,9 @@ interface TaskListProps {
 
 export default function TaskList({ tasks, allTasks, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
   
-  const sortedTasks = React.useMemo(() => {
-    return [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0));
-  }, [tasks]);
+  // The `tasks` prop is already sorted by the parent component.
+  // We no longer need to sort it here.
+  const sortedTasks = tasks;
 
   const incompleteTasks = sortedTasks.filter(t => !t.completed);
   const completedTasks = sortedTasks.filter(t => t.completed);
@@ -35,17 +35,13 @@ export default function TaskList({ tasks, allTasks, onToggle, onStartFocus, onUp
   }
   
   const renderTasks = (tasksToRender: Task[], isCompletedList: boolean) => {
-    // Use the provided 'allTasks' if available, otherwise default to the current list.
-    // This is crucial for getting correct isFirst/isLast on filtered lists.
-    const referenceList = allTasks ? [...allTasks].sort((a, b) => (a.order || 0) - (b.order || 0)) : sortedTasks;
-    
-    return tasksToRender.map((task) => {
-       const isFirstInList = tasksToRender.findIndex(t => t.id === task.id) === 0;
-       const isLastInList = tasksToRender.findIndex(t => t.id === task.id) === tasksToRender.length - 1;
+    return tasksToRender.map((task, index) => {
+      const isFirstInList = index === 0;
+      const isLastInList = index === tasksToRender.length - 1;
 
-       // Determine if the task is the very first or very last in the *visible* list.
-       const isFirstOverall = !isCompletedList && isFirstInList;
-       const isLastOverall = (isCompletedList && isLastInList) || (!completedTasks.length && !isCompletedList && isLastInList);
+      // Determine if the task is the very first or very last in the *visible* list.
+      const isFirstOverall = !isCompletedList && isFirstInList;
+      const isLastOverall = (isCompletedList && isLastInList) || (!completedTasks.length && !isCompletedList && isLastInList);
 
       return (
         <TaskItem 

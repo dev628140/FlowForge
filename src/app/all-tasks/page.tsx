@@ -31,34 +31,38 @@ export default function AllTasksPage() {
   };
 
   const sortedTasks = React.useMemo(() => {
-    const sortableTasks = [...tasks];
+    // Create a mutable copy to sort
+    const sortableTasks = [...tasks]; 
+
     return sortableTasks.sort((a, b) => {
       switch (sortBy) {
         case 'order':
-          return (a.order || 0) - (b.order || 0);
+          // Default to a large number if order is null/undefined to push them to the end
+          return (a.order ?? Infinity) - (b.order ?? Infinity);
+
         case 'scheduledDate':
-          if (a.scheduledDate && b.scheduledDate) {
-            return parseISO(a.scheduledDate).getTime() - parseISO(b.scheduledDate).getTime();
+          const dateA = a.scheduledDate ? parseISO(a.scheduledDate).getTime() : Infinity;
+          const dateB = b.scheduledDate ? parseISO(b.scheduledDate).getTime() : Infinity;
+          
+          if (dateA !== dateB) {
+            return dateA - dateB;
           }
-          if (a.scheduledDate) return -1; // a comes first
-          if (b.scheduledDate) return 1;  // b comes first
-          // if neither have a scheduled date, sort by creation
-          if (a.createdAt && b.createdAt) {
-            return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
-          }
-          return 0;
+          // Fallback to order if dates are the same or both are unscheduled
+          return (a.order ?? Infinity) - (b.order ?? Infinity);
+
         case 'createdAt-desc':
-            if (a.createdAt && b.createdAt) {
-                return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
-            }
-            return 0;
+          const timeA_desc = a.createdAt ? parseISO(a.createdAt).getTime() : 0;
+          const timeB_desc = b.createdAt ? parseISO(b.createdAt).getTime() : 0;
+          return timeB_desc - timeA_desc;
+
         case 'createdAt-asc':
-            if (a.createdAt && b.createdAt) {
-                return parseISO(a.createdAt).getTime() - parseISO(b.createdAt).getTime();
-            }
-            return 0;
+          const timeA_asc = a.createdAt ? parseISO(a.createdAt).getTime() : 0;
+          const timeB_asc = b.createdAt ? parseISO(b.createdAt).getTime() : 0;
+          return timeA_asc - timeB_asc;
+
         case 'title':
           return a.title.localeCompare(b.title);
+
         default:
           return 0;
       }
@@ -99,6 +103,7 @@ export default function AllTasksPage() {
                 <CardContent>
                     <TaskList 
                         tasks={sortedTasks} 
+                        allTasks={tasks} // Pass the original list for accurate reordering context
                         onToggle={handleToggleTask} 
                         onStartFocus={handleStartFocus} 
                         onUpdateTask={updateTask} 
