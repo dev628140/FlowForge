@@ -213,9 +213,8 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        <DailyProgressBar tasks={todaysTasks} />
-
         <div className="space-y-6">
+            <DailyProgressBar tasks={todaysTasks} />
              <Card>
               <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
                 <div>
@@ -475,7 +474,7 @@ export default function DashboardPage() {
       </div>
 
        {/* Floating Action Button for Mobile */}
-      <div className="sm:hidden fixed bottom-4 right-4 z-50">
+      <div className="sm:hidden fixed bottom-24 right-4 z-50">
         <Popover open={isFabPopoverOpen} onOpenChange={setIsFabPopoverOpen}>
           <PopoverTrigger asChild>
              <Button size="lg" className="rounded-full w-16 h-16 shadow-lg">
@@ -562,3 +561,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
