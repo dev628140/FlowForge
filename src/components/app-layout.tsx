@@ -176,7 +176,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex items-center justify-between p-4">
+        <header className="sticky top-0 z-10 flex h-[68px] items-center justify-between p-4 bg-background/80 backdrop-blur-sm border-b">
           <div className="flex items-center gap-2">
             <SidebarTrigger />
             {isOffline && (
@@ -188,8 +188,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <UserProfile user={user} />
         </header>
-        <main className="-mt-[68px]">
-          <div className="pt-[68px]">
+        <main>
+          <div>
              {children}
           </div>
         </main>
