@@ -102,33 +102,25 @@ const breakdownTaskTool = ai.defineTool(
 );
 
 const reorderAllTasksTool = ai.defineTool(
-    {
-      name: 'reorderAllTasks',
-      description:
-        "Reorders all tasks based on a template day's order. Use when the user asks to apply a certain day's task order to all other days.",
-      inputSchema: z.object({
-        allTasks: z.array(z.any()), // Full list of tasks
-        templateDate: z.string().describe('The date to use as the ordering template, in YYYY-MM-DD format.'),
-      }),
-      outputSchema: z.object({
-        tasksToUpdate: z
-          .array(
-            z.object({
-              taskId: z.string(),
-              updates: z.object({ order: z.number() }),
-            })
-          )
-          .describe('A list of tasks with their new order values.'),
-      }),
-    },
-    async ({ allTasks, templateDate }) => {
-        // This is a placeholder for the client-side interpretation.
-        // The real logic is in the flow, but we need to define the tool for the agent.
-        const result = await reorderAllTasks({ allTasks, templateDate });
-        // The conversational agent expects a certain output structure that we can map here.
-        // The actual update will be handled by the client receiving the `tasksToUpdate` field.
-        return { tasksToUpdate: result.updates };
-    }
+  {
+    name: 'reorderAllTasks',
+    description: "Reorders all tasks based on a template day's order. Use when the user asks to apply a certain day's task order to all other days.",
+    inputSchema: z.object({
+      allTasks: z.array(z.any()), // Full list of tasks
+      templateDate: z.string().describe('The date to use as the ordering template, in YYYY-MM-DD format.'),
+    }),
+    outputSchema: z.object({
+      updates: z
+        .array(
+          z.object({
+            taskId: z.string(),
+            updates: z.object({ order: z.number() }),
+          })
+        )
+        .describe('A list of tasks with their new order values.'),
+    }),
+  },
+  async (input) => reorderAllTasks(input)
 );
 
 
@@ -287,13 +279,9 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2; // Exponential backoff
             } else {
-                // For any other error, throw it immediately
                 console.error("Unhandled AI Error:", error);
-                 if (error.message && error.message.includes('Schema validation failed')) {
-                    const friendlyError = "I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?";
-                    return { response: friendlyError };
-                }
-                throw new Error("An unexpected error occurred with the AI service.");
+                const friendlyError = "I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?";
+                return { response: friendlyError };
             }
         }
     }
@@ -306,12 +294,13 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
 export async function conversationalAgent(input: ConversationalAgentInput): Promise<ConversationalAgentOutput> {
     const result = await conversationalAgentFlow(input);
     
-    // The agent might return a nested `tasksToUpdate` from the tool call.
-    // This flattens it to the structure the client expects.
-    if (result.tasksToUpdate && (result.tasksToUpdate as any).tasksToUpdate) {
+    // The reorderAllTasks tool returns a different structure which we need to handle.
+    // The tool's output might be assigned to `tasksToUpdate` by the agent.
+    if (result.tasksToUpdate && (result.tasksToUpdate as any).updates) {
       return {
         ...result,
-        tasksToUpdate: (result.tasksToUpdate as any).tasksToUpdate,
+        response: result.response || "I've reordered your tasks as requested.",
+        tasksToUpdate: (result.tasksToUpdate as any).updates,
       };
     }
 
