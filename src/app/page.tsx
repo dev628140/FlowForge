@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Plus } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Plus, GripVertical } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -58,6 +58,7 @@ import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
 import { Badge } from '@/components/ui/badge';
 import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-card';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 
 const taskFormSchema = z.object({
@@ -94,7 +95,7 @@ export default function DashboardPage() {
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
   const [isFabPopoverOpen, setIsFabPopoverOpen] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState<UserRole>('Developer');
-
+  
   // Load role from localStorage on mount
   React.useEffect(() => {
     const savedRole = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole;
@@ -397,7 +398,8 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <TaskList
-                  tasks={todaysTasks} 
+                  tasks={tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate)))}
+                  allTasks={tasks}
                   onToggle={handleToggleTask} 
                   onStartFocus={handleStartFocus} 
                   onUpdateTask={updateTask} 

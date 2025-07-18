@@ -7,6 +7,7 @@ import TaskItem from './task-item';
 
 interface TaskListProps {
   tasks: Task[];
+  allTasks?: Task[]; // Make this optional for subtask lists
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
@@ -16,7 +17,7 @@ interface TaskListProps {
   parentId?: string;
 }
 
-export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
+export default function TaskList({ tasks, allTasks, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
   
   const sortedTasks = React.useMemo(() => {
     return [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -34,17 +35,16 @@ export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, 
   }
   
   const renderTasks = (tasksToRender: Task[], isCompletedList: boolean) => {
-    const allTasks = sortedTasks; // Use the main sorted list for indexing
+    // Use the provided 'allTasks' if available, otherwise default to the current list.
+    // This is crucial for getting correct isFirst/isLast on filtered lists.
+    const referenceList = allTasks ? [...allTasks].sort((a, b) => (a.order || 0) - (b.order || 0)) : sortedTasks;
     
     return tasksToRender.map((task) => {
-       const originalIndex = allTasks.findIndex(t => t.id === task.id);
-       
        const isFirstInList = tasksToRender.findIndex(t => t.id === task.id) === 0;
        const isLastInList = tasksToRender.findIndex(t => t.id === task.id) === tasksToRender.length - 1;
 
-       // First overall is the first in incomplete list
+       // Determine if the task is the very first or very last in the *visible* list.
        const isFirstOverall = !isCompletedList && isFirstInList;
-       // Last overall is the last in completed list, or last in incomplete if no completed exist
        const isLastOverall = (isCompletedList && isLastInList) || (!completedTasks.length && !isCompletedList && isLastInList);
 
       return (
