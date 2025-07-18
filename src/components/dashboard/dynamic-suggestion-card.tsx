@@ -24,10 +24,19 @@ export default function DynamicSuggestionCard({ tasks, role }: DynamicSuggestion
   const fetchSuggestions = React.useCallback(async () => {
     setLoading(true);
     try {
+      // Pass the relevant fields from the tasks array.
+      const taskInputs = tasks.map(t => ({
+        title: t.title,
+        completed: t.completed,
+        description: t.description,
+        createdAt: t.createdAt,
+      }));
+
       const result = await getDynamicSuggestions({
-        tasks: tasks.map(t => ({ title: t.title, completed: t.completed })),
+        tasks: taskInputs,
         role: role,
       });
+
       setSuggestions(result.suggestions || []);
       setCurrentSuggestionIndex(0);
     } catch (error: any) {
