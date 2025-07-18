@@ -425,11 +425,11 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   }
 
   return (
-    <Card className="flex flex-col h-full w-full">
+    <Card className="flex flex-col h-full w-full overflow-hidden">
       <div className="flex h-full min-w-0">
          {/* Chat History Sidebar */}
         <div className={cn(
-            "border-r bg-muted/30 flex flex-col transition-all duration-300",
+            "border-r bg-muted/30 flex flex-col transition-all duration-300 flex-shrink-0",
             isHistoryCollapsed ? 'w-0' : 'w-64'
         )}>
            <div className={cn('flex flex-col h-full', isHistoryCollapsed && 'hidden')}>
@@ -480,7 +480,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col w-full min-w-0">
+        <div className="flex-1 flex flex-col min-w-0">
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
