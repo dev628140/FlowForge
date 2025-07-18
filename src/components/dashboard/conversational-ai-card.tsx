@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -92,7 +93,7 @@ const CURRENT_CONVERSATION_ID_KEY = 'flowforge_current_conversation_id';
 const HISTORY_COLLAPSED_KEY = 'flowforge_history_collapsed';
 
 
-export default function ConversationalAICard({ config }: ConversationalAICardProps) {
+export default function ConversationalAICard({ config }: { config: AgentConfig }) {
   const { handleAddTasks, updateTask, handleDeleteTask } = useAppContext();
   const { toast } = useToast();
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
