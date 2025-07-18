@@ -490,7 +490,7 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
                           : 'hover:bg-muted/50'
                       )}
                     >
-                      <button className="flex w-full items-center gap-2 p-2 pr-14 text-left">
+                      <button className="flex w-full items-center gap-2 p-2 text-left">
                         <MessageSquare className="h-4 w-4 shrink-0" />
                         <span className="truncate flex-1 text-sm">{convo.title}</span>
                       </button>
@@ -704,3 +704,5 @@ export default function ConversationalAICard({ config }: { config: AgentConfig }
     </Card>
   );
 }
+
+    
