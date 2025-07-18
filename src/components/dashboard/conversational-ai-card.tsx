@@ -426,204 +426,214 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   }
 
   return (
-    <Card className="flex flex-col h-full w-full overflow-hidden">
-      <div className="flex h-full">
-         {/* Chat History Sidebar */}
-        <div className={cn(
-            "border-r bg-muted/30 flex-shrink-0 flex flex-col transition-all duration-300",
-            isHistoryCollapsed ? 'w-0' : 'w-64'
-        )}>
-           <div className={cn('flex flex-col h-full', isHistoryCollapsed && 'hidden')}>
-                <div className="p-2 border-b flex items-center justify-between">
-                    <span className="font-semibold text-sm px-2">Chat History</span>
-                    <Button variant="outline" size="sm" onClick={startNewConversation}>
-                        <Plus className="mr-2 h-4 w-4" /> New
-                    </Button>
-                </div>
-                <ScrollArea className="flex-grow">
-                    <div className="p-2 space-y-1">
-                        {sortedConversations.map(convo => (
-                            <div key={convo.id} className="group relative">
-                                <Button
-                                    variant={currentConversationId === convo.id ? "secondary" : "ghost"}
-                                    className="w-full justify-start text-left h-auto py-2"
-                                    onClick={() => setCurrentConversationId(convo.id)}
-                                >
-                                    <MessageSquare className="mr-2 shrink-0" />
-                                    <span className="truncate flex-grow">{convo.title}</span>
-                                    {convo.pinned && <Pin className="ml-2 h-4 w-4 shrink-0 text-amber-500" />}
-                                </Button>
-                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-md">
-                                    <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePinConversation(convo.id)}>
-                                                {convo.pinned ? <PinOff className="text-amber-500" /> : <Pin />}
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>{convo.pinned ? "Unpin" : "Pin"}</p></TooltipContent>
-                                    </Tooltip>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteConversation(convo.id)}>
-                                                <Trash2 />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>Delete</p></TooltipContent>
-                                    </Tooltip>
-                                    </TooltipProvider>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </ScrollArea>
-           </div>
-        </div>
-
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-w-0">
-            <CardHeader>
-                <div className="flex justify-between items-start sm:items-center gap-2">
-                    <div className="flex items-center gap-2">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={toggleHistoryCollapse} className="h-8 w-8">
-                                        {isHistoryCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>{isHistoryCollapsed ? 'Open History' : 'Collapse History'}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                        <div>
-                            <CardTitle>{config.title}</CardTitle>
-                            <CardDescription>{config.description}</CardDescription>
-                        </div>
-                    </div>
-                    {currentConversation?.activeTool && (
-                        <div className="text-right flex-shrink-0">
-                            <Badge variant="secondary" className="mb-1">
-                                Active Tool: {currentConversation.activeTool.name}
-                            </Badge>
-                            <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={clearActiveTool}>Clear</Button>
-                        </div>
-                    )}
-                </div>
-            </CardHeader>
-            <CardContent {...getRootProps({className: "flex-grow flex flex-col justify-between gap-4"})} >
-              <input {...getInputProps()} />
-              {config.children}
-              <ScrollArea className="flex-grow h-64 pr-4 -mr-4">
-                <div className="space-y-4">
-                  {(!currentConversation || currentConversation.messages.length === 0) && (
-                      <div className="text-center text-sm text-muted-foreground p-4">
-                          {isOffline ? (
-                            <span className="text-destructive">AI features are disabled while offline.</span>
-                          ) : config.initialPrompt ? (
-                              <>
-                                  <span>Start by asking a question, or try this:</span>
-                                  <Button variant="link" className="p-1 h-auto" onClick={handleInitialPrompt}>
-                                      "{config.initialPrompt}"
-                                  </Button>
-                              </>
-                          ) : (
-                              <span>Type a message below to start the conversation.</span>
-                          )}
-                      </div>
-                  )}
-                  {currentConversation?.messages.map((message, index) => (
-                    <div key={index} className={cn("flex items-start gap-3", message.role === 'user' ? 'justify-end' : 'justify-start')}>
-                      {message.role === 'model' && <Avatar className="w-8 h-8 border"><AvatarFallback><Bot size={16} /></AvatarFallback></Avatar>}
-                      <div className={cn("p-3 rounded-lg max-w-xs md:max-w-md space-y-2", message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-                        {message.content.map((part, i) => <div key={i}>{renderContent(part)}</div>)}
-                      </div>
-                      {message.role === 'user' && <Avatar className="w-8 h-8 border"><AvatarFallback><User size={16} /></AvatarFallback></Avatar>}
-                    </div>
-                  ))}
-                  {loading && (
-                      <div className="flex items-start gap-3 justify-start">
-                          <Avatar className="w-8 h-8 border"><AvatarFallback><Bot size={16} /></AvatarFallback></Avatar>
-                          <div className="p-3 rounded-lg bg-muted"><Skeleton className="h-4 w-16" /></div>
-                      </div>
-                  )}
-                  {error && !isOffline && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
-                  {isDragActive && (
-                      <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary rounded-lg flex items-center justify-center">
-                          <p className="text-primary font-bold">Drop image here</p>
-                      </div>
-                  )}
-                </div>
-              </ScrollArea>
-
-              {image && (
-                  <div className="relative p-2 border rounded-md self-start">
-                      <Image src={image} alt="Image preview" width={60} height={60} className="object-cover rounded-md" />
-                      <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 bg-muted rounded-full" onClick={() => setImage(null)}>
-                          <X className="h-4 w-4" />
-                      </Button>
-                  </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="flex items-center gap-2">
-                <Popover open={isToolPopoverOpen} onOpenChange={setIsToolPopoverOpen}>
-                      <PopoverTrigger asChild>
-                          <Button type="button" variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Select a tool"><Wand2 /></Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80">
-                          <div className="grid gap-4">
-                              <div className="space-y-2"><h4 className="font-medium leading-none">AI Tools</h4><p className="text-sm text-muted-foreground">Select a tool to get started with a template.</p></div>
-                              <div className="grid gap-2">
-                                  {availableTools.map((tool) => (
-                                      <div key={tool.id} onClick={() => handleToolSelect(tool)} className={cn("p-2 rounded-md hover:bg-accent cursor-pointer", currentConversation?.activeTool?.id === tool.id && "bg-accent")}>
-                                          <p className="font-semibold text-sm">{tool.name}</p>
-                                          <p className="text-xs text-muted-foreground">{tool.description}</p>
-                                      </div>
-                                  ))}
-                              </div>
-                          </div>
-                      </PopoverContent>
-                  </Popover>
-                  <Popover open={isImageMenuOpen} onOpenChange={setIsImageMenuOpen}>
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Add image"><Camera /></Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-48 p-2">
-                      <Button variant="ghost" className="w-full justify-start" onClick={openFilePicker}><UploadCloud className="mr-2" /> Upload</Button>
-                      <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
-                          <DialogTrigger asChild>
-                              <Button variant="ghost" className="w-full justify-start" onClick={() => setIsImageMenuOpen(false)}><Camera className="mr-2"/> Take Picture</Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                              <DialogHeader><DialogTitle>Take a Picture</DialogTitle><DialogDescription>Line up your notes and snap a photo.</DialogDescription></DialogHeader>
-                              <div className="relative">
-                                <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
-                                <canvas ref={canvasRef} className="hidden" />
-                                {!hasCameraPermission && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                          <Alert variant="destructive" className="m-4"><AlertTitle>Camera Access Denied</AlertTitle><AlertDescription>Please enable camera permissions.</AlertDescription></Alert>
-                                    </div>
-                                )}
-                              </div>
-                              <DialogFooter className="sm:justify-between">
-                                  {videoDevices.length > 1 && <Button variant="outline" onClick={handleSwitchCamera} disabled={!hasCameraPermission}><RefreshCw className="mr-2" /> Switch Camera</Button>}
-                                  <div className="ml-auto">
-                                      <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                                      <Button onClick={handleSnap} disabled={!hasCameraPermission}>Snap Photo</Button>
-                                  </div>
-                              </DialogFooter>
-                          </DialogContent>
-                      </Dialog>
-                    </PopoverContent>
-                  </Popover>
-                  <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={isOffline ? "Offline - AI disabled" : "Ask me anything..."} disabled={loading || isOffline} />
-                  <Button type="submit" disabled={loading || isOffline}>
-                      {loading ? <Loader2 className="animate-spin" /> : <Send />}
+    <Card className="flex flex-col h-full w-full overflow-hidden relative">
+      {/* Chat History Sidebar */}
+      <div
+        className={cn(
+          'absolute top-0 left-0 h-full bg-muted/30 border-r z-10 transition-transform duration-300',
+          isHistoryCollapsed ? '-translate-x-full' : 'translate-x-0',
+          'w-64'
+        )}
+      >
+        <div className="flex flex-col h-full">
+          <div className="p-2 border-b flex items-center justify-between">
+            <span className="font-semibold text-sm px-2">Chat History</span>
+            <Button variant="outline" size="sm" onClick={startNewConversation}>
+              <Plus className="mr-2 h-4 w-4" /> New
+            </Button>
+          </div>
+          <ScrollArea className="flex-grow">
+            <div className="p-2 space-y-1">
+              {sortedConversations.map((convo) => (
+                <div key={convo.id} className="group relative">
+                  <Button
+                    variant={currentConversationId === convo.id ? 'secondary' : 'ghost'}
+                    className="w-full justify-start text-left h-auto py-2"
+                    onClick={() => setCurrentConversationId(convo.id)}
+                  >
+                    <MessageSquare className="mr-2 shrink-0" />
+                    <span className="truncate flex-grow">{convo.title}</span>
+                    {convo.pinned && <Pin className="ml-2 h-4 w-4 shrink-0 text-amber-500" />}
                   </Button>
-              </form>
-            </CardContent>
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-md">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePinConversation(convo.id)}>
+                            {convo.pinned ? <PinOff className="text-amber-500" /> : <Pin />}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>{convo.pinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteConversation(convo.id)}>
+                            <Trash2 />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Delete</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div
+        className={cn(
+          'flex flex-col h-full w-full transition-all duration-300'
+        )}
+        style={{
+          marginLeft: isHistoryCollapsed ? '0' : '256px', // 256px = w-64
+        }}
+      >
+        <CardHeader>
+          <div className="flex justify-between items-start sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={toggleHistoryCollapse} className="h-8 w-8">
+                      {isHistoryCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isHistoryCollapsed ? 'Open History' : 'Collapse History'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <div>
+                <CardTitle>{config.title}</CardTitle>
+                <CardDescription>{config.description}</CardDescription>
+              </div>
+            </div>
+            {currentConversation?.activeTool && (
+              <div className="text-right flex-shrink-0">
+                <Badge variant="secondary" className="mb-1">
+                  Active Tool: {currentConversation.activeTool.name}
+                </Badge>
+                <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={clearActiveTool}>
+                  Clear
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent {...getRootProps({ className: 'flex-grow flex flex-col justify-between gap-4' })}>
+          <input {...getInputProps()} />
+          {config.children}
+          <ScrollArea className="flex-grow h-64 pr-4 -mr-4">
+            <div className="space-y-4">
+              {(!currentConversation || currentConversation.messages.length === 0) && (
+                <div className="text-center text-sm text-muted-foreground p-4">
+                  {isOffline ? (
+                    <span className="text-destructive">AI features are disabled while offline.</span>
+                  ) : config.initialPrompt ? (
+                    <>
+                      <span>Start by asking a question, or try this:</span>
+                      <Button variant="link" className="p-1 h-auto" onClick={handleInitialPrompt}>
+                        "{config.initialPrompt}"
+                      </Button>
+                    </>
+                  ) : (
+                    <span>Type a message below to start the conversation.</span>
+                  )}
+                </div>
+              )}
+              {currentConversation?.messages.map((message, index) => (
+                <div key={index} className={cn('flex items-start gap-3', message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                  {message.role === 'model' && <Avatar className="w-8 h-8 border"><AvatarFallback><Bot size={16} /></AvatarFallback></Avatar>}
+                  <div className={cn('p-3 rounded-lg max-w-xs md:max-w-md space-y-2', message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                    {message.content.map((part, i) => <div key={i}>{renderContent(part)}</div>)}
+                  </div>
+                  {message.role === 'user' && <Avatar className="w-8 h-8 border"><AvatarFallback><User size={16} /></AvatarFallback></Avatar>}
+                </div>
+              ))}
+              {loading && (
+                <div className="flex items-start gap-3 justify-start">
+                  <Avatar className="w-8 h-8 border"><AvatarFallback><Bot size={16} /></AvatarFallback></Avatar>
+                  <div className="p-3 rounded-lg bg-muted"><Skeleton className="h-4 w-16" /></div>
+                </div>
+              )}
+              {error && !isOffline && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+              {isDragActive && (
+                <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary rounded-lg flex items-center justify-center">
+                  <p className="text-primary font-bold">Drop image here</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          {image && (
+            <div className="relative p-2 border rounded-md self-start">
+              <Image src={image} alt="Image preview" width={60} height={60} className="object-cover rounded-md" />
+              <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-6 w-6 bg-muted rounded-full" onClick={() => setImage(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <Popover open={isToolPopoverOpen} onOpenChange={setIsToolPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Select a tool"><Wand2 /></Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="grid gap-4">
+                  <div className="space-y-2"><h4 className="font-medium leading-none">AI Tools</h4><p className="text-sm text-muted-foreground">Select a tool to get started with a template.</p></div>
+                  <div className="grid gap-2">
+                    {availableTools.map((tool) => (
+                      <div key={tool.id} onClick={() => handleToolSelect(tool)} className={cn('p-2 rounded-md hover:bg-accent cursor-pointer', currentConversation?.activeTool?.id === tool.id && 'bg-accent')}>
+                        <p className="font-semibold text-sm">{tool.name}</p>
+                        <p className="text-xs text-muted-foreground">{tool.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Popover open={isImageMenuOpen} onOpenChange={setIsImageMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" disabled={loading || isOffline} aria-label="Add image"><Camera /></Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-2">
+                <Button variant="ghost" className="w-full justify-start" onClick={openFilePicker}><UploadCloud className="mr-2" /> Upload</Button>
+                <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-start" onClick={() => setIsImageMenuOpen(false)}><Camera className="mr-2" /> Take Picture</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader><DialogTitle>Take a Picture</DialogTitle><DialogDescription>Line up your notes and snap a photo.</DialogDescription></DialogHeader>
+                    <div className="relative">
+                      <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
+                      <canvas ref={canvasRef} className="hidden" />
+                      {!hasCameraPermission && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                          <Alert variant="destructive" className="m-4"><AlertTitle>Camera Access Denied</AlertTitle><AlertDescription>Please enable camera permissions.</AlertDescription></Alert>
+                        </div>
+                      )}
+                    </div>
+                    <DialogFooter className="sm:justify-between">
+                      {videoDevices.length > 1 && <Button variant="outline" onClick={handleSwitchCamera} disabled={!hasCameraPermission}><RefreshCw className="mr-2" /> Switch Camera</Button>}
+                      <div className="ml-auto">
+                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                        <Button onClick={handleSnap} disabled={!hasCameraPermission}>Snap Photo</Button>
+                      </div>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </PopoverContent>
+            </Popover>
+            <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={isOffline ? 'Offline - AI disabled' : 'Ask me anything...'} disabled={loading || isOffline} />
+            <Button type="submit" disabled={loading || isOffline}>
+              {loading ? <Loader2 className="animate-spin" /> : <Send />}
+            </Button>
+          </form>
+        </CardContent>
       </div>
     </Card>
   );
