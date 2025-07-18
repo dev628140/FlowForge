@@ -83,6 +83,17 @@ export const summarizeTaskTool = ai.defineTool(
     }
 );
 
+// Define a schema for the task object to be used in the tools below.
+// This provides a clear structure for the AI.
+const ToolTaskSchema = z.object({
+    id: z.string(),
+    title: z.string(),
+    completed: z.boolean(),
+    completedAt: z.string().optional(),
+    scheduledDate: z.string().optional(),
+});
+
+
 /**
  * Tool to analyze user's productivity based on completed tasks.
  */
@@ -91,14 +102,14 @@ export const analyzeProductivityTool = ai.defineTool(
         name: 'analyzeProductivity',
         description: "Analyzes the user's completed tasks to find patterns, like most productive days and times.",
         inputSchema: z.object({
-            tasks: z.array(z.any()).describe("The user's list of tasks, especially completed ones with timestamps."),
+            tasks: z.array(ToolTaskSchema).describe("The user's list of tasks, especially completed ones with timestamps."),
         }),
         outputSchema: z.string().describe('A markdown-formatted report of the productivity analysis.'),
     },
     async ({ tasks }) => {
         const completedTasks = tasks
             .filter(t => t.completed && t.completedAt)
-            .map(t => ({ title: t.title, completedAt: t.completedAt }));
+            .map(t => ({ title: t.title, completedAt: t.completedAt as string }));
         
         const result = await analyzeProductivityFlow({ tasks: completedTasks });
         return result.report;
@@ -113,7 +124,7 @@ export const reflectOnProgressTool = ai.defineTool(
         name: 'reflectOnProgress',
         description: "Generates a motivational summary of the user's accomplishments based on tasks they completed today.",
         inputSchema: z.object({
-            tasks: z.array(z.any()).describe("The user's list of tasks."),
+            tasks: z.array(ToolTaskSchema).describe("The user's list of tasks."),
             date: z.string().describe("The current date in YYYY-MM-DD format to identify today's tasks."),
         }),
         outputSchema: z.string().describe('A motivational summary.'),
