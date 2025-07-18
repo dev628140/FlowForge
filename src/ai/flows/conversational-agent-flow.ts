@@ -22,8 +22,9 @@ import {
   ConversationalAgentInputSchema,
   ConversationalAgentOutput,
   ConversationalAgentOutputSchema,
+  NaturalLanguageTaskPlanningOutput,
+  TaskSchema,
 } from '@/lib/types/conversational-agent';
-import { Task } from '@/lib/types';
 
 
 // Define tools that the conversational agent can use.
@@ -32,7 +33,7 @@ const taskPlanningTool = ai.defineTool(
       name: 'naturalLanguageTaskPlanning',
       description: 'Breaks down a goal into actionable tasks and can schedule them over a period. Use this when a user asks to plan something, create a schedule, or add multiple tasks based on a high-level goal.',
       inputSchema: z.object({ goal: z.string() }),
-      outputSchema: z.any(),
+      outputSchema: NaturalLanguageTaskPlanningOutput,
     },
     async (input) => naturalLanguageTaskPlanning(input)
 );
@@ -106,7 +107,12 @@ const reorderAllTasksTool = ai.defineTool(
     name: 'reorderAllTasks',
     description: "Reorders tasks across multiple days to match the order of tasks on a specific 'template' day. Use when the user asks to apply one day's task order to all other days.",
     inputSchema: z.object({
-      allTasks: z.array(z.any()), // Full list of tasks
+      allTasks: z.array(z.object({
+        id: z.string(),
+        title: z.string(),
+        order: z.number().optional(),
+        scheduledDate: z.string().optional(),
+      })),
       templateDate: z.string().describe('The date to use as the ordering template, in YYYY-MM-DD format.'),
     }),
     outputSchema: z.object({
@@ -221,7 +227,6 @@ const conversationalAgentFlow = ai.defineFlow(
 You have a set of tools available: ${tools.map(t => t.name).join(', ')}.
 Based on the user's prompt, you MUST decide if a tool is appropriate. If so, call the tool. If not, respond conversationally.
 You should ask for clarification if a user's request is ambiguous.
-IMPORTANT: When responding conversationally, just provide a text response. When using a tool or performing an action (adding, updating, deleting tasks), you MUST respond with a JSON object that follows the specified output schema, including a 'response' field with your conversational text.
 
 If the user provides an image, your primary tool should be 'visualTaskSnap'.
 If the user mentions their feelings or asks for ideas, consider 'getRoleBasedTaskSuggestions'.
@@ -243,58 +248,32 @@ User's Task Context (including IDs, titles, descriptions, and completion status)
 ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task context provided."}
 `;
     
-    let retries = 3;
-    let delay = 1000; // start with 1 second
+    const response = await ai.generate({
+      model: 'googleai/gemini-1.5-flash-latest',
+      system: systemPrompt,
+      history: fullHistory,
+      prompt: finalPrompt,
+      tools,
+      config: {
+        temperature: 0.3,
+      },
+    });
 
-    while (retries > 0) {
-        try {
-            const response = await ai.generate({
-              model: 'googleai/gemini-1.5-flash-latest',
-              system: systemPrompt,
-              history: fullHistory,
-              prompt: finalPrompt,
-              tools,
-              output: {
-                  schema: z.union([ConversationalAgentOutputSchema, z.string()]),
-              },
-              config: {
-                temperature: 0.3,
-              },
-            });
+    const toolCalls = response.toolCalls;
 
-            const output = response.output;
-            
-            if (!output) {
-              return { response: "I'm sorry, the AI returned an empty response. This might be due to a content filter or a temporary issue. Please try rephrasing your request." };
-            }
-
-            if (typeof output === 'string') {
-              return { response: output };
-            }
-            
-            return output;
-
-        } catch (error: any) {
-             const errorMessage = error.message || '';
-            if (errorMessage.includes('429') || errorMessage.includes('exceeded your current quota')) {
-                 return { response: "You've exceeded the daily limit for the AI. The quota will reset at midnight PT. Please try again tomorrow." };
-            }
-            if (errorMessage.includes('503 Service Unavailable')) {
-                retries--;
-                if (retries === 0) {
-                    return { response: "The AI model is currently overloaded. Please try again in a few moments." };
-                }
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; // Exponential backoff
-            } else {
-                console.error("Unhandled AI Error:", error);
-                const friendlyError = "I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?";
-                return { response: friendlyError };
-            }
+    if (toolCalls && toolCalls.length > 0) {
+        const taskPlanningCall = toolCalls.find(call => call.toolName === 'naturalLanguageTaskPlanning');
+        if (taskPlanningCall) {
+            const tasks = taskPlanningCall.output?.tasks || [];
+            return {
+                response: `OK. I've added ${tasks.length} task(s) to your list.`,
+                tasksToAdd: tasks,
+            };
         }
     }
+    
+    return { response: response.text };
 
-    return { response: "I'm sorry, I couldn't generate a response after several attempts. Please try again later." };
   }
 );
 
