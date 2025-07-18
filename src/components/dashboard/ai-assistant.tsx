@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2 } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,16 @@ import { runAssistant, type AssistantOutput } from '@/ai/flows/assistant-flow';
 import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface AIAssistantProps {
   allTasks: Task[];
   role: UserRole;
+}
+
+interface Message {
+    role: 'user' | 'model';
+    content: string;
 }
 
 export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
@@ -28,6 +34,17 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [aiPlan, setAiPlan] = React.useState<AssistantOutput | null>(null);
   const isOffline = useOfflineStatus();
+  
+  const [history, setHistory] = React.useState<Message[]>([]);
+  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+
+
+  React.useEffect(() => {
+    if (scrollAreaRef.current) {
+        scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [history, aiPlan]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,10 +56,14 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     setLoading(true);
     setError(null);
     setAiPlan(null);
+    
+    const newHistory: Message[] = [...history, { role: 'user', content: prompt }];
+    setHistory(newHistory);
+    setPrompt('');
 
     try {
       const result = await runAssistant({
-        prompt,
+        history: newHistory,
         tasks: allTasks,
         role,
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -51,6 +72,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       if (!result) {
         throw new Error("I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?");
       }
+      
+      setHistory(prev => [...prev, { role: 'model', content: result.response }]);
 
       const hasActions = (result.tasksToAdd && result.tasksToAdd.length > 0) ||
                          (result.tasksToUpdate && result.tasksToUpdate.length > 0) ||
@@ -59,18 +82,13 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
       if (hasActions) {
         setAiPlan(result);
-      } else {
-         toast({
-            title: 'AI Assistant', 
-            description: <p className="whitespace-pre-wrap">{result.response}</p>, 
-            duration: 8000 
-        });
-         setPrompt('');
       }
 
     } catch (err: any) {
       console.error('Error in AI Assistant:', err);
-      setError(err.message || "I'm sorry, something went wrong. Please try again.");
+      const errorMessage = err.message || "I'm sorry, something went wrong. Please try again.";
+      setError(errorMessage);
+      setHistory(prev => [...prev, { role: 'model', content: `Error: ${errorMessage}` }]);
     } finally {
       setLoading(false);
     }
@@ -113,13 +131,14 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
        toast({ title: "Error Applying Plan", description: "Could not apply all parts of the AI plan. Please check your tasks.", variant: "destructive" });
     } finally {
         setAiPlan(null);
-        setPrompt('');
+        setHistory([]); // Clear conversation on success
         setLoading(false);
     }
   };
 
   const handleDiscardPlan = () => {
     setAiPlan(null);
+    setHistory([]); // Clear conversation on discard
     setError(null);
     setPrompt('');
   }
@@ -135,59 +154,62 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </div>
   );
 
-
   return (
-    <Card>
+    <Card className="flex flex-col h-[600px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Wand2 className="w-6 h-6 text-primary" />
           FlowForge Assistant
         </CardTitle>
         <CardDescription>
-          Tell me what to do. Try: "break down my 'finish report' task" or "create a plan to learn piano".
+          Your conversational AI partner. Start by typing a command or question below.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 mb-4">
-          <Input
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
-            disabled={loading || isOffline}
-          />
-          <Button type="submit" disabled={loading || isOffline || !prompt.trim()}>
-            {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <Sparkles />}
-            <span className="sr-only">Generate Plan</span>
-          </Button>
-        </form>
-
-        {loading && !aiPlan && (
-             <div className="text-sm text-muted-foreground flex items-center gap-2 p-4 border rounded-md">
-                <Loader2 className="animate-spin w-4 h-4"/>
-                <span>AI is thinking...</span>
-            </div>
-        )}
-
-        {error && (
-            <div className="p-4 border rounded-md bg-destructive/10 text-destructive-foreground">
-                <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-5 w-5 mt-0.5" />
-                    <div>
-                        <h4 className="font-semibold">Error</h4>
-                        <p className="text-sm">{error}</p>
+      <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
+        <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
+            <div className="space-y-4">
+                {history.map((msg, index) => (
+                    <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                        {msg.role === 'model' && (
+                            <div className="bg-primary/10 text-primary rounded-full p-2">
+                                <Bot className="w-5 h-5" />
+                            </div>
+                        )}
+                        <div className={cn(
+                            "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap", 
+                            msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
+                            msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
+                        )}>
+                            {msg.content.replace(/^Error: /, '')}
+                        </div>
+                         {msg.role === 'user' && (
+                            <div className="bg-muted text-foreground rounded-full p-2">
+                                <User className="w-5 h-5" />
+                            </div>
+                        )}
                     </div>
-                </div>
+                ))}
+                {loading && (
+                    <div className="flex items-start gap-3 justify-start">
+                         <div className="bg-primary/10 text-primary rounded-full p-2">
+                            <Bot className="w-5 h-5" />
+                        </div>
+                        <div className="p-3 rounded-2xl bg-muted rounded-bl-none flex items-center gap-2">
+                            <Loader2 className="animate-spin w-4 h-4" />
+                            <span>Thinking...</span>
+                        </div>
+                    </div>
+                )}
             </div>
-        )}
-
+        </ScrollArea>
+        
         {aiPlan && (
-            <div className="p-4 border rounded-md space-y-4 bg-muted/30">
+            <div className="p-4 border rounded-md space-y-4 bg-muted/30 flex-shrink-0">
                 <div>
-                  <h4 className="font-semibold mb-2">Here's the plan:</h4>
-                  <p className="text-sm text-muted-foreground italic mb-4">"{aiPlan.response}"</p>
+                  <h4 className="font-semibold mb-2">Here's the plan I've generated:</h4>
                 </div>
 
-                <div className="space-y-4 text-sm">
+                <div className="space-y-4 text-sm max-h-[150px] overflow-y-auto pr-2">
                     {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
                         <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
                            {aiPlan.tasksToAdd.map((t, i) => (
@@ -237,6 +259,20 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                 </div>
             </div>
         )}
+
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0">
+          <Input
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
+            disabled={loading || isOffline || !!aiPlan}
+            autoFocus
+          />
+          <Button type="submit" disabled={loading || isOffline || !prompt.trim() || !!aiPlan}>
+            {loading ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
+            <span className="sr-only">Send</span>
+          </Button>
+        </form>
 
       </CardContent>
     </Card>

@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import type { Task, UserRole } from '@/lib/types';
 import {
     breakdownTaskTool,
     generateLearningPlanTool,
@@ -19,10 +18,14 @@ import {
     reflectOnProgressTool,
 } from '@/ai/tools';
 
+const MessageSchema = z.object({
+  role: z.enum(['user', 'model']),
+  content: z.string(),
+});
 
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
-  prompt: z.string().describe("The user's command or request."),
+  history: z.array(MessageSchema).describe("The full conversation history between the user and the assistant."),
   tasks: z.array(z.any()).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status."),
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
   date: z.string().describe("The current date in YYYY-MM-DD format."),
@@ -62,7 +65,7 @@ const SubtasksToAddSchema = z.object({
 
 
 const AssistantOutputSchema = z.object({
-  response: z.string().describe("A concise, friendly summary of the plan you have generated. For example, 'I can add 2 tasks and delete 1.' or 'I've scheduled that for you.' If no actions are taken, provide a helpful conversational response or the direct result from a tool (like a summary or analysis)."),
+  response: z.string().describe("A concise, friendly summary of the plan you have generated, or a conversational response if you are asking for clarification or providing information. For example, 'I can add 2 tasks and delete 1.' or 'I've scheduled that for you.' or 'Which task are you referring to?'. If no actions are taken, provide a helpful conversational response or the direct result from a tool (like a summary or analysis)."),
   tasksToAdd: z.array(TaskToAddSchema).optional().describe("A list of new tasks to be added based on the user's command."),
   tasksToUpdate: z.array(TaskToUpdateSchema).optional().describe("A list of existing tasks to be updated."),
   tasksToDelete: z.array(TaskToDeleteSchema).optional().describe("A list of existing tasks to be deleted."),
@@ -89,16 +92,22 @@ const assistantPrompt = ai.definePrompt({
         analyzeProductivityTool,
         reflectOnProgressTool,
     ],
-    prompt: `You are FlowForge, an expert AI task management assistant. Your goal is to understand a user's command and create a structured plan of action which will be reviewed and confirmed by the user. You can also answer questions and provide analysis using your available tools.
+    prompt: `You are FlowForge, an expert AI task management assistant. Your goal is to have a conversation with the user to understand their needs. Based on the conversation, you will eventually create a structured plan of action which will be reviewed and confirmed by the user. You can also answer questions and provide analysis using your available tools.
 
     Current Date: {{{date}}}
     User's Role: {{{role}}}
 
-    You have the user's current task list for context. You MUST use the provided task IDs when a tool requires one.
-    Based on the user's prompt, generate a plan. If the user's request is unclear, ask for clarification in your response and do not generate any actions.
-    If the command is conversational (e.g., "hello", "thank you"), just provide a friendly text response and do not generate any actions.
-
-    User's Command: "{{{prompt}}}"
+    You have the user's current task list and the conversation history for context. You MUST use the provided task IDs when a tool requires one.
+    
+    CONVERSATION HISTORY:
+    {{#each history}}
+      **{{this.role}}**: {{this.content}}
+    {{/each}}
+    
+    Based on the latest user message and the entire conversation, determine the next step.
+    - If you have enough information to create a plan, generate the plan and a summary response.
+    - If the user's request is unclear or you need more information, ask a clarifying question in your response and do not generate any actions.
+    - If the command is conversational (e.g., "hello", "thank you"), just provide a friendly text response and do not generate any actions.
 
     User's Task List (for context):
     {{#if tasks}}
@@ -109,7 +118,7 @@ const assistantPrompt = ai.definePrompt({
       The user has no tasks.
     {{/if}}
 
-    Now, generate the plan based on the user's command. Your response should summarize the plan or provide the direct tool output.
+    Now, generate your response and/or plan based on the last message in the conversation history.
     `,
 });
 
@@ -129,4 +138,3 @@ const assistantFlow = ai.defineFlow(
     return output;
   }
 );
-
