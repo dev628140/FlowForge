@@ -237,47 +237,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleReorderTask = async (taskId: string, direction: 'up' | 'down') => {
     if (!user || !db) return;
 
+    // Create a mutable, sorted copy of the tasks
     const sortedTasks = [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0));
-    const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
-    if (taskIndex === -1) return;
 
-    const taskToMove = sortedTasks[taskIndex];
+    const taskToMove = sortedTasks.find(t => t.id === taskId);
+    if (!taskToMove) return;
+
+    // Find all tasks with the same title to move them as a group
     const relatedTasks = sortedTasks.filter(t => t.title === taskToMove.title);
-    const nonRelatedTasks = sortedTasks.filter(t => t.title !== taskToMove.title);
+    const otherTasks = sortedTasks.filter(t => t.title !== taskToMove.title);
+    
+    // Find the index of the first task in the group to determine the block's position
+    const firstTaskOfGroupIndex = sortedTasks.findIndex(t => t.id === relatedTasks[0].id);
 
-    let targetIndex = direction === 'up' ? taskIndex - 1 : taskIndex + relatedTasks.length;
-
-    if (targetIndex < 0 || targetIndex > sortedTasks.length) return;
-
-    // Remove related tasks from their positions
-    relatedTasks.forEach(t => {
-        const idx = nonRelatedTasks.findIndex(nt => nt.id === t.id);
-        if (idx > -1) nonRelatedTasks.splice(idx, 1);
-    });
-
-    // Find the correct insertion point in non-related tasks
     if (direction === 'up') {
-        const taskBefore = sortedTasks[targetIndex];
-        const newIndex = nonRelatedTasks.findIndex(t => t.id === taskBefore.id);
-        nonRelatedTasks.splice(newIndex, 0, ...relatedTasks);
-    } else {
-        if (targetIndex >= sortedTasks.length) {
-             nonRelatedTasks.push(...relatedTasks);
-        } else {
-            const taskAfter = sortedTasks[targetIndex];
-            const newIndex = nonRelatedTasks.findIndex(t => t.id === taskAfter.id);
-            nonRelatedTasks.splice(newIndex, 0, ...relatedTasks);
-        }
+        // Find the task immediately before the group
+        const targetIndex = firstTaskOfGroupIndex - 1;
+        if (targetIndex < 0) return; // Already at the top
+
+        const taskToSwapWith = sortedTasks[targetIndex];
+        
+        // Find the group of tasks to swap with (all tasks with the same title as taskToSwapWith)
+        const swapGroup = otherTasks.filter(t => t.title === taskToSwapWith.title);
+        
+        // Find the index of the swap group in the 'otherTasks' array
+        const swapGroupIndexInOthers = otherTasks.findIndex(t => t.id === swapGroup[0].id);
+        
+        // Re-insert the moved group before the swap group
+        otherTasks.splice(swapGroupIndexInOthers, 0, ...relatedTasks);
+
+    } else { // Moving down
+        // Find the task immediately after the group
+        const lastTaskOfGroupIndex = firstTaskOfGroupIndex + relatedTasks.length - 1;
+        const targetIndex = lastTaskOfGroupIndex + 1;
+        if (targetIndex >= sortedTasks.length) return; // Already at the bottom
+
+        const taskToSwapWith = sortedTasks[targetIndex];
+        
+        // Find the group of tasks to swap with
+        const swapGroup = otherTasks.filter(t => t.title === taskToSwapWith.title);
+        const lastOfSwapGroup = swapGroup[swapGroup.length - 1];
+
+        // Find the index of the last task of the swap group in 'otherTasks'
+        const swapGroupEndIndexInOthers = otherTasks.findIndex(t => t.id === lastOfSwapGroup.id);
+        
+        // Re-insert the moved group after the swap group
+        otherTasks.splice(swapGroupEndIndexInOthers + 1, 0, ...relatedTasks);
     }
     
-    const reorderedTasks = nonRelatedTasks;
-
+    // Update the order for all tasks and commit to Firestore
     try {
         const batch = writeBatch(db);
-        reorderedTasks.forEach((task, index) => {
-            if (task.order !== index + 1) {
+        otherTasks.forEach((task, index) => {
+            if (task.order !== index) {
                 const taskRef = doc(db, 'tasks', task.id);
-                batch.update(taskRef, { order: index + 1 });
+                batch.update(taskRef, { order: index });
             }
         });
         await batch.commit();
