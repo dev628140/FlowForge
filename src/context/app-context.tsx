@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -257,35 +256,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const handleReorderTask = async (taskId: string, direction: 'up' | 'down') => {
     if (!user || !db) return;
-
-    const sortedList = [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0));
-    const currentIndex = sortedList.findIndex(t => t.id === taskId);
-    if (currentIndex === -1) return;
-
-    // Determine the list of tasks visible in the current view
-    // This part is crucial for handling reordering within filtered lists
-    const taskToMove = sortedList[currentIndex];
-    const visibleTasks = taskToMove.scheduledDate ? tasks.filter(t => t.scheduledDate === taskToMove.scheduledDate) : tasks;
-    const sortedVisibleList = visibleTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
-    const currentVisibleIndex = sortedVisibleList.findIndex(t => t.id === taskId);
-
-    const swapIndex = direction === 'up' ? currentVisibleIndex - 1 : currentVisibleIndex + 1;
-
-    if (swapIndex < 0 || swapIndex >= sortedVisibleList.length) return;
-    
-    const taskToSwapWith = sortedVisibleList[swapIndex];
-
+  
+    const taskToMove = tasks.find(t => t.id === taskId);
+    if (!taskToMove) return;
+  
+    // Filter for tasks in the same group (i.e., same scheduledDate) and sort them by order
+    const siblingTasks = tasks
+      .filter(t => t.scheduledDate === taskToMove.scheduledDate)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  
+    const currentIndex = siblingTasks.findIndex(t => t.id === taskId);
+    if (currentIndex === -1) return; // Should not happen
+  
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+  
+    // Check if the swap is possible within the sibling group
+    if (swapIndex < 0 || swapIndex >= siblingTasks.length) {
+      return;
+    }
+  
+    const taskToSwapWith = siblingTasks[swapIndex];
+  
+    // The new order values are the existing order values of the tasks being swapped
     const newOrderForMoved = taskToSwapWith.order;
     const newOrderForSwapped = taskToMove.order;
-
+  
+    // Optimistically update UI
     const newTasks = tasks.map(t => {
       if (t.id === taskToMove.id) return { ...t, order: newOrderForMoved };
       if (t.id === taskToSwapWith.id) return { ...t, order: newOrderForSwapped };
       return t;
     });
-
     setTasks(newTasks);
-
+  
+    // Update in Firestore
     try {
       const batch = writeBatch(db);
       const movedTaskRef = doc(db, 'tasks', taskToMove.id);
@@ -296,6 +300,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Error reordering tasks:", error);
       toast({ title: "Error", description: "Could not save the new order.", variant: "destructive" });
+      // Revert optimistic update on failure
       setTasks(tasks); 
     }
   };
