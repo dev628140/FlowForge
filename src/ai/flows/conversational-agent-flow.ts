@@ -60,10 +60,14 @@ const productivityAnalysisTool = ai.defineTool(
     {
         name: 'analyzeProductivity',
         description: "Analyzes completed tasks to identify productivity patterns, peak times, and days. Use this when the user asks for their productivity report or wants to know when they are most productive.",
-        inputSchema: z.object({ tasks: z.array(z.object({ title: z.string(), completedAt: z.string() })) }),
+        inputSchema: z.object({ tasks: z.array(z.object({ title: z.string(), completedAt: z.string().optional(), description: z.string().optional(), scheduledDate: z.string().optional() })) }),
         outputSchema: z.any(),
     },
-    async (input) => analyzeProductivity(input)
+    async (input) => {
+        // Filter for tasks that are actually completed before sending to the flow
+        const completedTasks = input.tasks.filter(t => t.completedAt);
+        return analyzeProductivity({ tasks: completedTasks });
+    }
 );
 
 const progressJournalTool = ai.defineTool(

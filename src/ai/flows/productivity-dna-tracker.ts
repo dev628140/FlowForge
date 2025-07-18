@@ -15,6 +15,9 @@ import {z} from 'genkit';
 const TaskInfoSchema = z.object({
   title: z.string(),
   completedAt: z.string().describe('The ISO 8601 timestamp when the task was completed.'),
+  // Making other fields optional to align with the main Task type
+  description: z.string().optional(),
+  scheduledDate: z.string().optional(),
 });
 
 const ProductivityAnalysisInputSchema = z.object({
@@ -59,6 +62,9 @@ const productivityDnaTrackerFlow = ai.defineFlow(
     outputSchema: ProductivityAnalysisOutputSchema,
   },
   async input => {
+     if (!input.tasks || input.tasks.length === 0) {
+      return { report: "There are no completed tasks to analyze. Complete some tasks to see your productivity DNA!" };
+    }
     const {output} = await prompt(input);
     return output!;
   }
