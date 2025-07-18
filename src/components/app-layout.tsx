@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, GitGraph, LayoutDashboard, LogOut, Settings, ListTodo, User as UserIcon } from 'lucide-react';
+import { Calendar, GitGraph, LayoutDashboard, LogOut, Settings, ListTodo, User as UserIcon, WifiOff } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -36,11 +36,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Toaster } from './ui/toaster';
+import { useOfflineStatus } from '@/hooks/use-offline-status';
+
+const LAST_VISITED_PAGE_KEY = 'flowforge_last_visited_page';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const isOffline = useOfflineStatus();
 
   // If Firebase is not configured, we only ever render the login page,
   // which will show instructions.
@@ -56,7 +60,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
   
-  // From here, we assume Firebase is configured.
+  React.useEffect(() => {
+    // If online, save the current path.
+    if (!isOffline && pathname !== '/login') {
+      localStorage.setItem(LAST_VISITED_PAGE_KEY, pathname);
+    }
+  }, [pathname, isOffline]);
 
   React.useEffect(() => {
     // If we are not loading and there's no user,
@@ -73,6 +82,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   
   // Show a loading screen while checking auth state or if there's no user (and not on login page)
   if (loading || !user) {
+    // If we are offline and loading, try to route to last known page.
+    if (isOffline && !user) {
+       const lastPage = localStorage.getItem(LAST_VISITED_PAGE_KEY);
+       if(lastPage && lastPage !== pathname) {
+         router.replace(lastPage);
+       }
+    }
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Icons.logo className="w-12 h-12 animate-pulse text-primary" />
@@ -161,7 +177,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <header className="flex items-center justify-between p-4 border-b">
-          <SidebarTrigger />
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            {isOffline && (
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground animate-pulse">
+                <WifiOff className="w-4 h-4" />
+                <span>Offline</span>
+              </div>
+            )}
+          </div>
           <UserProfile user={user} />
         </header>
         <main>{children}</main>

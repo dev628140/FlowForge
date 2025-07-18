@@ -12,9 +12,10 @@ import { conversationalAgent } from '@/ai/flows/conversational-agent-flow';
 import type { Message } from '@/lib/types/conversational-agent';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useOfflineStatus } from '@/hooks/use-offline-status';
 
 export interface AgentConfig {
   title: string;
@@ -36,14 +37,41 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const isOffline = useOfflineStatus();
+  
+  const draftKey = `agent-draft-${config.title.replace(/\s+/g, '-')}`;
+
+  // Load draft from localStorage on mount
+  React.useEffect(() => {
+    const savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+      setPrompt(savedDraft);
+    }
+  }, [draftKey]);
+
+  // Save draft to localStorage on change
+  const handlePromptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPrompt(e.target.value);
+    localStorage.setItem(draftKey, e.target.value);
+  }
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || isOffline) {
+        if (isOffline) {
+            toast({
+                title: "You are offline",
+                description: "AI features are unavailable without an internet connection.",
+                variant: 'destructive',
+            });
+        }
+        return;
+    }
 
     const userMessage: Message = { role: 'user', content: prompt };
     setMessages(prev => [...prev, userMessage]);
     setPrompt('');
+    localStorage.removeItem(draftKey);
     setLoading(true);
     setError(null);
 
@@ -80,6 +108,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
   const handleInitialPrompt = () => {
       if (config.initialPrompt) {
           setPrompt(config.initialPrompt);
+          localStorage.setItem(draftKey, config.initialPrompt);
       }
   }
 
@@ -95,7 +124,9 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
           <div className="space-y-4">
             {messages.length === 0 && (
                 <div className="text-center text-sm text-muted-foreground p-4">
-                    {config.initialPrompt ? (
+                    {isOffline ? (
+                       <span className="text-destructive">AI features are disabled while offline.</span>
+                    ) : config.initialPrompt ? (
                         <>
                             <span>Start by asking a question, or try this suggestion:</span>
                             <Button variant="link" className="p-1 h-auto" onClick={handleInitialPrompt}>
@@ -147,7 +178,7 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
                     </div>
                 </div>
             )}
-            {error && (
+            {error && !isOffline && (
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>{error}</AlertDescription>
@@ -158,11 +189,11 @@ export default function ConversationalAICard({ config }: ConversationalAICardPro
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <Input
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ask me anything..."
-            disabled={loading}
+            onChange={handlePromptChange}
+            placeholder={isOffline ? "Offline - AI disabled" : "Ask me anything..."}
+            disabled={loading || isOffline}
           />
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || isOffline}>
             {loading ? <Loader2 className="animate-spin" /> : <Send />}
           </Button>
         </form>
