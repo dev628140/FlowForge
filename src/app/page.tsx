@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Plus } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -91,6 +91,7 @@ export default function DashboardPage() {
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
+  const [isFabPopoverOpen, setIsFabPopoverOpen] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState<UserRole>('Developer');
 
   // Load role from localStorage on mount
@@ -127,6 +128,7 @@ export default function DashboardPage() {
     }]);
     form.reset({ title: '', description: '' });
     setIsAddDialogOpen(false);
+    setIsFabPopoverOpen(false);
   };
   
   const handleAddTodayTaskSubmit = (values: TodayTaskFormValues) => {
@@ -136,6 +138,7 @@ export default function DashboardPage() {
     }]);
     todayForm.reset();
     setIsTodayAddDialogOpen(false);
+    setIsFabPopoverOpen(false);
   };
   
   const handleStartFocus = (task: Task) => {
@@ -222,8 +225,8 @@ export default function DashboardPage() {
                   </CardTitle>
                   <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
                 </div>
-                <div className="flex items-stretch flex-col sm:flex-row sm:items-center gap-2">
-                  <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
+                <div className="hidden sm:flex items-stretch flex-col sm:flex-row sm:items-center gap-2">
+                   <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
                       <DialogTrigger asChild>
                           <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -280,7 +283,7 @@ export default function DashboardPage() {
                   </Dialog>
                   <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button>
+                      <Button size="sm">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add New Task
                       </Button>
@@ -470,6 +473,88 @@ export default function DashboardPage() {
             </div>
         </div>
       </div>
+
+       {/* Floating Action Button for Mobile */}
+      <div className="sm:hidden fixed bottom-4 right-4 z-50">
+        <Popover open={isFabPopoverOpen} onOpenChange={setIsFabPopoverOpen}>
+          <PopoverTrigger asChild>
+             <Button size="lg" className="rounded-full w-16 h-16 shadow-lg">
+                <Plus className="w-8 h-8" />
+                <span className="sr-only">Add Task</span>
+             </Button>
+          </PopoverTrigger>
+          <PopoverContent side="top" align="end" className="w-auto p-2 mb-2">
+            <div className="flex flex-col gap-2">
+                <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start">
+                            <PlusCircle className="mr-2"/> Add for Today
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add a task for today</DialogTitle>
+                      </DialogHeader>
+                      <Form {...todayForm}>
+                        <form onSubmit={todayForm.handleSubmit(handleAddTodayTaskSubmit)} className="space-y-4">
+                          <FormField control={todayForm.control} name="title" render={({ field }) => (
+                              <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Go for a run" {...field} /></FormControl><FormMessage /></FormItem>
+                          )}/>
+                          <FormField control={todayForm.control} name="description" render={({ field }) => (
+                            <FormItem><FormLabel>Description (optional)</FormLabel><FormControl><Textarea placeholder="Add any extra details..." {...field} /></FormControl><FormMessage /></FormItem>
+                          )}/>
+                          <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Add Task</Button></DialogFooter>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                </Dialog>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start">
+                           <CalendarPlus className="mr-2"/> Schedule New
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add a new task</DialogTitle>
+                      </DialogHeader>
+                      <Form {...form}>
+                        <form onSubmit={form.handleSubmit(handleAddTaskSubmit)} className="space-y-4">
+                            <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Read a book" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="Add details..." {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <div className="flex gap-4">
+                                <FormField control={form.control} name="scheduledDate" render={({ field }) => (
+                                    <FormItem className="flex flex-col flex-1">
+                                        <FormLabel>Date</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start"><CalendarPicker mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={form.control} name="scheduledTime" render={({ field }) => (
+                                    <FormItem className="flex-1"><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            </div>
+                            <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Add Task</Button></DialogFooter>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                </Dialog>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
         if(focusTask) handleToggleTask(focusTask.id)
         setFocusTask(null)
