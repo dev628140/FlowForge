@@ -258,34 +258,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleReorderTask = async (taskId: string, direction: 'up' | 'down') => {
     if (!user || !db) return;
 
-    const sortedTasks = [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0));
+    // We need to operate on the incomplete tasks list, sorted by order
+    const sortedTasks = [...tasks]
+      .filter(t => !t.completed)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+      
     const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
 
-    if (taskIndex === -1) return;
+    if (taskIndex === -1) return; // Task not in the sortable list
 
     const swapIndex = direction === 'up' ? taskIndex - 1 : taskIndex + 1;
 
-    if (swapIndex < 0 || swapIndex >= sortedTasks.length) return;
+    if (swapIndex < 0 || swapIndex >= sortedTasks.length) return; // Cannot move outside of list bounds
 
     const taskToMove = sortedTasks[taskIndex];
-    const taskToSwap = sortedTasks[swapIndex];
+    const taskToSwapWith = sortedTasks[swapIndex];
 
-    const newOrderForMoved = taskToSwap.order;
+    // Swap order properties
+    const newOrderForMoved = taskToSwapWith.order;
     const newOrderForSwapped = taskToMove.order;
 
+    // Optimistically update the UI
+    const updatedTasks = tasks.map(t => {
+      if (t.id === taskToMove.id) return { ...t, order: newOrderForMoved };
+      if (t.id === taskToSwapWith.id) return { ...t, order: newOrderForSwapped };
+      return t;
+    });
+    setTasks(updatedTasks);
+    
+    // Persist changes to Firestore
     try {
-        const batch = writeBatch(db);
-        
-        const movedTaskRef = doc(db, 'tasks', taskToMove.id);
-        batch.update(movedTaskRef, { order: newOrderForMoved });
+      const batch = writeBatch(db);
+      
+      const movedTaskRef = doc(db, 'tasks', taskToMove.id);
+      batch.update(movedTaskRef, { order: newOrderForMoved });
 
-        const swappedTaskRef = doc(db, 'tasks', taskToSwap.id);
-        batch.update(swappedTaskRef, { order: newOrderForSwapped });
+      const swappedTaskRef = doc(db, 'tasks', taskToSwapWith.id);
+      batch.update(swappedTaskRef, { order: newOrderForSwapped });
 
-        await batch.commit();
+      await batch.commit();
     } catch (error) {
-        console.error("Error reordering tasks:", error);
-        toast({ title: "Error", description: "Could not reorder tasks.", variant: "destructive" });
+      console.error("Error reordering tasks:", error);
+      toast({ title: "Error", description: "Could not save the new order.", variant: "destructive" });
+      // If error, revert optimistic update
+      setTasks(tasks);
     }
   };
 
