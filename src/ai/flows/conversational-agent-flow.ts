@@ -172,6 +172,14 @@ const conversationalAgentFlow = ai.defineFlow(
   },
   async (input) => {
     const { history, prompt, initialContext, taskContext, imageDataUri, activeTool } = input;
+    
+    // Initialize a default result object that matches the output schema.
+    const result: ConversationalAgentOutput = {
+      response: '',
+      tasksToAdd: [],
+      tasksToUpdate: [],
+      tasksToDelete: [],
+    };
 
     // Direct path for reorder tool to avoid LLM confusion
     if (activeTool === 'reorderAllTasks') {
@@ -179,17 +187,14 @@ const conversationalAgentFlow = ai.defineFlow(
             allTasks: taskContext.tasks,
             templateDate: taskContext.templateDate,
         };
-        const result = await reorderAllTasks(reorderInput);
-        if (result.updates.length > 0) {
-            return {
-                response: `I've reordered your tasks on other days to match the order for ${taskContext.templateDate}.`,
-                tasksToUpdate: result.updates,
-            };
+        const reorderResult = await reorderAllTasks(reorderInput);
+        if (reorderResult.updates.length > 0) {
+            result.response = `I've reordered your tasks on other days to match the order for ${taskContext.templateDate}.`;
+            result.tasksToUpdate = reorderResult.updates;
         } else {
-            return {
-                response: "I couldn't find any tasks to reorder based on today's schedule.",
-            };
+            result.response = "I couldn't find any tasks to reorder based on today's schedule.";
         }
+        return result;
     }
     
     // Construct the full history for the model
@@ -258,19 +263,23 @@ ${taskContext.tasks ? JSON.stringify(taskContext.tasks, null, 2) : "No task cont
 
     if (toolCalls && toolCalls.length > 0) {
         const taskPlanningCall = toolCalls.find(call => call.toolName === 'naturalLanguageTaskPlanning');
-        if (taskPlanningCall) {
-            const tasks = taskPlanningCall.output?.tasks || [];
-            const responseText = tasks.length > 0
-                ? `OK. I've added ${tasks.length} task(s) to your list.`
-                : "I couldn't identify any tasks to add from your request.";
-            return {
-                response: responseText,
-                tasksToAdd: tasks,
-            };
+        if (taskPlanningCall && taskPlanningCall.output) {
+            const tasks = taskPlanningCall.output.tasks || [];
+            if (tasks.length > 0) {
+                result.response = `OK. I've added ${tasks.length} task(s) to your list.`;
+                result.tasksToAdd = tasks;
+            } else {
+                result.response = "I couldn't identify any tasks to add from your request.";
+            }
+        } else {
+          // Handle other tool calls here if necessary in the future
+          result.response = response.text || "I've processed your request using a tool.";
         }
+    } else {
+        result.response = response.text;
     }
     
-    return { response: response.text };
+    return result;
 
   }
 );
