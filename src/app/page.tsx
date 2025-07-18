@@ -220,7 +220,6 @@ When you need to use a tool, use it, but your final response should always be co
         
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-1 space-y-6">
-            <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
             <Card>
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -403,6 +402,7 @@ When you need to use a tool, use it, but your final response should always be co
                 <TaskList tasks={todaysTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks for today. Add one to get started!" />
               </CardContent>
             </Card>
+            <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
           </div>
           <div className="xl:col-span-2">
             <ConversationalAICard config={agentConfig} />
@@ -486,4 +486,3 @@ When you need to use a tool, use it, but your final response should always be co
     </div>
   );
 }
-
