@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks, Lightbulb, CornerDownLeft } from 'lucide-react';
+import { BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks, Lightbulb, CornerDownLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { runSpecializedAssistant, type SpecializedAssistantOutput, type AssistantMode } from '@/ai/flows/specialized-assistant-flow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 const moods: Mood[] = [
     { emoji: '⚡️', label: 'High Energy' },
@@ -45,6 +47,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [taskToBreakdown, setTaskToBreakdown] = React.useState('');
     const [suggestionRole, setSuggestionRole] = React.useState<UserRole>(userRole);
     const [suggestionMood, setSuggestionMood] = React.useState<Mood['label']>('Motivated');
+    const [breakdownDate, setBreakdownDate] = React.useState<Date | undefined>(new Date());
 
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
@@ -54,7 +57,33 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         }
     }, [history, loading]);
 
-    const incompleteTasks = React.useMemo(() => tasks.filter(t => !t.completed), [tasks]);
+    const getGroupedTasks = React.useMemo(() => {
+        const incompleteTasks = tasks.filter(t => !t.completed);
+        const grouped: { [key: string]: Task[] } = {
+            Today: incompleteTasks.filter(t => t.scheduledDate && isToday(parseISO(t.scheduledDate))),
+            Unscheduled: incompleteTasks.filter(t => !t.scheduledDate),
+        };
+
+        incompleteTasks.forEach(task => {
+            if (task.scheduledDate && !isToday(parseISO(task.scheduledDate))) {
+                const dateKey = format(parseISO(task.scheduledDate), 'PPP');
+                if (!grouped[dateKey]) {
+                    grouped[dateKey] = [];
+                }
+                grouped[dateKey].push(task);
+            }
+        });
+
+        if (breakdownDate) {
+            const dateKey = format(breakdownDate, 'PPP');
+            if (!grouped[dateKey]) {
+                 grouped[dateKey] = [];
+            }
+        }
+
+        return grouped;
+
+    }, [tasks, breakdownDate]);
 
     const getInitialPrompt = () => {
         switch (mode) {
@@ -162,20 +191,41 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 );
             case 'breakdown':
                 return (
-                    <Select onValueChange={setTaskToBreakdown} value={taskToBreakdown} disabled={loading}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a task to break down..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                             {incompleteTasks.length > 0 ? (
-                                incompleteTasks.map(task => (
-                                    <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
-                                ))
-                            ) : (
-                                <SelectItem value="no-tasks" disabled>No incomplete tasks available</SelectItem>
-                            )}
-                        </SelectContent>
-                    </Select>
+                    <div className="space-y-4">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !breakdownDate && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {breakdownDate ? format(breakdownDate, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar mode="single" selected={breakdownDate} onSelect={setBreakdownDate} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                        <Select onValueChange={setTaskToBreakdown} value={taskToBreakdown} disabled={loading}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a task to break down..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.entries(getGroupedTasks).map(([group, tasksInGroup]) => {
+                                    if (tasksInGroup.length === 0 && group !== format(breakdownDate!, 'PPP')) return null;
+                                    return (
+                                        <SelectGroup key={group}>
+                                            <SelectLabel>{group}</SelectLabel>
+                                            {tasksInGroup.length > 0 ? (
+                                                tasksInGroup.map(task => (
+                                                    <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
+                                                ))
+                                            ) : (
+                                                 <SelectItem value={`no-tasks-${group}`} disabled>No tasks for this day</SelectItem>
+                                            )}
+                                        </SelectGroup>
+                                    )
+                                })}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 );
             case 'suggester':
                 return (
@@ -306,7 +356,7 @@ export default function AIAssistantPage() {
                     <TabsTrigger value="suggester"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
                 <Card className="mt-4">
-                    <CardContent className="p-6 h-[700px]">
+                    <CardContent className="p-6 h-[600px]">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />
                         </TabsContent>
