@@ -57,7 +57,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const [history, setHistory] = React.useState<AssistantMessage[]>([]);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const isNewChat = activeChatId === null;
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
 
 
   // Effect to load a chat session's history when it becomes active

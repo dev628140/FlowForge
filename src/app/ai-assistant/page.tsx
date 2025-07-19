@@ -38,6 +38,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { runPlanner, type PlannerOutput } from '@/ai/flows/planner-flow';
 import { runBreakdowner, type BreakdownerOutput } from '@/ai/flows/breakdown-flow';
 import { runSuggester, type SuggesterOutput } from '@/ai/flows/suggester-flow';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export type AssistantMode = 'planner' | 'breakdown' | 'suggester';
 
@@ -67,13 +68,14 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         suggesterSessions, createSuggesterSession, updateSuggesterSession, deleteSuggesterSession,
     } = useAppContext();
     const { toast } = useToast();
+    const isMobile = useIsMobile();
 
     const [activeChatId, setActiveChatId] = React.useState<string | null>(null);
     const [history, setHistory] = React.useState<AssistantMessage[]>([]);
     const [prompt, setPrompt] = React.useState('');
     const [loading, setLoading] = React.useState(false);
     const [currentPlan, setCurrentPlan] = React.useState<PlannerOutput['tasks'] | null>(null);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
 
     // State for inputs
     const [taskToBreakdown, setTaskToBreakdown] = React.useState('');
@@ -124,11 +126,26 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     React.useEffect(() => {
         if (activeChatId) {
           const activeSession = sessions.find(s => s.id === activeChatId);
-          setHistory(activeSession ? activeSession.history : []);
+          if (activeSession) {
+            setHistory(activeSession.history);
+            // Find the last plan in the history, if any
+            const lastModelMessage = activeSession.history.slice().reverse().find(m => m.role === 'model');
+            const planText = lastModelMessage?.content.split('CURRENT PLAN:')[1];
+            if (planText) {
+                // This is a simplified reconstruction. A more robust solution might store the plan structure.
+                const tasks = planText.trim().split('\n').map(line => ({ title: line.replace('- ', '') }));
+                setCurrentPlan(tasks);
+            } else {
+                setCurrentPlan(null);
+            }
+          } else {
+            setHistory([]);
+            setCurrentPlan(null);
+          }
         } else {
           setHistory([]);
+          setCurrentPlan(null);
         }
-        setCurrentPlan(null);
     }, [activeChatId, sessions]);
     
      React.useEffect(() => {
@@ -174,9 +191,12 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const canSubmit = () => {
         if (loading) return false;
         
-        // Allow submitting for follow-up messages even with a plan
-        if (history.length > 0) return prompt.trim() !== '';
+        // Allow submitting follow-up messages
+        if (history.length > 0) {
+            return prompt.trim() !== '';
+        }
 
+        // Initial submission logic
         switch (mode) {
             case 'planner':
             case 'suggester':
@@ -277,7 +297,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
     const handleNewChat = () => {
         setActiveChatId(null);
-        setCurrentPlan(null);
     };
 
     const handleSelectChat = (sessionId: string) => {
@@ -316,7 +335,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         placeholder="e.g., Learn to build a website in 30 days, starting tomorrow."
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
-                        rows={2}
+                        rows={isMobile ? 2 : 3}
                         disabled={loading}
                     />
                 );
@@ -391,7 +410,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             {/* Chat History Sidebar */}
             <div className={cn(
                 "border-b md:border-b-0 md:border-r flex flex-col transition-all duration-300 bg-muted/20",
-                isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-1/3 md:min-w-[200px] md:max-w-[300px]'
+                isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-1/3 lg:w-1/4'
             )}>
                 <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
                     {!isSidebarCollapsed && (
@@ -486,7 +505,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         {history.map((msg, index) => (
                             <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                 {msg.role === 'model' && (
-                                    <div className="bg-primary/10 text-primary rounded-full p-2">
+                                    <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
                                         <Bot className="w-5 h-5" />
                                     </div>
                                 )}
@@ -498,7 +517,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                     {msg.content.replace(/^Error: /, '').split('CURRENT PLAN:')[0]}
                                 </div>
                                 {msg.role === 'user' && (
-                                    <div className="bg-muted text-foreground rounded-full p-2">
+                                    <div className="bg-muted text-foreground rounded-full p-2 flex-shrink-0">
                                         <User className="w-5 h-5" />
                                     </div>
                                 )}
@@ -506,7 +525,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         ))}
                         {loading && (
                         <div className="flex items-start gap-3 justify-start">
-                            <div className="bg-primary/10 text-primary rounded-full p-2">
+                            <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
                                 <Bot className="w-5 h-5" />
                             </div>
                             <div className="p-3 rounded-2xl bg-muted rounded-bl-none flex items-center gap-2">
@@ -540,17 +559,17 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 <form onSubmit={handleSubmit} className="mt-auto space-y-4">
                     {history.length === 0 && renderInitialInputs()}
 
-                    {(history.length > 0 || currentPlan) && (
+                    {history.length > 0 && (
                         <Input
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             placeholder="Need changes? Type here..."
-                            disabled={loading || (!!currentPlan && mode === 'breakdown')}
+                            disabled={loading}
                             autoFocus
                         />
                     )}
                 
-                    <Button type="submit" disabled={!canSubmit() || (!!currentPlan && mode === 'breakdown')} className="w-full">
+                    <Button type="submit" disabled={!canSubmit()} className="w-full">
                         {loading ? <Loader2 className="animate-spin" /> : history.length > 0 ? <CornerDownLeft/> : <Wand2/>}
                         <span className="ml-2">{loading ? 'Generating...' : history.length > 0 ? 'Send' : 'Generate'}</span>
                     </Button>
@@ -562,6 +581,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
 
 export default function AIAssistantPage() {
+    const isMobile = useIsMobile();
     return (
         <div className="p-4 md:p-6 space-y-6">
             <div className="flex items-center gap-2">
@@ -571,7 +591,7 @@ export default function AIAssistantPage() {
             <p className="text-muted-foreground">Your command center for AI-powered productivity. Converse with the AI to plan, break down, and create tasks.</p>
 
             <Tabs defaultValue="planner" className="w-full">
-                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto">
+                <TabsList className={cn("grid w-full h-auto", isMobile ? "grid-cols-1" : "grid-cols-3")}>
                     <TabsTrigger value="planner" className="py-2 sm:py-1.5"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
                     <TabsTrigger value="breakdown" className="py-2 sm:py-1.5"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
                     <TabsTrigger value="suggester" className="py-2 sm:py-1.5"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
