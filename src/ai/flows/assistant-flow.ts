@@ -100,7 +100,7 @@ const assistantPrompt = ai.definePrompt({
     Current Date: {{{date}}}
     User's Role: {{{role}}}
 
-    You have the user's current task list and the conversation history for context. You MUST use the provided task IDs when a tool requires one.
+    You have the user's current task list and the conversation history for context. You MUST use the provided task IDs when a tool requires one, but you MUST NOT mention the IDs in your conversational responses to the user.
     
     CONVERSATION HISTORY:
     {{#each history}}
@@ -113,7 +113,7 @@ const assistantPrompt = ai.definePrompt({
     - If the command is conversational (e.g., "hello", "thank you"), just provide a friendly text response and do not generate any actions.
     - IMPORTANT: If this is the first turn of the conversation (i.e., the history only has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation based on the user's request. On all subsequent turns, you must leave the title field empty.
 
-    User's Task List (for context):
+    User's Task List (for context, IDs are for your internal use ONLY):
     {{#if tasks}}
       {{#each tasks}}
       - ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}{{#if this.scheduledDate}}, Scheduled: {{this.scheduledDate}}{{/if}}

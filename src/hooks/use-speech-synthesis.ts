@@ -43,6 +43,7 @@ export const useSpeechSynthesis = () => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      setIsPlaying(false);
     }
   }, []);
 

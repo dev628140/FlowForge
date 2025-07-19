@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff, Voicemail } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff, Voicemail, Square } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -97,10 +97,12 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   }, [history, aiPlan, loading]);
 
   const handleNewChat = () => {
+    if (isPlaying) stopAudio();
     setActiveChatId(null);
   };
 
   const handleSelectChat = (sessionId: string) => {
+    if (isPlaying) stopAudio();
     setActiveChatId(sessionId);
   };
 
@@ -127,6 +129,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     }
 
     if(isListening) stopListening();
+    if(isPlaying) stopAudio();
+
 
     setLoading(true);
     setAiPlan(null);
@@ -261,6 +265,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       stopListening();
     } else {
       setIsVoiceMode(false); // Ensure we are in dictation mode
+      if (isPlaying) stopAudio();
       startListening();
     }
   };
@@ -271,6 +276,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       setIsVoiceMode(false);
     } else {
       setIsVoiceMode(true);
+      if (isPlaying) stopAudio();
       startListening();
     }
   };
@@ -540,6 +546,22 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                                     <p>{isVoiceMode ? "Stop Voice Mode" : "Start Voice Mode"}</p>
                                 </TooltipContent>
                             </Tooltip>
+                             {isPlaying && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-7 w-7 text-destructive"
+                                            onClick={stopAudio}
+                                        >
+                                            <Square className="h-4 w-4"/>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Stop Speaking</p></TooltipContent>
+                                </Tooltip>
+                            )}
                         </TooltipProvider>
                     </div>
                 )}

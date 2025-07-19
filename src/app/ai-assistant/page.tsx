@@ -5,7 +5,7 @@ import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -245,6 +245,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         if (!canSubmit()) return;
 
         if (isListening) stopListening();
+        if (isPlaying) stopAudio();
 
         setLoading(true);
         setCurrentPlan(null);
@@ -341,10 +342,12 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     };
 
     const handleNewChat = () => {
+        if(isPlaying) stopAudio();
         setActiveChatId(null);
     };
 
     const handleSelectChat = (sessionId: string) => {
+        if(isPlaying) stopAudio();
         setActiveChatId(sessionId);
     };
 
@@ -367,6 +370,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
           stopListening();
         } else {
           setIsVoiceMode(false); // Ensure we are in dictation mode
+          if(isPlaying) stopAudio();
           startListening();
         }
     };
@@ -377,6 +381,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
           setIsVoiceMode(false);
         } else {
           setIsVoiceMode(true);
+          if(isPlaying) stopAudio();
           startListening();
         }
     };
@@ -680,6 +685,23 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                         <p>{isVoiceMode ? "Stop Voice Mode" : "Start Voice Mode"}</p>
                                     </TooltipContent>
                                 </Tooltip>
+                                 {isPlaying && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                variant="destructive"
+                                                onClick={stopAudio}
+                                            >
+                                                <Square className="h-5 w-5"/>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Stop Speaking</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
                             </TooltipProvider>
                         )}
                         <Button type="submit" disabled={!canSubmit() || isListening || isPlaying} className="w-full">
