@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import TaskList from '@/components/dashboard/task-list';
 import FocusMode from '@/components/dashboard/focus-mode';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { parseISO, isToday } from 'date-fns';
+import { parseISO } from 'date-fns';
 
 type SortOption = 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
 
@@ -41,6 +41,7 @@ export default function AllTasksPage() {
           if (dateA !== dateB) {
             return dateA - dateB;
           }
+          // Secondary sort by order for tasks on the same day
           return (a.order || 0) - (b.order || 0);
         }
         case 'createdAt-desc':
@@ -60,13 +61,6 @@ export default function AllTasksPage() {
       }
     });
   }, [tasks, sortBy]);
-
-  const onMove = (taskId: string, direction: 'up' | 'down') => {
-    // When sorting by date, the listId context is the date itself.
-    // For other sorts, it's a generic 'all'.
-    const listId = sortBy === 'scheduledDate' ? 'byDate' : 'all';
-    handleMoveTask(taskId, direction, listId);
-  };
 
   return (
      <div className="relative min-h-screen w-full">
@@ -103,8 +97,8 @@ export default function AllTasksPage() {
                         onToggle={handleToggleTask} 
                         onStartFocus={handleStartFocus} 
                         onUpdateTask={updateTask} 
-                        onMove={onMove}
-                        listId={sortBy === 'scheduledDate' ? 'byDate' : 'all'}
+                        onMove={handleMoveTask}
+                        listId="all-tasks"
                         emptyMessage="No tasks found." 
                     />
                 </CardContent>
