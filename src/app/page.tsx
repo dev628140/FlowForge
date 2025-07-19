@@ -444,7 +444,7 @@ export default function DashboardPage() {
                 </div>
                 </CardHeader>
                 <CardContent className="flex-grow overflow-hidden">
-                  <ScrollArea className="h-full">
+                  <ScrollArea className="h-full" style={{ maskImage: 'linear-gradient(to bottom, black 95%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 95%, transparent 100%)' }}>
                     <TaskList
                         tasks={todaysTasks}
                         onToggle={handleToggleTask} 
