@@ -444,8 +444,8 @@ export default function DashboardPage() {
                         </Dialog>
                     </div>
                     </CardHeader>
-                    <CardContent className="flex-grow overflow-hidden">
-                    <ScrollArea className="h-full pr-4 -mr-4">
+                    <CardContent className="flex-grow flex flex-col overflow-hidden">
+                      <ScrollArea className="flex-grow pr-4 -mr-4">
                         <TaskList
                             tasks={todaysTasks}
                             onToggle={handleToggleTask} 
@@ -455,7 +455,7 @@ export default function DashboardPage() {
                             listId="today"
                             emptyMessage="No tasks for today. Add one to get started!" 
                         />
-                    </ScrollArea>
+                      </ScrollArea>
                     </CardContent>
                 </Card>
              </div>
