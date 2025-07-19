@@ -652,7 +652,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             {/* Chat History Sidebar */}
             <div className={cn(
                 "border-b md:border-b-0 md:border-r flex flex-col transition-all duration-300 bg-muted/20",
-                isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-1/3 lg:w-1/4'
+                isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-72'
             )}>
                 <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
                     {!isSidebarCollapsed && (
@@ -960,5 +960,3 @@ export default function AIAssistantPage() {
         </div>
     );
 }
-
-    
