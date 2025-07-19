@@ -1,8 +1,7 @@
-
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -56,6 +56,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const [history, setHistory] = React.useState<AssistantMessage[]>([]);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const isNewChat = activeChatId === null;
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+
 
   // Effect to load a chat session's history when it becomes active
   React.useEffect(() => {
@@ -243,60 +245,84 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
   return (
     <Card className="flex flex-row h-[480px]">
-      {/* Chat History Sidebar */}
-      <div className="w-1/3 min-w-[200px] max-w-[300px] border-r flex flex-col">
-        <div className="p-2 border-b">
-            <Button variant="outline" className="w-full" onClick={handleNewChat}>
+       {/* Chat History Sidebar */}
+       <div className={cn(
+        "border-r flex flex-col transition-all duration-300",
+        isSidebarCollapsed ? 'w-14' : 'w-1/3 min-w-[200px] max-w-[300px]'
+      )}>
+        <div className="p-2 border-b flex items-center justify-between">
+           {!isSidebarCollapsed && (
+            <Button variant="outline" className="w-full mr-2" onClick={handleNewChat}>
                 <PlusCircle className="mr-2 h-4 w-4" /> New Chat
             </Button>
+           )}
+           {isSidebarCollapsed && (
+             <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" onClick={handleNewChat}>
+                        <PlusCircle className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>New Chat</p>
+                  </TooltipContent>
+                </Tooltip>
+             </TooltipProvider>
+           )}
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+              {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+            </Button>
         </div>
-        <ScrollArea className="flex-grow">
-            <div className="space-y-1 p-2">
-                {sortedSessions.map(session => (
-                    <div key={session.id} className="relative group">
-                        <Button
-                            variant={activeChatId === session.id ? 'secondary' : 'ghost'}
-                            className="w-full justify-start text-left h-auto py-2"
-                            onClick={() => handleSelectChat(session.id)}
-                        >
-                            <div className="flex-1 truncate pr-10">
-                                <p className="font-medium text-sm truncate">{session.title}</p>
-                                <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
-                            </div>
-                            {session.pinned && <Pin className="absolute right-10 top-1/2 -translate-y-1/2 w-3 h-3 text-primary" />}
-                        </Button>
-                        <div className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleTogglePin(session, e)}>
-                                {session.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-                            </Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will permanently delete "{session.title}".
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </ScrollArea>
+         {!isSidebarCollapsed && (
+          <ScrollArea className="flex-grow">
+              <div className="space-y-1 p-2">
+                  {sortedSessions.map(session => (
+                      <div key={session.id} className="relative group">
+                          <Button
+                              variant={activeChatId === session.id ? 'secondary' : 'ghost'}
+                              className="w-full justify-start text-left h-auto py-2"
+                              onClick={() => handleSelectChat(session.id)}
+                          >
+                              <div className="flex-1 truncate pr-10">
+                                  <p className="font-medium text-sm truncate">{session.title}</p>
+                                  <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
+                              </div>
+                              {session.pinned && <Pin className="absolute right-10 top-1/2 -translate-y-1/2 w-3 h-3 text-primary" />}
+                          </Button>
+                          <div className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleTogglePin(session, e)}>
+                                  {session.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                              </Button>
+                              <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                                      <Trash2 className="w-4 h-4 text-destructive" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                              This will permanently delete "{session.title}".
+                                          </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                          <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                  </AlertDialogContent>
+                              </AlertDialog>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </ScrollArea>
+        )}
       </div>
 
       {/* Main Chat Area */}
-      <div className="w-2/3 flex flex-col">
+      <div className="flex-1 flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wand2 className="w-6 h-6 text-primary" />
