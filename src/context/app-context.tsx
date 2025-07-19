@@ -91,8 +91,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user && db) {
       const q = query(
         collection(db, "chatSessions"),
-        where("userId", "==", user.uid),
-        orderBy("createdAt", "desc")
+        where("userId", "==", user.uid)
+        // Note: Removed orderBy to prevent needing a composite index. Sorting is now done on the client.
       );
 
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -100,10 +100,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         querySnapshot.forEach((doc) => {
           sessions.push({ id: doc.id, ...doc.data() } as ChatSession);
         });
+        // Sort sessions by date on the client side
+        sessions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setChatSessions(sessions);
       }, (error) => {
         console.error("Error listening to chat sessions:", error);
-        toast({ title: "Error", description: "Could not fetch chat history.", variant: "destructive" });
+        toast({ title: "Error", description: "Could not fetch chat history. Please ensure Firestore rules are deployed.", variant: "destructive" });
       });
 
       return () => unsubscribe();
