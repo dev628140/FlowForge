@@ -359,53 +359,54 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                   <div className="space-y-1 p-2">
                       {sortedSessions.map(session => (
                           <div
-                          key={session.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => handleSelectChat(session.id)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
-                          className={cn(
-                              "group relative",
-                              buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost', size: 'sm' }),
-                              "w-full justify-start text-left h-auto py-2"
-                          )}
+                            key={session.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleSelectChat(session.id)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
+                            className={cn(
+                                "group relative flex w-full items-center justify-between text-left h-auto",
+                                buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost', size: 'sm' }),
+                            )}
                           >
-                              <p className="flex-1 truncate text-xs">{session.title}</p>
-                              <div className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
-                                  <TooltipProvider>
-                                      <Tooltip>
-                                          <TooltipTrigger asChild>
-                                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleTogglePin(session, e)}>
-                                                  {session.pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 w-3.5" />}
-                                              </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent><p>{session.pinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
-                                      </Tooltip>
-                                      <AlertDialog>
-                                          <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                  <AlertDialogTrigger asChild>
-                                                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={(e) => e.stopPropagation()}>
-                                                          <Trash2 className="w-3.5 h-3.5" />
-                                                      </Button>
-                                                  </AlertDialogTrigger>
-                                              </TooltipTrigger>
-                                              <TooltipContent><p>Delete</p></TooltipContent>
-                                          </Tooltip>
-                                          <AlertDialogContent>
-                                              <AlertDialogHeader>
-                                                  <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
-                                                  <AlertDialogDescription>This will permanently delete "{session.title}".</AlertDialogDescription>
-                                              </AlertDialogHeader>
-                                              <AlertDialogFooter>
-                                                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                                                  <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
-                                              </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                      </AlertDialog>
-                                  </TooltipProvider>
-                              </div>
+                            <div className="flex-1 min-w-0 pr-2">
+                              <p className="truncate text-xs">{session.title}</p>
+                            </div>
+                            <div className="flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleTogglePin(session, e)}>
+                                                {session.pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 w-3.5" />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>{session.pinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
+                                    </Tooltip>
+                                    <AlertDialog>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Delete</p></TooltipContent>
+                                        </Tooltip>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+                                                <AlertDialogDescription>This will permanently delete "{session.title}".</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TooltipProvider>
+                            </div>
                           </div>
                       ))}
                   </div>

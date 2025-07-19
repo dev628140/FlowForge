@@ -651,11 +651,11 @@ setCurrentPlan(null);
 
 
     return (
-        <div className="flex h-full">
+        <div className="flex h-full flex-col md:flex-row">
             {/* Chat History Sidebar */}
             <div className={cn(
-                "border-r flex flex-col transition-all duration-300 bg-muted/20",
-                isSidebarCollapsed ? 'w-14' : 'w-72'
+                "border-r flex flex-col transition-all duration-300 bg-muted/20 w-full md:w-auto",
+                isSidebarCollapsed ? 'md:w-14' : 'md:w-72'
             )}>
                 <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
                     {!isSidebarCollapsed && (
@@ -674,27 +674,31 @@ setCurrentPlan(null);
                       </Tooltip>
                     </TooltipProvider>
                 </div>
-                 <ScrollArea className="flex-grow h-0">
+                 <ScrollArea className="flex-grow h-0 min-h-[150px] md:min-h-0">
                     {!isSidebarCollapsed && (
                     <div className="space-y-1 p-2">
                         {sortedSessions.map(session => (
                             <div
-                            key={session.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => handleSelectChat(session.id)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
-                            className={cn(
-                                "group relative",
-                                buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost' }),
-                                "w-full justify-start text-left h-auto py-2"
-                            )}
+                                key={session.id}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleSelectChat(session.id)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
+                                className={cn(
+                                    "group relative flex w-full items-center justify-between text-left h-auto",
+                                    buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost' }),
+                                )}
                             >
-                                <div className="flex-1 truncate">
-                                    <p className="font-medium text-sm truncate">{session.title}</p>
-                                    <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
+                                <div className="flex-1 min-w-0 pr-2">
+                                    <div className="flex items-start gap-2">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-sm break-words whitespace-normal">{session.title}</p>
+                                            <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                
+                                <div className="flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity self-start pt-1">
                                     {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
                                     <TooltipProvider>
                                         <Tooltip>
