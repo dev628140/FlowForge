@@ -221,7 +221,7 @@ export default function DashboardPage() {
                               {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
                               </p>
                           </div>
-                          <div className={cn("flex items-center transition-opacity")}>
+                          <div className={cn("flex items-center")}>
                               <Button
                                   variant="ghost"
                                   size="icon"
@@ -444,18 +444,18 @@ export default function DashboardPage() {
                         </Dialog>
                     </div>
                     </CardHeader>
-                    <CardContent className="flex-grow flex flex-col p-0 overflow-hidden">
-                      <ScrollArea className="flex-grow overflow-y-auto px-6">
-                        <TaskList
-                            tasks={todaysTasks}
-                            onToggle={handleToggleTask} 
-                            onStartFocus={handleStartFocus} 
-                            onUpdateTask={updateTask} 
-                            onMove={(taskId, direction) => handleMoveTask(taskId, direction, todaysTasks)}
-                            listId="today"
-                            emptyMessage="No tasks for today. Add one to get started!" 
-                        />
-                      </ScrollArea>
+                    <CardContent className="flex-grow p-0 flex flex-col overflow-hidden">
+                        <ScrollArea className="flex-grow px-6">
+                            <TaskList
+                                tasks={todaysTasks}
+                                onToggle={handleToggleTask} 
+                                onStartFocus={handleStartFocus} 
+                                onUpdateTask={updateTask} 
+                                onMove={(taskId, direction) => handleMoveTask(taskId, direction, todaysTasks)}
+                                listId="today"
+                                emptyMessage="No tasks for today. Add one to get started!" 
+                            />
+                        </ScrollArea>
                     </CardContent>
                 </Card>
              </div>
@@ -474,5 +474,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
