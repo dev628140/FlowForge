@@ -28,6 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { buttonVariants } from '../ui/button';
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -279,46 +280,51 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           <ScrollArea className="flex-grow">
               <div className="space-y-1 p-2">
                   {sortedSessions.map(session => (
-                      <div key={session.id} className="group">
-                          <Button
-                              variant={activeChatId === session.id ? 'secondary' : 'ghost'}
-                              className="w-full justify-start text-left h-auto py-2 relative"
-                              onClick={() => handleSelectChat(session.id)}
-                          >
-                              <div className="flex-1 truncate">
-                                  <p className="font-medium text-sm truncate">{session.title}</p>
-                                  <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
-                              </div>
-                              
-                              <div className="absolute top-1/2 -translate-y-1/2 right-10 flex items-center">
-                                {session.pinned && !isSidebarCollapsed && <Pin className="w-4 h-4 text-primary mr-1" />}
-                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleTogglePin(session, e)}>
-                                      {session.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-                                    </Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
-                                            <Trash2 className="w-4 h-4 text-destructive" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This will permanently delete "{session.title}".
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div>
-                              </div>
-                          </Button>
-                      </div>
+                    <div key={session.id} className="group relative">
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleSelectChat(session.id)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
+                            className={cn(
+                                buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost' }),
+                                "w-full justify-start text-left h-auto py-2"
+                            )}
+                        >
+                            <div className="flex-1 truncate pr-10">
+                                <p className="font-medium text-sm truncate">{session.title}</p>
+                                <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+
+                        <div className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center">
+                            {session.pinned && <Pin className="w-4 h-4 text-primary mr-1" />}
+                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleTogglePin(session, e)}>
+                                  {session.pinned ? <PinOff className="w-4 w-4" /> : <Pin className="w-4 w-4" />}
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                                        <Trash2 className="w-4 h-4 text-destructive" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete "{session.title}".
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </div>
+                    </div>
                   ))}
               </div>
           </ScrollArea>
