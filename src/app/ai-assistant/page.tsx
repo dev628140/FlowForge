@@ -42,6 +42,7 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import MediaUploader from '@/components/dashboard/media-uploader';
 import { runAssistant, type AssistantOutput, type AssistantInput } from '@/ai/flows/assistant-flow';
+import { runPlanner, type PlannerOutput } from '@/ai/flows/planner-flow';
 
 
 export type AssistantMode = 'planner' | 'breakdown' | 'suggester';
@@ -80,7 +81,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [history, setHistory] = React.useState<AssistantMessage[]>([]);
     const [prompt, setPrompt] = React.useState('');
     const [loading, setLoading] = React.useState(false);
-    const [currentPlan, setCurrentPlan] = React.useState<AssistantOutput | null>(null);
+    const [currentPlan, setCurrentPlan] = React.useState<AssistantOutput | PlannerOutput | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
     const [isVoiceMode, setIsVoiceMode] = React.useState(false);
     const [mediaFile, setMediaFile] = React.useState<{ dataUri: string; type: string; name: string } | null>(null);
@@ -177,7 +178,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 return `My goal is: "${currentPrompt}". Please create a detailed, step-by-step plan to achieve this.`;
             case 'suggester':
                 return `My goal is: "${currentPrompt}". My role is ${suggestionRole} and my mood is ${suggestionMood}. Give me some creative ideas or tasks to get started.`;
-            // Breakdown prompt is now handled by the regular chat submission
+            case 'breakdown':
+                return `Break down this task: "${currentPrompt}". Please provide a list of subtasks.`;
             default:
                 return currentPrompt;
         }
@@ -217,24 +219,40 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         let currentChatId = activeChatId;
 
         try {
-            const assistantInput: AssistantInput = {
-                history: newHistory.map(h => ({ role: h.role, content: h.content })),
-                tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
-                role: userRole,
-                date: format(new Date(), 'yyyy-MM-dd'),
-                chatSessionId: currentChatId,
-            };
+            let result;
+            let title = 'New Chat'; // Default title
 
-            // Only include historyWithMedia if there's media
-            if (newHistory.some(h => h.mediaDataUri)) {
-                (assistantInput as any).historyWithMedia = newHistory;
+            if (mode === 'planner' || mode === 'breakdown') {
+                const plannerInput = {
+                    history: newHistory.map(h => ({ role: h.role, content: h.content })),
+                };
+                result = await runPlanner(plannerInput);
+                if (isNewChat) {
+                    title = `Plan: ${finalPrompt.substring(0, 30)}...`;
+                }
+
+            } else {
+                 const assistantInput: AssistantInput = {
+                    history: newHistory.map(h => ({ role: h.role, content: h.content })),
+                    tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
+                    role: userRole,
+                    date: format(new Date(), 'yyyy-MM-dd'),
+                    chatSessionId: currentChatId,
+                };
+
+                if (newHistory.some(h => h.mediaDataUri)) {
+                    (assistantInput as any).historyWithMedia = newHistory;
+                }
+                
+                result = await runAssistant(assistantInput);
+                if (result.title) {
+                    title = result.title;
+                }
             }
             
-            const result = await runAssistant(assistantInput);
-            
             if (result) {
-                if (isNewChat && result.title) {
-                    currentChatId = await createSession(newHistory, result.title);
+                if (isNewChat) {
+                    currentChatId = await createSession(newHistory, title);
                     setActiveChatId(currentChatId);
                 }
                 
@@ -257,10 +275,12 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     await updateSession(currentChatId, { history: updatedHistory });
                 }
 
-                const hasActions = (result.tasksToAdd && result.tasksToAdd.length > 0) ||
-                    (result.tasksToUpdate && result.tasksToUpdate.length > 0) ||
-                    (result.tasksToDelete && result.tasksToDelete.length > 0) ||
-                    (result.subtasksToAdd && result.subtasksToAdd.length > 0);
+                const hasActions = ('tasksToAdd' in result && result.tasksToAdd && result.tasksToAdd.length > 0) ||
+                    ('tasksToUpdate' in result && result.tasksToUpdate && result.tasksToUpdate.length > 0) ||
+                    ('tasksToDelete' in result && result.tasksToDelete && result.tasksToDelete.length > 0) ||
+                    ('subtasksToAdd' in result && result.subtasksToAdd && result.subtasksToAdd.length > 0) ||
+                    ('tasks' in result && result.tasks && result.tasks.length > 0);
+
 
                 if (hasActions) {
                     setCurrentPlan(result);
@@ -298,7 +318,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         }
         const task = tasks.find(t => t.id === selectedTaskToBreakdown);
         if (task) {
-            handleSubmit(undefined, `Break down this task: "${task.title}"`);
+            handleSubmit(undefined, task.title);
         }
     };
     
@@ -308,22 +328,33 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         setLoading(true);
         try {
             const promises = [];
-            if (currentPlan.tasksToAdd && currentPlan.tasksToAdd.length > 0) {
+            // Handle AssistantOutput
+            if ('tasksToAdd' in currentPlan && currentPlan.tasksToAdd && currentPlan.tasksToAdd.length > 0) {
                 promises.push(handleAddTasks(currentPlan.tasksToAdd));
             }
-            if (currentPlan.tasksToUpdate && currentPlan.tasksToUpdate.length > 0) {
+             if ('tasksToUpdate' in currentPlan && currentPlan.tasksToUpdate && currentPlan.tasksToUpdate.length > 0) {
                 for (const task of currentPlan.tasksToUpdate) {
                 promises.push(updateTask(task.taskId, task.updates));
                 }
             }
-            if (currentPlan.tasksToDelete && currentPlan.tasksToDelete.length > 0) {
+            if ('tasksToDelete' in currentPlan && currentPlan.tasksToDelete && currentPlan.tasksToDelete.length > 0) {
                 for (const task of currentPlan.tasksToDelete) {
                 promises.push(handleDeleteTask(task.taskId));
                 }
             }
-            if (currentPlan.subtasksToAdd && currentPlan.subtasksToAdd.length > 0) {
+             if ('subtasksToAdd' in currentPlan && currentPlan.subtasksToAdd && currentPlan.subtasksToAdd.length > 0) {
                 for (const parent of currentPlan.subtasksToAdd) {
                     promises.push(handleAddSubtasks(parent.parentId, parent.subtasks));
+                }
+            }
+
+            // Handle PlannerOutput
+             if ('tasks' in currentPlan && currentPlan.tasks && currentPlan.tasks.length > 0) {
+                 if (mode === 'breakdown' && selectedTaskToBreakdown) {
+                    const subtasks = currentPlan.tasks.map(t => ({ title: t.title, description: t.description }));
+                    promises.push(handleAddSubtasks(selectedTaskToBreakdown, subtasks));
+                } else {
+                    promises.push(handleAddTasks(currentPlan.tasks));
                 }
             }
             
@@ -342,6 +373,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         } finally {
             setCurrentPlan(null);
             setLoading(false);
+            // If it was a breakdown, clear the selected task
+            if (mode === 'breakdown') {
+                setSelectedTaskToBreakdown('');
+            }
         }
     };
     
@@ -540,6 +575,73 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         </div>
       );
 
+    const renderPlan = () => {
+        if (!currentPlan) return null;
+
+        if ('tasks' in currentPlan && currentPlan.tasks) {
+             const planTitle = mode === 'breakdown' ? "Subtasks to Add" : "Tasks to Add";
+             return (
+                <PlanSection title={planTitle} icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
+                    {currentPlan.tasks.map((t, i) => (
+                         <li key={`add-${i}`}>
+                            {t.title}
+                            {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
+                        </li>
+                    ))}
+                </PlanSection>
+            )
+        }
+
+        if ('tasksToAdd' in currentPlan || 'subtasksToAdd' in currentPlan || 'tasksToUpdate' in currentPlan || 'tasksToDelete' in currentPlan) {
+            return (
+                 <>
+                    {currentPlan.tasksToAdd && currentPlan.tasksToAdd.length > 0 && (
+                        <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
+                            {currentPlan.tasksToAdd.map((t, i) => (
+                            <li key={`add-${i}`}>
+                                {t.title}
+                                {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
+                            </li>
+                            ))}
+                        </PlanSection>
+                    )}
+                    {currentPlan.subtasksToAdd && currentPlan.subtasksToAdd.length > 0 && (
+                        <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
+                            {currentPlan.subtasksToAdd.map((item, i) => (
+                            <li key={`subtask-${i}`}>
+                                To "{tasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
+                            </li>
+                            ))}
+                        </PlanSection>
+                    )}
+                    {currentPlan.tasksToUpdate && currentPlan.tasksToUpdate.length > 0 && (
+                        <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
+                            {currentPlan.tasksToUpdate.map((t, i) => {
+                            const originalTask = tasks.find(task => task.id === t.taskId);
+                            const updates = Object.entries(t.updates)
+                                .map(([key, value]) => {
+                                if (value === null) return null;
+                                if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
+                                return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
+                                })
+                                .filter(Boolean)
+                                .join(', ');
+                            return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
+                            })}
+                        </PlanSection>
+                    )}
+                    {currentPlan.tasksToDelete && currentPlan.tasksToDelete.length > 0 && (
+                        <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
+                            {currentPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{tasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
+                        </PlanSection>
+                    )}
+                </>
+            )
+        }
+        
+        return null;
+    }
+
 
     return (
         <div className="flex flex-col md:flex-row h-full">
@@ -688,46 +790,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         <h4 className="font-semibold flex-shrink-0">Suggested Plan:</h4>
                         <ScrollArea className="flex-grow overflow-y-auto pr-2">
                             <div className="space-y-4 text-sm">
-                                {currentPlan.tasksToAdd && currentPlan.tasksToAdd.length > 0 && (
-                                <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
-                                    {currentPlan.tasksToAdd.map((t, i) => (
-                                    <li key={`add-${i}`}>
-                                        {t.title}
-                                        {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
-                                    </li>
-                                    ))}
-                                </PlanSection>
-                                )}
-                                {currentPlan.subtasksToAdd && currentPlan.subtasksToAdd.length > 0 && (
-                                <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
-                                    {currentPlan.subtasksToAdd.map((item, i) => (
-                                    <li key={`subtask-${i}`}>
-                                        To "{tasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
-                                    </li>
-                                    ))}
-                                </PlanSection>
-                                )}
-                                {currentPlan.tasksToUpdate && currentPlan.tasksToUpdate.length > 0 && (
-                                <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
-                                    {currentPlan.tasksToUpdate.map((t, i) => {
-                                    const originalTask = tasks.find(task => task.id === t.taskId);
-                                    const updates = Object.entries(t.updates)
-                                        .map(([key, value]) => {
-                                        if (value === null) return null;
-                                        if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
-                                        return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
-                                        })
-                                        .filter(Boolean)
-                                        .join(', ');
-                                    return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
-                                    })}
-                                </PlanSection>
-                                )}
-                                {currentPlan.tasksToDelete && currentPlan.tasksToDelete.length > 0 && (
-                                <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
-                                    {currentPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{tasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
-                                </PlanSection>
-                                )}
+                               {renderPlan()}
                             </div>
                         </ScrollArea>
                         <div className="flex justify-end gap-2 pt-2 flex-shrink-0">
@@ -886,5 +949,3 @@ export default function AIAssistantPage() {
         </div>
     );
 }
-
-    
