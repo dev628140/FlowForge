@@ -118,7 +118,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     runAIFlow: runSuggester as any,
                 };
         }
-    }, [mode, plannerSessions, createPlannerSession, updatePlannerSession, deletePlannerSession, breakdownSessions, createBreakdownSession, updateBreakdownSession, deleteBreakdownSession, suggesterSessions, createSuggesterSession, updateSuggesterSession, deleteSuggesterSession, runPlanner, runBreakdowner, runSuggester]);
+    }, [mode, plannerSessions, createPlannerSession, updatePlannerSession, deletePlannerSession, breakdownSessions, createBreakdownSession, updateBreakdownSession, deleteBreakdownSession, suggesterSessions, createSuggesterSession, updateSuggesterSession, deleteSuggesterSession]);
 
 
     React.useEffect(() => {
@@ -149,7 +149,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         const groupTitle = format(breakdownDate, 'PPP');
         
         const grouped: { [key: string]: Task[] } = {};
-        grouped[groupTitle] = tasksForSelectedDate;
+        if (tasksForSelectedDate.length > 0) {
+            grouped[groupTitle] = tasksForSelectedDate;
+        }
         
         return grouped;
 
@@ -202,8 +204,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
         try {
             if (isNewChat) {
-                currentChatId = await createSession(newHistory);
-                setActiveChatId(currentChatId);
+                // For a new chat, we'll get the title back from the flow
+                // and then create the session.
             }
 
             const result = await runAIFlow({
@@ -211,6 +213,11 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             });
             
             if (result) {
+                if (isNewChat) {
+                    currentChatId = await createSession(newHistory);
+                    setActiveChatId(currentChatId);
+                }
+                
                 const modelResponse: AssistantMessage = { role: 'model', content: result.response };
                 const updatedHistory = [...newHistory, modelResponse];
                 setHistory(updatedHistory);
@@ -326,20 +333,18 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                 <SelectValue placeholder="Select a task to break down..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {Object.entries(getGroupedTasks).map(([group, tasksInGroup]) => {
-                                    return (
+                                {Object.entries(getGroupedTasks).length > 0 ? (
+                                    Object.entries(getGroupedTasks).map(([group, tasksInGroup]) => (
                                         <SelectGroup key={group}>
                                             <SelectLabel>{group}</SelectLabel>
-                                            {tasksInGroup.length > 0 ? (
-                                                tasksInGroup.map(task => (
-                                                    <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
-                                                ))
-                                            ) : (
-                                                 <SelectItem value={`no-tasks-${group}`} disabled>No tasks for this day</SelectItem>
-                                            )}
+                                            {tasksInGroup.map(task => (
+                                                <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
+                                            ))}
                                         </SelectGroup>
-                                    )
-                                })}
+                                    ))
+                                ) : (
+                                    <SelectItem value="no-tasks" disabled>No tasks for the selected day</SelectItem>
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
