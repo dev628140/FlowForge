@@ -133,15 +133,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 
   React.useEffect(() => {
-    const savedRole = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole;
-    if (savedRole) {
-      setUserRole(savedRole);
+    if (user && db) {
+      const profileRef = doc(db, 'userProfiles', user.uid);
+      getDoc(profileRef).then(docSnap => {
+        if (docSnap.exists() && docSnap.data().role) {
+          setUserRole(docSnap.data().role);
+        } else {
+          // If no profile, create one with the default role
+          setDoc(profileRef, { userId: user.uid, role: 'Developer' }).catch(e => console.error("Error creating user profile:", e));
+        }
+      });
     }
-  }, []);
+  }, [user]);
 
-  const handleSetUserRole = (role: UserRole) => {
+  const handleSetUserRole = async (role: UserRole) => {
     setUserRole(role);
-    localStorage.setItem(USER_ROLE_STORAGE_KEY, role);
+    if (user && db) {
+      try {
+        const profileRef = doc(db, 'userProfiles', user.uid);
+        await setDoc(profileRef, { role: role }, { merge: true });
+      } catch (error) {
+        console.error("Failed to save user role to database:", error);
+        toast({
+          title: "Error",
+          description: "Could not save your role preference.",
+          variant: "destructive"
+        });
+      }
+    }
   };
   
   React.useEffect(() => {
