@@ -185,7 +185,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         placeholder="e.g., Learn to build a website in 30 days, starting tomorrow."
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
-                        rows={4}
+                        rows={2}
                         disabled={loading}
                     />
                 );
@@ -209,7 +209,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                             </SelectTrigger>
                             <SelectContent>
                                 {Object.entries(getGroupedTasks).map(([group, tasksInGroup]) => {
-                                    if (tasksInGroup.length === 0 && group !== format(breakdownDate!, 'PPP')) return null;
+                                    if (tasksInGroup.length === 0 && breakdownDate && group !== format(breakdownDate, 'PPP')) return null;
                                     return (
                                         <SelectGroup key={group}>
                                             <SelectLabel>{group}</SelectLabel>
@@ -356,7 +356,7 @@ export default function AIAssistantPage() {
                     <TabsTrigger value="suggester"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
                 <Card className="mt-4">
-                    <CardContent className="p-6 h-[360px]">
+                    <CardContent className="p-6 h-[300px]">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />
                         </TabsContent>
