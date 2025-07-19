@@ -151,7 +151,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user && db) {
       try {
         const profileRef = doc(db, 'userProfiles', user.uid);
-        await setDoc(profileRef, { role: role }, { merge: true });
+        // Ensure userId is always present when writing, satisfying security rules.
+        await setDoc(profileRef, { userId: user.uid, role: role }, { merge: true });
       } catch (error) {
         console.error("Failed to save user role to database:", error);
         toast({
