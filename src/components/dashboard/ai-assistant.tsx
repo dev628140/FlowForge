@@ -24,6 +24,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
@@ -153,7 +154,11 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
     try {
       const assistantInput: AssistantInput = {
-        history: newHistory,
+        history: newHistory.map(h => ({
+            role: h.role,
+            // Hide IDs from prompt history to prevent echoing
+            content: h.content.replace(/ \(ID: [a-zA-Z0-9-]+\)/g, ''),
+        })),
         tasks: allTasks,
         role,
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -176,7 +181,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       
       const modelResponse: AssistantMessage = { role: 'model', content: result.response };
       
-      let audioDataUri: string | null = null;
       if (isVoiceMode) {
         const ttsResult = await textToSpeech({ text: result.response });
         if (ttsResult.audioDataUri) {
