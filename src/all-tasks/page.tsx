@@ -8,13 +8,16 @@ import type { Task } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import TaskList from '@/components/dashboard/task-list';
 import FocusMode from '@/components/dashboard/focus-mode';
-import { format, parseISO, compareAsc } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { parseISO } from 'date-fns';
+
+type SortOption = 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
 
 export default function AllTasksPage() {
   const { tasks, handleToggleTask, updateTask, handleReorderTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
+  const [sortBy, setSortBy] = React.useState<SortOption>('scheduledDate');
 
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -27,32 +30,41 @@ export default function AllTasksPage() {
     setFocusTask(null);
   };
 
-  const tasksByDate = React.useMemo(() => {
-    const groupedTasks: Record<string, Task[]> = {};
-
-    tasks.forEach(task => {
-        const dateKey = task.scheduledDate || 'Unscheduled';
-        if (!groupedTasks[dateKey]) {
-            groupedTasks[dateKey] = [];
+  const sortedTasks = React.useMemo(() => {
+    const sortableTasks = [...tasks];
+    return sortableTasks.sort((a, b) => {
+      switch (sortBy) {
+        case 'scheduledDate': {
+          const dateA = a.scheduledDate ? parseISO(a.scheduledDate).getTime() : Infinity;
+          const dateB = b.scheduledDate ? parseISO(b.scheduledDate).getTime() : Infinity;
+          
+          if (dateA !== dateB) {
+            return dateA - dateB;
+          }
+          // If dates are same, sort by order
+          return (a.order || 0) - (b.order || 0);
         }
-        groupedTasks[dateKey].push(task);
+        case 'createdAt-desc':
+            if (a.createdAt && b.createdAt) {
+                return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
+            }
+            return 0;
+        case 'createdAt-asc':
+            if (a.createdAt && b.createdAt) {
+                return parseISO(a.createdAt).getTime() - parseISO(b.createdAt).getTime();
+            }
+            return 0;
+        case 'title':
+          return a.title.localeCompare(b.title);
+        default:
+          return 0;
+      }
     });
+  }, [tasks, sortBy]);
 
-    // Sort tasks within each group by their custom order
-    for (const dateKey in groupedTasks) {
-        groupedTasks[dateKey].sort((a, b) => (a.order || 0) - (b.order || 0));
-    }
-    
-    return groupedTasks;
-  }, [tasks]);
-
-  const sortedDates = React.useMemo(() => {
-    return Object.keys(tasksByDate).sort((a, b) => {
-        if (a === 'Unscheduled') return 1;
-        if (b === 'Unscheduled') return -1;
-        return compareAsc(parseISO(a), parseISO(b));
-    });
-  }, [tasksByDate]);
+  const onReorder = (taskId: string, direction: 'up' | 'down') => {
+    handleReorderTask(taskId, direction, sortedTasks);
+  };
 
   return (
      <div className="relative min-h-screen w-full">
@@ -62,41 +74,36 @@ export default function AllTasksPage() {
                   <ListTodo className="w-8 h-8" />
                   All Tasks
               </h1>
+              <div className="flex items-center gap-2">
+                <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
+                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduledDate">Scheduled Date</SelectItem>
+                    <SelectItem value="createdAt-desc">Newest First</SelectItem>
+                    <SelectItem value="createdAt-asc">Oldest First</SelectItem>
+                    <SelectItem value="title">Title (A-Z)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             <Card>
                 <CardHeader>
                     <CardTitle>Your Tasks</CardTitle>
-                    <CardDescription>A complete list of all your scheduled tasks, grouped by date.</CardDescription>
+                    <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-6">
-                        {sortedDates.map((date, index) => {
-                            const dailyTasks = tasksByDate[date];
-                            const onReorderForDate = (taskId: string, direction: 'up' | 'down') => {
-                                handleReorderTask(taskId, direction, dailyTasks);
-                            };
-
-                            return (
-                                <div key={date}>
-                                    <div className="mb-2">
-                                        <h3 className="text-lg font-semibold font-headline">
-                                            {date === 'Unscheduled' ? 'Unscheduled' : format(parseISO(date), 'EEEE, MMMM d')}
-                                        </h3>
-                                        <Separator className="mt-2"/>
-                                    </div>
-                                    <TaskList 
-                                      tasks={dailyTasks} 
-                                      onToggle={handleToggleTask} 
-                                      onStartFocus={handleStartFocus} 
-                                      onUpdateTask={updateTask} 
-                                      onReorder={onReorderForDate}
-                                      emptyMessage="No tasks for this day." 
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <TaskList 
+                        tasks={sortedTasks} 
+                        onToggle={handleToggleTask} 
+                        onStartFocus={handleStartFocus} 
+                        onUpdateTask={updateTask} 
+                        onReorder={onReorder}
+                        emptyMessage="No tasks found." 
+                    />
                 </CardContent>
             </Card>
         </div>
