@@ -31,6 +31,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -386,11 +387,11 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
 
     return (
-        <div className="flex flex-row h-full">
+        <div className="flex flex-col md:flex-row h-full">
             {/* Chat History Sidebar */}
             <div className={cn(
-                "border-r flex flex-col transition-all duration-300 bg-muted/20",
-                isSidebarCollapsed ? 'w-14' : 'w-1/3 min-w-[200px] max-w-[300px]'
+                "border-b md:border-b-0 md:border-r flex flex-col transition-all duration-300 bg-muted/20",
+                isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-1/3 md:min-w-[200px] md:max-w-[300px]'
             )}>
                 <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
                     {!isSidebarCollapsed && (
@@ -412,11 +413,11 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                             </Tooltip>
                         </TooltipProvider>
                     )}
-                    <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+                    <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex">
                         {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
                     </Button>
                 </div>
-                 <ScrollArea className="flex-grow">
+                 <ScrollArea className="flex-grow h-40 md:h-auto">
                     {!isSidebarCollapsed && (
                     <div className="space-y-1 p-2">
                         {sortedSessions.map(session => (
@@ -539,17 +540,17 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 <form onSubmit={handleSubmit} className="mt-auto space-y-4">
                     {history.length === 0 && renderInitialInputs()}
 
-                    {history.length > 0 && (
+                    {(history.length > 0 || currentPlan) && (
                         <Input
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             placeholder="Need changes? Type here..."
-                            disabled={loading}
+                            disabled={loading || (!!currentPlan && mode === 'breakdown')}
                             autoFocus
                         />
                     )}
                 
-                    <Button type="submit" disabled={!canSubmit()} className="w-full">
+                    <Button type="submit" disabled={!canSubmit() || (!!currentPlan && mode === 'breakdown')} className="w-full">
                         {loading ? <Loader2 className="animate-spin" /> : history.length > 0 ? <CornerDownLeft/> : <Wand2/>}
                         <span className="ml-2">{loading ? 'Generating...' : history.length > 0 ? 'Send' : 'Generate'}</span>
                     </Button>
@@ -570,13 +571,13 @@ export default function AIAssistantPage() {
             <p className="text-muted-foreground">Your command center for AI-powered productivity. Converse with the AI to plan, break down, and create tasks.</p>
 
             <Tabs defaultValue="planner" className="w-full">
-                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
-                    <TabsTrigger value="planner"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
-                    <TabsTrigger value="breakdown"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
-                    <TabsTrigger value="suggester"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto">
+                    <TabsTrigger value="planner" className="py-2 sm:py-1.5"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
+                    <TabsTrigger value="breakdown" className="py-2 sm:py-1.5"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
+                    <TabsTrigger value="suggester" className="py-2 sm:py-1.5"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
                 <Card className="mt-4">
-                    <CardContent className="p-0 h-[60vh] min-h-[500px] overflow-hidden">
+                    <CardContent className="p-0 h-[70vh] min-h-[500px] overflow-hidden">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />
                         </TabsContent>
