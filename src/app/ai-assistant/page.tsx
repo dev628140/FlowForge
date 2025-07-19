@@ -515,7 +515,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 {currentPlan && currentPlan.length > 0 && (
                     <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex-shrink-0">
                     <h4 className="font-semibold">Suggested Plan:</h4>
-                    <ScrollArea className="max-h-[150px]">
+                    <ScrollArea className="max-h-[150px] pr-4">
                             <ul className="space-y-2 list-disc pl-5 text-sm">
                                 {currentPlan.map((task, i) => (
                                     <li key={i}>
@@ -571,7 +571,7 @@ export default function AIAssistantPage() {
                     <TabsTrigger value="suggester"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
                 <Card className="mt-4">
-                    <CardContent className="p-0 h-[600px] overflow-hidden">
+                    <CardContent className="p-0 h-[480px] overflow-hidden">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />
                         </TabsContent>
