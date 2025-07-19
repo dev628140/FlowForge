@@ -145,7 +145,7 @@ const assistantPrompt = ai.definePrompt({
     {{/each}}
     
     Based on the latest user message and the entire conversation, determine the next step.
-    - If the user's request is a question, a request for an explanation (e.g., "explain Two Sum"), or a general conversational prompt, provide a direct, helpful, and comprehensive answer in the 'response' field. Do NOT create a task plan unless explicitly asked to.
+    - If the user's request is a question, a request for an explanation (e.g., "explain Two Sum"), or a general conversational prompt, provide a direct, helpful, and comprehensive answer in the 'response' field. Do NOT create a task plan unless explicitly asked to. After providing the answer, you SHOULD proactively ask if the user wants to take the next step, such as creating a learning plan for the topic, or adding a task to practice the concept. For example: "Would you like me to create a learning plan for this?"
     - If the user's command is explicitly to add, update, or delete tasks, generate the appropriate plan of actions and a summary response.
     - If the user's request is best handled by one of your tools (like summarizing, analyzing, or generating a learning plan), use the tool and provide the result in your response.
     - If the user's request is unclear or you need more information to proceed, ask a clarifying question in your response and do not generate any actions.
