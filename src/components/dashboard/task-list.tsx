@@ -10,20 +10,25 @@ interface TaskListProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onReorder?: (taskId: string, direction: 'up' | 'down', contextTasks: Task[]) => void;
+  onMove?: (taskId: string, direction: 'up' | 'down') => void;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;
+  listId: string; // Unique identifier for this list's context
 }
 
-export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
+export default function TaskList({ 
+  tasks, 
+  onToggle, 
+  onStartFocus, 
+  onUpdateTask, 
+  onMove, 
+  isSubtaskList = false, 
+  emptyMessage, 
+  parentId,
+  listId
+}: TaskListProps) {
   
-  const handleReorder = (taskId: string, direction: 'up' | 'down') => {
-    if (onReorder) {
-      onReorder(taskId, direction, tasks);
-    }
-  };
-
   const incompleteTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
 
@@ -35,18 +40,21 @@ export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, 
     );
   }
 
+  const handleMove = (taskId: string, direction: 'up' | 'down') => {
+    onMove?.(taskId, direction);
+  };
+
   return (
     <div className="space-y-1">
-      {incompleteTasks.map((task, index) => (
+      {incompleteTasks.map((task) => (
         <TaskItem 
-          key={task.id} 
+          key={`${listId}-${task.id}`}
           task={task} 
           onToggle={onToggle} 
           onStartFocus={onStartFocus}
           onUpdateTask={onUpdateTask}
-          onReorder={!isSubtaskList ? (taskId, direction) => handleReorder(taskId, direction) : undefined}
-          isFirst={index === 0}
-          isLast={index === incompleteTasks.length - 1}
+          onMove={!isSubtaskList ? handleMove : undefined}
+          isDraggable={!isSubtaskList && !!onMove}
           isSubtask={isSubtaskList}
           parentId={parentId}
         />
@@ -56,13 +64,14 @@ export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, 
         <div className="text-xs font-semibold text-muted-foreground pt-4 pb-2">COMPLETED</div>
       )}
 
-      {completedTasks.map((task, index) => (
+      {completedTasks.map((task) => (
         <TaskItem 
-          key={task.id} 
+          key={`${listId}-${task.id}`}
           task={task} 
           onToggle={onToggle} 
           onStartFocus={onStartFocus}
           onUpdateTask={onUpdateTask}
+          isDraggable={false} // Cannot reorder completed tasks
           isSubtask={isSubtaskList}
           parentId={parentId}
         />

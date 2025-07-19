@@ -9,12 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import TaskList from '@/components/dashboard/task-list';
 import FocusMode from '@/components/dashboard/focus-mode';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { parseISO } from 'date-fns';
+import { parseISO, isToday } from 'date-fns';
 
 type SortOption = 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
 
 export default function AllTasksPage() {
-  const { tasks, handleToggleTask, updateTask, handleReorderTask } = useAppContext();
+  const { tasks, handleToggleTask, updateTask, handleMoveTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [sortBy, setSortBy] = React.useState<SortOption>('scheduledDate');
@@ -41,7 +41,6 @@ export default function AllTasksPage() {
           if (dateA !== dateB) {
             return dateA - dateB;
           }
-          // If dates are same, sort by order
           return (a.order || 0) - (b.order || 0);
         }
         case 'createdAt-desc':
@@ -62,8 +61,11 @@ export default function AllTasksPage() {
     });
   }, [tasks, sortBy]);
 
-  const onReorder = (taskId: string, direction: 'up' | 'down') => {
-    handleReorderTask(taskId, direction, sortedTasks);
+  const onMove = (taskId: string, direction: 'up' | 'down') => {
+    const listId = sortBy === 'scheduledDate' 
+      ? tasks.find(t => t.id === taskId)?.scheduledDate || 'unscheduled' 
+      : 'all';
+    handleMoveTask(taskId, direction, listId);
   };
 
   return (
@@ -76,7 +78,7 @@ export default function AllTasksPage() {
               </h1>
               <div className="flex items-center gap-2">
                 <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
-                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                <Select value={sortBy} onValueChange={(value: SortOption) => setSortby(value)}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort by..." />
                   </SelectTrigger>
@@ -101,7 +103,8 @@ export default function AllTasksPage() {
                         onToggle={handleToggleTask} 
                         onStartFocus={handleStartFocus} 
                         onUpdateTask={updateTask} 
-                        onReorder={onReorder}
+                        onMove={onMove}
+                        listId={sortBy === 'scheduledDate' ? 'byDate' : 'all'}
                         emptyMessage="No tasks found." 
                     />
                 </CardContent>

@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil, ArrowUp, ArrowDown } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil, GripVertical } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -64,11 +64,10 @@ interface TaskItemProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onReorder?: (taskId: string, direction: 'up' | 'down') => void;
-  isFirst?: boolean;
-  isLast?: boolean;
+  onMove?: (taskId: string, direction: 'up' | 'down') => void;
   isSubtask?: boolean;
   parentId?: string;
+  isDraggable?: boolean;
 }
 
 export default function TaskItem({ 
@@ -76,11 +75,10 @@ export default function TaskItem({
   onToggle, 
   onStartFocus, 
   onUpdateTask, 
-  onReorder,
-  isFirst = false,
-  isLast = false,
+  onMove,
   isSubtask = false, 
-  parentId 
+  parentId,
+  isDraggable = false,
 }: TaskItemProps) {
   const { handleAddSubtasks, handleDeleteTask } = useAppContext();
   const [summary, setSummary] = React.useState<string | null>(null);
@@ -232,7 +230,14 @@ export default function TaskItem({
   }
   
   const itemContent = (
-    <div className={cn("flex items-start group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
+    <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
+      {isDraggable && !task.completed && (
+        <div className="flex flex-col items-center mr-2">
+           <Button variant="ghost" size="icon" className="h-5 w-5 cursor-grab" onClick={() => onMove?.(task.id, 'up')} aria-label="Move up">
+                <GripVertical className="h-4 w-4" />
+            </Button>
+        </div>
+      )}
       {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 mt-1.5 text-muted-foreground" />}
        <Checkbox
         id={`task-${task.id}`}
@@ -277,16 +282,6 @@ export default function TaskItem({
           "flex items-center transition-opacity", 
           "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
       )}>
-        {onReorder && !task.completed && (
-          <div className="flex flex-col">
-            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onReorder(task.id, 'up')} disabled={isFirst}>
-                <ArrowUp className="h-3 w-3" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onReorder(task.id, 'down')} disabled={isLast}>
-                <ArrowDown className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
         {hasSubtasks && (
            <CollapsibleTrigger asChild>
              <Button variant="ghost" size="icon" aria-label="Toggle subtasks">
@@ -564,6 +559,7 @@ export default function TaskItem({
               onUpdateTask={onUpdateTask}
               isSubtaskList={true}
               parentId={task.id}
+              listId={`subtasks-${task.id}`}
             />
           </div>
         </CollapsibleContent>

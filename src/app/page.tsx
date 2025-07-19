@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Plus, GripVertical, ArrowUp, ArrowDown, Wand2, Loader2 } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Wand2, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,7 +47,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
@@ -57,10 +56,7 @@ import DailyProgressBar from '@/components/dashboard/daily-progress-bar';
 import { Badge } from '@/components/ui/badge';
 import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-card';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import AIAssistant from '@/components/dashboard/ai-assistant';
-import { reorderAllTasks } from '@/ai/flows/reorder-all-tasks-flow';
-
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -86,8 +82,7 @@ export default function DashboardPage() {
     handleAddTasks,
     handleDeleteTask,
     updateTask,
-    batchUpdateTasks,
-    handleReorderTask
+    handleMoveTask
   } = useAppContext();
 
   const { toast } = useToast();
@@ -95,12 +90,8 @@ export default function DashboardPage() {
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
-  const [isFabPopoverOpen, setIsFabPopoverOpen] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState<UserRole>('Developer');
-  const [showReorderAll, setShowReorderAll] = React.useState(false);
-  const [isReorderingAll, setIsReorderingAll] = React.useState(false);
   
-  // Load role from localStorage on mount
   React.useEffect(() => {
     const savedRole = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole;
     if (savedRole) {
@@ -108,7 +99,6 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Save role to localStorage on change
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
     localStorage.setItem(USER_ROLE_STORAGE_KEY, role);
@@ -124,7 +114,6 @@ export default function DashboardPage() {
     defaultValues: { title: "", description: "" },
   });
   
-  
   const handleAddTaskSubmit = (values: TaskFormValues) => {
     handleAddTasks([{ 
       title: values.title, 
@@ -134,7 +123,6 @@ export default function DashboardPage() {
     }]);
     form.reset({ title: '', description: '' });
     setIsAddDialogOpen(false);
-    setIsFabPopoverOpen(false);
   };
   
   const handleAddTodayTaskSubmit = (values: TodayTaskFormValues) => {
@@ -144,14 +132,8 @@ export default function DashboardPage() {
     }]);
     todayForm.reset();
     setIsTodayAddDialogOpen(false);
-    setIsFabPopoverOpen(false);
   };
 
-  const onReorderToday = async (taskId: string, direction: 'up' | 'down') => {
-    await handleReorderTask(taskId, direction, todaysTasks);
-    setShowReorderAll(true); // Show the "Apply to all" button
-  }
-  
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
   };
@@ -170,34 +152,6 @@ export default function DashboardPage() {
       title: 'Task Rescheduled',
       description: `"${task.title}" has been moved to today.`,
     });
-  }
-
-  const handleReorderAll = async () => {
-    setIsReorderingAll(true);
-    try {
-      const result = await reorderAllTasks({
-        allTasks: tasks,
-        templateDate: format(new Date(), 'yyyy-MM-dd')
-      });
-      if (result.updates && result.updates.length > 0) {
-        await batchUpdateTasks(result.updates);
-        toast({
-          title: "Tasks Reordered",
-          description: "The new order has been applied to all matching tasks on other days."
-        });
-      } else {
-        toast({
-          title: "No Changes Needed",
-          description: "All other days already match today's order."
-        });
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast({ title: 'Error', description: e.message || 'Failed to reorder tasks.', variant: 'destructive' });
-    } finally {
-      setIsReorderingAll(false);
-      setShowReorderAll(false);
-    }
   }
 
   const todaysTasks = React.useMemo(() => tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate))).sort((a,b) => (a.order || 0) - (b.order || 0)), [tasks]);
@@ -254,12 +208,6 @@ export default function DashboardPage() {
                     <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
                 </div>
                 <div className="flex items-stretch flex-col sm:flex-row sm:items-center gap-2">
-                    {showReorderAll && (
-                      <Button onClick={handleReorderAll} disabled={isReorderingAll} variant="outline" size="sm">
-                        {isReorderingAll ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <Wand2 className="mr-2 h-4 w-4"/>}
-                        Apply Today's Order to All
-                      </Button>
-                    )}
                     <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
                         <DialogTrigger asChild>
                             <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
@@ -434,7 +382,8 @@ export default function DashboardPage() {
                     onToggle={handleToggleTask} 
                     onStartFocus={handleStartFocus} 
                     onUpdateTask={updateTask} 
-                    onReorder={onReorderToday}
+                    onMove={handleMoveTask}
+                    listId="today"
                     emptyMessage="No tasks for today. Add one to get started!" 
                 />
                 </CardContent>
@@ -514,87 +463,6 @@ export default function DashboardPage() {
             <AIAssistant allTasks={tasks} role={selectedRole} />
         </div>
       </div>
-
-       {/* Floating Action Button for Mobile */}
-      <div className="sm:hidden fixed bottom-24 right-4 z-50">
-        <Popover open={isFabPopoverOpen} onOpenChange={setIsFabPopoverOpen}>
-          <PopoverTrigger asChild>
-             <Button size="lg" className="rounded-full w-16 h-16 shadow-lg">
-                <Plus className="w-8 h-8" />
-                <span className="sr-only">Add Task</span>
-             </Button>
-          </PopoverTrigger>
-          <PopoverContent side="top" align="end" className="w-auto p-2 mb-2">
-            <div className="flex flex-col gap-2">
-                <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start">
-                            <PlusCircle className="mr-2"/> Add for Today
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add a task for today</DialogTitle>
-                      </DialogHeader>
-                      <Form {...todayForm}>
-                        <form onSubmit={todayForm.handleSubmit(handleAddTodayTaskSubmit)} className="space-y-4">
-                          <FormField control={todayForm.control} name="title" render={({ field }) => (
-                              <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Go for a run" {...field} /></FormControl><FormMessage /></FormItem>
-                          )}/>
-                          <FormField control={todayForm.control} name="description" render={({ field }) => (
-                            <FormItem><FormLabel>Description (optional)</FormLabel><FormControl><Textarea placeholder="Add any extra details..." {...field} /></FormControl><FormMessage /></FormItem>
-                          )}/>
-                          <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Add Task</Button></DialogFooter>
-                        </form>
-                      </Form>
-                    </DialogContent>
-                </Dialog>
-                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start">
-                           <CalendarPlus className="mr-2"/> Schedule New
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add a new task</DialogTitle>
-                      </DialogHeader>
-                      <Form {...form}>
-                        <form onSubmit={form.handleSubmit(handleAddTaskSubmit)} className="space-y-4">
-                            <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Read a book" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="Add details..." {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <div className="flex gap-4">
-                                <FormField control={form.control} name="scheduledDate" render={({ field }) => (
-                                    <FormItem className="flex flex-col flex-1">
-                                        <FormLabel>Date</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start"><CalendarPicker mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
-                                        </Popover>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                <FormField control={form.control} name="scheduledTime" render={({ field }) => (
-                                    <FormItem className="flex-1"><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                            </div>
-                            <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Add Task</Button></DialogFooter>
-                        </form>
-                      </Form>
-                    </DialogContent>
-                </Dialog>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-
 
       {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
         if(focusTask) handleToggleTask(focusTask.id)

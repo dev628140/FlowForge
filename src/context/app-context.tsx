@@ -6,10 +6,11 @@ import type { Task, ChatSession, AssistantMessage } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, deleteDoc, setDoc, orderBy } from 'firebase/firestore';
+import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { generateChatTitle } from '@/ai/flows/generate-chat-title-flow';
 import { type GenerateChatTitleInput } from '@/lib/types/conversational-agent';
+import { isToday, parseISO } from 'date-fns';
 
 interface AppContextType {
   tasks: Task[];
@@ -20,8 +21,7 @@ interface AppContextType {
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  handleReorderTask: (taskId: string, direction: 'up' | 'down', contextTasks: Task[]) => Promise<void>;
-  batchUpdateTasks: (updates: { taskId: string; updates: Partial<Task> }[]) => Promise<void>;
+  handleMoveTask: (taskId: string, direction: 'up' | 'down', listId: string) => Promise<void>;
   
   // Chat Session Management
   chatSessions: ChatSession[];
@@ -32,7 +32,6 @@ interface AppContextType {
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
-
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -40,7 +39,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [showConfetti, setShowConfetti] = React.useState(false);
   const [chatSessions, setChatSessions] = React.useState<ChatSession[]>([]);
   
-  // Listen for task changes in Firestore
   React.useEffect(() => {
     if (user && db) {
       const q = query(
@@ -53,13 +51,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         querySnapshot.forEach((doc) => {
           userTasks.push({ id: doc.id, ...doc.data() } as Task);
         });
-        // Assign order if it's missing
         const tasksToUpdate: Task[] = [];
         const orderedTasks = userTasks
           .sort((a,b) => (a.createdAt || "").localeCompare(b.createdAt || ""))
           .map((task, index) => {
             if (task.order === undefined || task.order === null) {
-              const newTask = { ...task, order: index };
+              const newTask = { ...task, order: (index + 1) * 1000 };
               tasksToUpdate.push(newTask);
               return newTask;
             }
@@ -87,13 +84,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, toast]);
   
-  // Listen for chat session changes in Firestore
   React.useEffect(() => {
     if (user && db) {
       const q = query(
         collection(db, "chatSessions"),
         where("userId", "==", user.uid)
-        // Note: Removed orderBy to prevent needing a composite index. Sorting is now done on the client.
       );
 
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -101,7 +96,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         querySnapshot.forEach((doc) => {
           sessions.push({ id: doc.id, ...doc.data() } as ChatSession);
         });
-        // Sort sessions by date on the client side
         sessions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setChatSessions(sessions);
       }, (error) => {
@@ -185,7 +179,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completed: false,
           createdAt: new Date().toISOString(),
           title: task.title || 'Untitled Task',
-          order: maxOrder + 1 + index,
+          order: maxOrder + 1000 + index * 1000,
         };
 
         if (task.description) {
@@ -213,7 +207,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         let parentTask: Task | null = null;
         let isSubtask = false;
 
-        // Check if it's a subtask
         for (const task of tasks) {
             if (task.subtasks?.some(st => st.id === taskId)) {
                 parentTask = task;
@@ -223,14 +216,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (isSubtask && parentTask) {
-            // Handle subtask update
             const parentTaskRef = doc(db, 'tasks', parentTask.id);
             const updatedSubtasks = parentTask.subtasks!.map(st => 
                 st.id === taskId ? { ...st, ...updates } : st
             );
             await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
         } else {
-            // Handle main task update
             const taskRef = doc(db, 'tasks', taskId);
             await updateDoc(taskRef, updates);
         }
@@ -240,16 +231,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const batchUpdateTasks = async (updates: { taskId: string; updates: Partial<Task> }[]) => {
-      if (!user || !db || updates.length === 0) return;
-      const batch = writeBatch(db);
-      updates.forEach(update => {
-          const taskRef = doc(db, 'tasks', update.taskId);
-          batch.update(taskRef, update.updates);
-      });
-      await batch.commit();
-  }
-
   const handleAddSubtasks = async (parentId: string, subtasks: { title: string; description?: string }[]) => {
      if (!user || !db) return;
      try {
@@ -270,7 +251,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           completed: false,
           userId: user.uid,
           createdAt: new Date().toISOString(),
-          order: maxSubtaskOrder + index + 1
+          order: maxSubtaskOrder + 1000 + (index * 1000)
        }));
 
        const updatedSubtasks = [...(parentTask.subtasks || []), ...newSubtasks];
@@ -304,55 +285,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleReorderTask = async (taskId: string, direction: 'up' | 'down', contextTasks: Task[]) => {
-    if (!user || !db) return;
-  
-    // Use the provided context list (the list the user is actually seeing)
-    const taskList = contextTasks.filter(t => !t.completed); // Only allow reordering of incomplete tasks
-    const currentIndex = taskList.findIndex(t => t.id === taskId);
-  
-    if (currentIndex === -1) {
-      console.error("Task not found in the provided context list or it is completed.");
-      return;
-    }
-  
-    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-  
-    if (swapIndex < 0 || swapIndex >= taskList.length) {
-      return; // Cannot move further
-    }
-  
-    const taskToMove = taskList[currentIndex];
-    const taskToSwapWith = taskList[swapIndex];
-  
-    // The new order values are the existing order values of the tasks being swapped
-    const newOrderForMoved = taskToSwapWith.order;
-    const newOrderForSwapped = taskToMove.order;
-  
-    // Optimistically update UI by reordering the main state
-    const newGlobalTasks = tasks.map(t => {
-      if (t.id === taskToMove.id) return { ...t, order: newOrderForMoved };
-      if (t.id === taskToSwapWith.id) return { ...t, order: newOrderForSwapped };
-      return t;
-    });
-    setTasks(newGlobalTasks.sort((a,b) => (a.order || 0) - (b.order || 0)));
-  
-    // Update in Firestore
-    try {
-      const batch = writeBatch(db);
-      const movedTaskRef = doc(db, 'tasks', taskToMove.id);
-      batch.update(movedTaskRef, { order: newOrderForMoved });
-      const swappedTaskRef = doc(db, 'tasks', taskToSwapWith.id);
-      batch.update(swappedTaskRef, { order: newOrderForSwapped });
-      await batch.commit();
-    } catch (error) {
-      console.error("Error reordering tasks:", error);
-      toast({ title: "Error", description: "Could not save the new order.", variant: "destructive" });
-      // Revert optimistic update on failure
-      setTasks(tasks); 
-    }
+  const handleMoveTask = async (taskId: string, direction: 'up' | 'down', listId: string) => {
+      if (!user || !db) return;
+
+      const getList = () => {
+          if (listId === 'today') {
+              return tasks.filter(t => t.scheduledDate && isToday(parseISO(t.scheduledDate)));
+          }
+          if (listId === 'all') {
+              return tasks;
+          }
+          // Handle date-specific lists on All Tasks page
+          return tasks.filter(t => t.scheduledDate === listId);
+      };
+
+      const taskList = getList().filter(t => !t.completed).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      const currentIndex = taskList.findIndex(t => t.id === taskId);
+
+      if (currentIndex === -1) return; // Task not in the draggable list
+
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+      if (targetIndex < 0 || targetIndex >= taskList.length) return; // Cannot move further
+
+      const currentTask = taskList[currentIndex];
+      const targetTask = taskList[targetIndex];
+      const isMovingDown = direction === 'down';
+
+      // Calculate the new order
+      let newOrder;
+      if (isMovingDown) {
+          const nextTask = taskList[targetIndex + 1];
+          newOrder = nextTask ? (targetTask.order! + nextTask.order!) / 2 : targetTask.order! + 1000;
+      } else { // Moving Up
+          const prevTask = taskList[targetIndex - 1];
+          newOrder = prevTask ? (targetTask.order! + prevTask.order!) / 2 : targetTask.order! - 1000;
+      }
+
+      // Optimistically update the UI
+      setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, order: newOrder } : t));
+
+      // Update in Firestore
+      try {
+          const taskRef = doc(db, 'tasks', taskId);
+          await updateDoc(taskRef, { order: newOrder });
+      } catch (error) {
+          console.error("Error reordering task:", error);
+          toast({ title: "Error", description: "Could not save new order.", variant: "destructive" });
+          setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, order: currentTask.order } : t)); // Revert
+      }
   };
-  
+
   // Chat Session CRUD
   const createChatSession = async (history: AssistantMessage[]): Promise<string> => {
       if (!user || !db) throw new Error("User not authenticated.");
@@ -374,7 +358,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return sessionId;
       } catch (error) {
         console.error("Error creating chat session and generating title:", error);
-        // Fallback to a default title if AI fails
         const newSession: ChatSession = {
           id: sessionId,
           userId: user.uid,
@@ -410,8 +393,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleAddSubtasks,
       handleDeleteTask,
       updateTask,
-      handleReorderTask,
-      batchUpdateTasks,
+      handleMoveTask,
       // Chat
       chatSessions,
       createChatSession,
