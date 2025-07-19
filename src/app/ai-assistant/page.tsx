@@ -138,7 +138,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 return {
                     sessions: breakdownSessions,
                     createSession: createBreakdownSession,
-                    updateSession: updateUpdateBreakdownSession,
+                    updateSession: updateBreakdownSession,
                     deleteSession: deleteBreakdownSession,
                 };
             case 'suggester':
@@ -956,5 +956,3 @@ export default function AIAssistantPage() {
         </div>
     );
 }
-
-    
