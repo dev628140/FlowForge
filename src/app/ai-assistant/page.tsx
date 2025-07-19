@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { BrainCircuit, Bot, Upload, Lightbulb, Wand2, Loader2, PlusCircle, ListChecks } from 'lucide-react';
+import { BrainCircuit, Bot, Upload, Lightbulb, Wand2, Loader2, PlusCircle, ListChecks, Calendar as CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,9 +13,13 @@ import { breakdownTask } from '@/ai/flows/breakdown-task-flow';
 import { getRoleBasedTaskSuggestions } from '@/ai/flows/role-based-task-suggestions';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { type Mood, type UserRole } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
+import { type Mood, type UserRole, type Task } from '@/lib/types';
 import { Input } from '@/components/ui/input';
+import { format, isToday, parseISO } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 const moods: Mood[] = [
     { emoji: '⚡️', label: 'High Energy' },
@@ -40,6 +44,8 @@ export default function AIAssistantPage() {
     // State for Task Breakdown
     const [taskToBreakdown, setTaskToBreakdown] = React.useState('');
     const [isBreakingDown, setIsBreakingDown] = React.useState(false);
+    const [breakdownDate, setBreakdownDate] = React.useState<Date | undefined>(new Date());
+
 
     // State for Role-based suggestions
     const [suggestionRole, setSuggestionRole] = React.useState<UserRole>('Developer');
@@ -58,6 +64,59 @@ export default function AIAssistantPage() {
     
     // This state was missing, let's add it.
     const [file, setFile] = React.useState<File | null>(null);
+
+    const groupedTasksForBreakdown = React.useMemo(() => {
+        const incompleteTasks = tasks.filter(t => !t.completed);
+        const groups: { [key: string]: Task[] } = {};
+
+        incompleteTasks.forEach(task => {
+            const key = task.scheduledDate ? format(parseISO(task.scheduledDate), 'yyyy-MM-dd') : 'Unscheduled';
+            if (!groups[key]) {
+                groups[key] = [];
+            }
+            groups[key].push(task);
+        });
+        
+        // Sort tasks within each group by their order property
+        for (const key in groups) {
+            groups[key].sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+
+        return groups;
+
+    }, [tasks]);
+
+    const getGroupTitle = (dateKey: string) => {
+        if (dateKey === 'Unscheduled') return 'Unscheduled';
+        const date = parseISO(dateKey);
+        if (isToday(date)) return `Today, ${format(date, 'MMMM d')}`;
+        return format(date, 'EEEE, MMMM d');
+    }
+
+    const filteredTaskKeys = React.useMemo(() => {
+        const todayKey = format(new Date(), 'yyyy-MM-dd');
+        const selectedKey = breakdownDate ? format(breakdownDate, 'yyyy-MM-dd') : null;
+        
+        const keysToShow = new Set<string>();
+
+        if (groupedTasksForBreakdown[todayKey]) {
+            keysToShow.add(todayKey);
+        }
+        if (selectedKey && groupedTasksForBreakdown[selectedKey]) {
+            keysToShow.add(selectedKey);
+        }
+        if(groupedTasksForBreakdown['Unscheduled']) {
+            keysToShow.add('Unscheduled');
+        }
+
+        return Array.from(keysToShow).sort((a,b) => {
+            if (a === 'Unscheduled') return 1;
+            if (b === 'Unscheduled') return -1;
+            return parseISO(a).getTime() - parseISO(b).getTime();
+        });
+
+    }, [groupedTasksForBreakdown, breakdownDate]);
+
 
 
     const handlePlanGoal = async () => {
@@ -177,14 +236,45 @@ export default function AIAssistantPage() {
                         <CardDescription>Select a complex task, and the AI will break it into smaller subtasks.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-grow flex flex-col gap-4">
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !breakdownDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {breakdownDate ? format(breakdownDate, "PPP") : <span>Pick a date to filter tasks</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={breakdownDate}
+                                    onSelect={setBreakdownDate}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
                         <Select onValueChange={setTaskToBreakdown} value={taskToBreakdown}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a task to break down..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {tasks.filter(t => !t.completed).map(task => (
-                                    <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
-                                ))}
+                                {filteredTaskKeys.length > 0 ? (
+                                    filteredTaskKeys.map(groupKey => (
+                                        <SelectGroup key={groupKey}>
+                                            <SelectLabel>{getGroupTitle(groupKey)}</SelectLabel>
+                                            {groupedTasksForBreakdown[groupKey].map(task => (
+                                                <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    ))
+                                ) : (
+                                    <SelectItem value="no-tasks" disabled>No tasks match filter</SelectItem>
+                                )}
                             </SelectContent>
                         </Select>
                         <Button onClick={handleBreakdownTask} disabled={isBreakingDown || !taskToBreakdown}>
@@ -242,4 +332,5 @@ export default function AIAssistantPage() {
             </div>
         </div>
     );
-}
+
+    
