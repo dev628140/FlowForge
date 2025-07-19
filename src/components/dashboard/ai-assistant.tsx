@@ -155,7 +155,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   );
 
   return (
-    <Card className="flex flex-col h-[500px]">
+    <Card className="flex flex-col h-[490px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Wand2 className="w-6 h-6 text-primary" />
