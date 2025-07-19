@@ -143,8 +143,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     const newHistory: AssistantMessage[] = [...history, { 
         role: 'user', 
         content: prompt,
-        mediaDataUri: mediaFile?.dataUri,
-        mediaType: mediaFile?.type
+        mediaDataUri: mediaFile?.dataUri || null,
+        mediaType: mediaFile?.type || null,
     }];
     setHistory(newHistory);
     setPrompt('');
@@ -156,8 +156,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       const assistantInput: AssistantInput = {
         history: newHistory.map(h => ({
             role: h.role,
-            // Hide IDs from prompt history to prevent echoing
-            content: h.content.replace(/ \(ID: [a-zA-Z0-9-]+\)/g, ''),
+            content: h.content,
         })),
         tasks: allTasks,
         role,
@@ -182,9 +181,14 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       const modelResponse: AssistantMessage = { role: 'model', content: result.response };
       
       if (isVoiceMode) {
-        const ttsResult = await textToSpeech({ text: result.response });
-        if (ttsResult.audioDataUri) {
-          playAudio(ttsResult.audioDataUri);
+        try {
+            const ttsResult = await textToSpeech({ text: result.response });
+            if (ttsResult.audioDataUri) {
+                playAudio(ttsResult.audioDataUri);
+            }
+        } catch (ttsError) {
+            console.error("Text-to-speech failed:", ttsError);
+            toast({ title: "Voice Error", description: "Could not generate audio response.", variant: "destructive"});
         }
       }
 

@@ -269,8 +269,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         const newHistory: AssistantMessage[] = [...history, { 
             role: 'user', 
             content: currentPrompt,
-            mediaDataUri: mediaFile?.dataUri,
-            mediaType: mediaFile?.type
+            mediaDataUri: mediaFile?.dataUri || null,
+            mediaType: mediaFile?.type || null,
         }];
         setHistory(newHistory);
         setPrompt('');
@@ -302,9 +302,14 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 const modelResponse: AssistantMessage = { role: 'model', content: modelContent };
                 
                 if (isVoiceMode) {
-                    const ttsResult = await textToSpeech({ text: result.response });
-                    setAudioResponseUri(ttsResult.audioDataUri);
-                    playAudio(ttsResult.audioDataUri);
+                    try {
+                        const ttsResult = await textToSpeech({ text: result.response });
+                        setAudioResponseUri(ttsResult.audioDataUri); // This state is temporary, not saved
+                        playAudio(ttsResult.audioDataUri);
+                    } catch (ttsError) {
+                        console.error("Text-to-speech failed:", ttsError);
+                        toast({ title: "Voice Error", description: "Could not generate audio response.", variant: "destructive"});
+                    }
                 }
                 
                 const updatedHistory = [...newHistory, modelResponse];
