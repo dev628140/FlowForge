@@ -5,7 +5,7 @@ import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon, X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -86,6 +86,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [isVoiceMode, setIsVoiceMode] = React.useState(false);
     const [mediaFile, setMediaFile] = React.useState<{ dataUri: string; type: string; name: string } | null>(null);
     const [isMediaUploaderOpen, setIsMediaUploaderOpen] = React.useState(false);
+    const [audioResponseUri, setAudioResponseUri] = React.useState<string | null>(null);
 
     // State for inputs
     const [taskToBreakdown, setTaskToBreakdown] = React.useState('');
@@ -278,10 +279,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         let currentChatId = activeChatId;
 
         try {
-            // Note: The AI Hub flows don't natively accept media. We are passing it
+            // The AI Hub flows don't natively accept media. We are passing it
             // here for consistency, but the underlying specialized flows (planner, breakdown, etc.)
-            // might not use it. The main 'runAssistant' flow is designed for it.
-            // For now, let's keep the structure simple.
+            // might not use it. We are passing it into the history.
             const result: PlannerOutput = await runAIFlow({
                 history: newHistory,
             });
@@ -303,6 +303,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 
                 if (isVoiceMode) {
                     const ttsResult = await textToSpeech({ text: result.response });
+                    setAudioResponseUri(ttsResult.audioDataUri);
                     playAudio(ttsResult.audioDataUri);
                 }
                 
