@@ -271,7 +271,7 @@ export default function TaskItem({
             )}
         </div>
       </div>
-      <div className={cn("flex items-center transition-opacity")}>
+      <div className={cn("flex items-center opacity-0 transition-opacity group-hover:opacity-100")}>
         <div className="flex flex-wrap w-[160px] justify-end">
           <div className="flex">
             {isDraggable && !task.completed && (
