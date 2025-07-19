@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Plus, GripVertical } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Plus, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -85,6 +85,7 @@ export default function DashboardPage() {
     handleAddTasks,
     handleDeleteTask,
     updateTask,
+    handleReorderTask
   } = useAppContext();
 
   const { toast } = useToast();
@@ -162,13 +163,13 @@ export default function DashboardPage() {
     });
   }
 
-  const todaysTasks = React.useMemo(() => tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate))), [tasks]);
+  const todaysTasks = React.useMemo(() => tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate))).sort((a,b) => (a.order || 0) - (b.order || 0)), [tasks]);
   
   const overdueTasks = tasks.filter(task => 
     !task.completed && 
     task.scheduledDate && 
     isBefore(parseISO(task.scheduledDate), startOfToday())
-  );
+  ).sort((a, b) => parseISO(a.scheduledDate!).getTime() - parseISO(b.scheduledDate!).getTime());
   
   const userRoles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
 
@@ -390,12 +391,13 @@ export default function DashboardPage() {
                     onToggle={handleToggleTask} 
                     onStartFocus={handleStartFocus} 
                     onUpdateTask={updateTask} 
+                    onReorder={handleReorderTask}
                     emptyMessage="No tasks for today. Add one to get started!" 
                 />
                 </CardContent>
             </Card>
 
-            <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
+             <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
             
             {overdueTasks.length > 0 && (
                 <Card className="border-destructive/50">
@@ -558,5 +560,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

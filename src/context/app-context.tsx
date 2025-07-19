@@ -259,11 +259,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user || !db) return;
   
     // Use the provided context list (the list the user is actually seeing)
-    const taskList = contextTasks;
+    const taskList = contextTasks.filter(t => !t.completed); // Only allow reordering of incomplete tasks
     const currentIndex = taskList.findIndex(t => t.id === taskId);
   
     if (currentIndex === -1) {
-      console.error("Task not found in the provided context list.");
+      console.error("Task not found in the provided context list or it is completed.");
       return;
     }
   
@@ -286,7 +286,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (t.id === taskToSwapWith.id) return { ...t, order: newOrderForSwapped };
       return t;
     });
-    setTasks(newGlobalTasks);
+    setTasks(newGlobalTasks.sort((a,b) => (a.order || 0) - (b.order || 0)));
   
     // Update in Firestore
     try {

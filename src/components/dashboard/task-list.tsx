@@ -10,22 +10,22 @@ interface TaskListProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onReorder?: (taskId: string, direction: 'up' | 'down', contextTasks: Task[]) => void;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;
 }
 
-export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
-  const sortedTasks = React.useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      if (a.completed && !b.completed) return 1;
-      if (!a.completed && b.completed) return -1;
-      return 0;
-    });
-  }, [tasks]);
+export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
+  
+  const handleReorder = (taskId: string, direction: 'up' | 'down') => {
+    if (onReorder) {
+      onReorder(taskId, direction, tasks);
+    }
+  };
 
-  const incompleteTasks = sortedTasks.filter(t => !t.completed);
-  const completedTasks = sortedTasks.filter(t => t.completed);
+  const incompleteTasks = tasks.filter(t => !t.completed);
+  const completedTasks = tasks.filter(t => t.completed);
 
   if (tasks.length === 0 && !isSubtaskList) {
     return (
@@ -37,13 +37,16 @@ export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, 
 
   return (
     <div className="space-y-1">
-      {incompleteTasks.map(task => (
+      {incompleteTasks.map((task, index) => (
         <TaskItem 
           key={task.id} 
           task={task} 
           onToggle={onToggle} 
           onStartFocus={onStartFocus}
           onUpdateTask={onUpdateTask}
+          onReorder={!isSubtaskList ? (taskId, direction) => handleReorder(taskId, direction) : undefined}
+          isFirst={index === 0}
+          isLast={index === incompleteTasks.length - 1}
           isSubtask={isSubtaskList}
           parentId={parentId}
         />
@@ -53,7 +56,7 @@ export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, 
         <div className="text-xs font-semibold text-muted-foreground pt-4 pb-2">COMPLETED</div>
       )}
 
-      {completedTasks.map(task => (
+      {completedTasks.map((task, index) => (
         <TaskItem 
           key={task.id} 
           task={task} 

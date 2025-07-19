@@ -11,13 +11,13 @@ import FocusMode from '@/components/dashboard/focus-mode';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { parseISO } from 'date-fns';
 
-type SortOption = 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
+type SortOption = 'order' | 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
 
 export default function AllTasksPage() {
-  const { tasks, handleToggleTask, updateTask } = useAppContext();
+  const { tasks, handleToggleTask, updateTask, handleReorderTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
-  const [sortBy, setSortBy] = React.useState<SortOption>('scheduledDate');
+  const [sortBy, setSortBy] = React.useState<SortOption>('order');
 
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -34,6 +34,8 @@ export default function AllTasksPage() {
     const sortableTasks = [...tasks];
     return sortableTasks.sort((a, b) => {
       switch (sortBy) {
+        case 'order':
+            return (a.order || 0) - (b.order || 0);
         case 'scheduledDate':
           if (a.scheduledDate && b.scheduledDate) {
             return parseISO(a.scheduledDate).getTime() - parseISO(b.scheduledDate).getTime();
@@ -41,10 +43,7 @@ export default function AllTasksPage() {
           if (a.scheduledDate) return -1; // a comes first
           if (b.scheduledDate) return 1;  // b comes first
           // if neither have a scheduled date, sort by creation
-          if (a.createdAt && b.createdAt) {
-            return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
-          }
-          return 0;
+          return (a.order || 0) - (b.order || 0);
         case 'createdAt-desc':
             if (a.createdAt && b.createdAt) {
                 return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
@@ -52,7 +51,7 @@ export default function AllTasksPage() {
             return 0;
         case 'createdAt-asc':
             if (a.createdAt && b.createdAt) {
-                return parseISO(a.createdAt).getTime() - parseISO(b.createdAt).getTime();
+                return parseISO(a.createdAt).getTime() - parseISO(a.createdAt).getTime();
             }
             return 0;
         case 'title':
@@ -75,10 +74,11 @@ export default function AllTasksPage() {
               <div className="flex items-center gap-2">
                 <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
                 <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort by..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="order">Custom Order</SelectItem>
                     <SelectItem value="scheduledDate">Scheduled Date</SelectItem>
                     <SelectItem value="createdAt-desc">Newest First</SelectItem>
                     <SelectItem value="createdAt-asc">Oldest First</SelectItem>
@@ -94,7 +94,7 @@ export default function AllTasksPage() {
                     <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks found." />
+                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} onReorder={handleReorderTask} emptyMessage="No tasks found." />
                 </CardContent>
             </Card>
         </div>
