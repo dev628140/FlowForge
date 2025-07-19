@@ -221,7 +221,7 @@ export default function DashboardPage() {
                               {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
                               </p>
                           </div>
-                          <div className={cn("flex items-center")}>
+                          <div className={cn("flex items-center opacity-0 transition-opacity group-hover:opacity-100")}>
                               <Button
                                   variant="ghost"
                                   size="icon"
