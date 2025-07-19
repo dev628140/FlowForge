@@ -5,7 +5,7 @@ import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon, X
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon, X, RefreshCcw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { useAppContext } from '@/context/app-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { type Mood, type UserRole, type Task, type AssistantMessage, type ChatSession } from '@/lib/types';
 import { Input } from '@/components/ui/input';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfToday, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -89,7 +89,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     // State for inputs
     const [suggestionRole, setSuggestionRole] = React.useState<UserRole>(userRole);
     const [suggestionMood, setSuggestionMood] = React.useState<Mood['label']>('Motivated');
-    
+    const [breakdownDate, setBreakdownDate] = React.useState<Date | undefined>(new Date());
+    const [selectedTaskToBreakdown, setSelectedTaskToBreakdown] = React.useState<string>('');
+
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
     
     const isNewChat = activeChatId === null;
@@ -169,16 +171,15 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         }
     }, [history, loading, currentPlan]);
 
-    const getInitialPrompt = () => {
+    const getInitialPrompt = (currentPrompt: string) => {
         switch (mode) {
             case 'planner':
-                return `My goal is: "${prompt}". Please create a detailed, step-by-step plan to achieve this.`;
-            case 'breakdown':
-                 return `My task is: "${prompt}". Please break this down into smaller, actionable sub-tasks.`;
+                return `My goal is: "${currentPrompt}". Please create a detailed, step-by-step plan to achieve this.`;
             case 'suggester':
-                return `My goal is: "${prompt}". My role is ${suggestionRole} and my mood is ${suggestionMood}. Give me some creative ideas or tasks to get started.`;
+                return `My goal is: "${currentPrompt}". My role is ${suggestionRole} and my mood is ${suggestionMood}. Give me some creative ideas or tasks to get started.`;
+            // Breakdown prompt is now handled by the regular chat submission
             default:
-                return prompt;
+                return currentPrompt;
         }
     };
     
@@ -187,9 +188,12 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         return prompt.trim() !== '' || !!mediaFile;
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!canSubmit()) return;
+    const handleSubmit = async (e?: React.FormEvent, customPrompt?: string) => {
+        if (e) e.preventDefault();
+        
+        const finalPrompt = customPrompt || prompt;
+
+        if ((!finalPrompt.trim() && !mediaFile)) return;
 
         if (isListening) stopListening();
         if (isPlaying) stopAudio();
@@ -198,7 +202,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         setCurrentPlan(null);
 
         const isFirstMessage = history.length === 0;
-        const currentPrompt = isFirstMessage ? getInitialPrompt() : prompt;
+        const currentPrompt = isFirstMessage ? getInitialPrompt(finalPrompt) : finalPrompt;
         
         const newHistory: AssistantMessage[] = [...history, { 
             role: 'user', 
@@ -213,16 +217,20 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         let currentChatId = activeChatId;
 
         try {
-            const assistantInput = {
+            const assistantInput: AssistantInput = {
                 history: newHistory.map(h => ({ role: h.role, content: h.content })),
-                historyWithMedia: newHistory,
                 tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
                 role: userRole,
                 date: format(new Date(), 'yyyy-MM-dd'),
                 chatSessionId: currentChatId,
             };
+
+            // Only include historyWithMedia if there's media
+            if (newHistory.some(h => h.mediaDataUri)) {
+                (assistantInput as any).historyWithMedia = newHistory;
+            }
             
-            const result = await runAssistant(assistantInput as any);
+            const result = await runAssistant(assistantInput);
             
             if (result) {
                 if (isNewChat && result.title) {
@@ -276,6 +284,21 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             if (isVoiceMode) {
                 setIsVoiceMode(false);
             }
+        }
+    };
+
+    const handleBreakdownSubmit = () => {
+        if (!selectedTaskToBreakdown) {
+            toast({
+                title: "No Task Selected",
+                description: "Please select a task from the list to break down.",
+                variant: "destructive"
+            });
+            return;
+        }
+        const task = tasks.find(t => t.id === selectedTaskToBreakdown);
+        if (task) {
+            handleSubmit(undefined, `Break down this task: "${task.title}"`);
         }
     };
     
@@ -400,8 +423,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             },
             breakdown: {
                 title: 'Task Breakdown',
-                description: "Describe a complex task, and I'll break it into smaller, actionable subtasks.",
-                placeholder: "e.g., Plan and launch a new marketing campaign for Q3.",
+                description: "Select a task to break into smaller steps, or start a new chat.",
+                placeholder: "Or ask me anything else...",
             },
             suggester: {
                 title: 'Smart Suggestions',
@@ -411,6 +434,58 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         };
 
         const currentTemplate = templates[mode];
+
+        if (mode === 'breakdown') {
+            const tasksForSelectedDate = tasks.filter(task => {
+              if (!breakdownDate) return true; // Show all if no date selected
+              if (!task.scheduledDate) return false;
+              return format(parseISO(task.scheduledDate), 'yyyy-MM-dd') === format(breakdownDate, 'yyyy-MM-dd');
+            });
+
+            return (
+                 <div className="p-4 bg-muted/30 rounded-lg border border-dashed h-full flex flex-col justify-center">
+                    <h3 className="text-center font-semibold">{currentTemplate.title}</h3>
+                    <p className="text-center text-sm text-muted-foreground mt-1 mb-4 max-w-sm mx-auto">{currentTemplate.description}</p>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn("justify-start text-left font-normal", !breakdownDate && "text-muted-foreground")}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {breakdownDate ? format(breakdownDate, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar mode="single" selected={breakdownDate} onSelect={setBreakdownDate} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                            <Select onValueChange={setSelectedTaskToBreakdown} value={selectedTaskToBreakdown}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a task..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {tasksForSelectedDate.length > 0 ? (
+                                        tasksForSelectedDate.map(task => <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>)
+                                    ) : (
+                                        <div className="p-4 text-center text-sm text-muted-foreground">No tasks for this day.</div>
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button className="w-full" onClick={handleBreakdownSubmit} disabled={!selectedTaskToBreakdown}>
+                            <ListChecks className="mr-2" /> Breakdown Selected Task
+                        </Button>
+                        <div className="relative text-center my-4">
+                            <span className="absolute left-0 top-1/2 w-full h-px bg-border"></span>
+                            <span className="relative bg-muted/30 px-2 text-xs text-muted-foreground">OR</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
              <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center items-center">
@@ -811,3 +886,5 @@ export default function AIAssistantPage() {
         </div>
     );
 }
+
+    
