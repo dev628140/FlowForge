@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff, Voicemail, Square } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -24,12 +24,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { textToSpeech } from '@/ai/flows/tts-flow';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import MediaUploader from './media-uploader';
+import Image from 'next/image';
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -58,6 +60,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const [history, setHistory] = React.useState<AssistantMessage[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
   const [isVoiceMode, setIsVoiceMode] = React.useState(false);
+  const [mediaFile, setMediaFile] = React.useState<{ dataUri: string; type: string; name: string } | null>(null);
+  const [isMediaUploaderOpen, setIsMediaUploaderOpen] = React.useState(false);
   
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -123,7 +127,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim() || isOffline) {
+    if ((!prompt.trim() && !mediaFile) || isOffline) {
       if (isOffline) toast({ title: 'You are offline', description: 'AI features are unavailable.', variant: 'destructive' });
       return;
     }
@@ -135,9 +139,15 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     setLoading(true);
     setAiPlan(null);
     
-    const newHistory: AssistantMessage[] = [...history, { role: 'user', content: prompt }];
+    const newHistory: AssistantMessage[] = [...history, { 
+        role: 'user', 
+        content: prompt,
+        mediaDataUri: mediaFile?.dataUri,
+        mediaType: mediaFile?.type
+    }];
     setHistory(newHistory);
     setPrompt('');
+    setMediaFile(null);
 
     let currentChatId = activeChatId;
 
@@ -148,6 +158,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
         role,
         date: format(new Date(), 'yyyy-MM-dd'),
         chatSessionId: currentChatId,
+        mediaDataUri: mediaFile?.dataUri,
+        mediaType: mediaFile?.type
       };
       
       const result = await runAssistant(assistantInput);
@@ -164,6 +176,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       
       const modelResponse: AssistantMessage = { role: 'model', content: result.response };
       
+      let audioDataUri: string | null = null;
       if (isVoiceMode) {
         const ttsResult = await textToSpeech({ text: result.response });
         if (ttsResult.audioDataUri) {
@@ -280,6 +293,11 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       startListening();
     }
   };
+
+  const handleMediaSelect = (file: { dataUri: string; type: string; name: string }) => {
+    setMediaFile(file);
+    setIsMediaUploaderOpen(false);
+  }
   
   const sortedSessions = React.useMemo(() => {
     return [...chatSessions].sort((a, b) => {
@@ -422,6 +440,15 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                               msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
                               msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
                           )}>
+                              {msg.mediaDataUri && msg.mediaType?.startsWith('image/') && (
+                                <Image src={msg.mediaDataUri} alt="User upload" width={200} height={200} className="rounded-md mb-2" />
+                              )}
+                              {msg.mediaDataUri && !msg.mediaType?.startsWith('image/') && (
+                                <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
+                                    <Paperclip className="h-4 w-4" />
+                                    <span className="text-xs truncate">Attached: {msg.mediaType}</span>
+                                </div>
+                              )}
                               {msg.content.replace(/^Error: /, '')}
                           </div>
                            {msg.role === 'user' && (
@@ -502,75 +529,110 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
               </div>
           )}
 
-          <form ref={formRef} onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0 pt-4">
-             <div className="relative w-full">
-                <Input
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
-                disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}
-                className={cn(isAvailable && "pr-20")}
-                />
-                 {isAvailable && (
-                    <div className="absolute top-1/2 right-1.5 -translate-y-1/2 flex items-center">
+            <form ref={formRef} onSubmit={handleSubmit} className="flex-shrink-0 pt-4">
+                {mediaFile && (
+                    <div className="flex items-center gap-2 p-2 mb-2 border rounded-md bg-muted/50 text-sm">
+                        {mediaFile.type.startsWith('image/') ? (
+                           <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                           <Paperclip className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="flex-1 truncate text-muted-foreground">{mediaFile.name}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setMediaFile(null)}>
+                            <X className="h-4 w-4"/>
+                        </Button>
+                    </div>
+                )}
+                <div className="flex items-center gap-2">
+                    <Dialog open={isMediaUploaderOpen} onOpenChange={setIsMediaUploaderOpen}>
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant={isListening && !isVoiceMode ? "destructive" : "ghost"}
-                                        className="h-7 w-7"
-                                        onClick={handleDictation}
-                                        disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && isVoiceMode)}
-                                    >
-                                        {isListening && !isVoiceMode ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Dictate Message</p></TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant={isVoiceMode ? "default" : "ghost"}
-                                        className="h-7 w-7"
-                                        onClick={handleVoiceMode}
-                                        disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && !isVoiceMode)}
-                                    >
-                                        <Voicemail className={cn("h-4 w-4", isListening && isVoiceMode && "animate-pulse")}/>
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>{isVoiceMode ? "Stop Voice Mode" : "Start Voice Mode"}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                             {isPlaying && (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7 text-destructive"
-                                            onClick={stopAudio}
-                                        >
-                                            <Square className="h-4 w-4"/>
+                                    <DialogTrigger asChild>
+                                        <Button type="button" variant="outline" size="icon" disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}>
+                                            <Paperclip className="h-5 w-5"/>
                                         </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Stop Speaking</p></TooltipContent>
-                                </Tooltip>
-                            )}
+                                    </DialogTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Attach File or Photo</p></TooltipContent>
+                            </Tooltip>
                         </TooltipProvider>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Attach Media</DialogTitle>
+                            </DialogHeader>
+                            <MediaUploader onMediaSelect={handleMediaSelect} />
+                        </DialogContent>
+                    </Dialog>
+                    <div className="relative w-full">
+                        <Input
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
+                        disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}
+                        className={cn(isAvailable && "pr-20")}
+                        />
+                        {isAvailable && (
+                            <div className="absolute top-1/2 right-1.5 -translate-y-1/2 flex items-center">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                variant={isListening && !isVoiceMode ? "destructive" : "ghost"}
+                                                className="h-7 w-7"
+                                                onClick={handleDictation}
+                                                disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && isVoiceMode)}
+                                            >
+                                                {isListening && !isVoiceMode ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Dictate Message</p></TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                variant={isVoiceMode ? "default" : "ghost"}
+                                                className="h-7 w-7"
+                                                onClick={handleVoiceMode}
+                                                disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && !isVoiceMode)}
+                                            >
+                                                <Voicemail className={cn("h-4 w-4", isListening && isVoiceMode && "animate-pulse")}/>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{isVoiceMode ? "Stop Voice Mode" : "Start Voice Mode"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    {isPlaying && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-7 w-7 text-destructive"
+                                                    onClick={stopAudio}
+                                                >
+                                                    <Square className="h-4 w-4"/>
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Stop Speaking</p></TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                </TooltipProvider>
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
-            <Button type="submit" disabled={loading || isOffline || !prompt.trim() || !!aiPlan || isListening || isPlaying}>
-              {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
-              <span className="sr-only">Send</span>
-            </Button>
-          </form>
+                    <Button type="submit" disabled={loading || isOffline || (!prompt.trim() && !mediaFile) || !!aiPlan || isListening || isPlaying}>
+                    {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
+                    <span className="sr-only">Send</span>
+                    </Button>
+                </div>
+            </form>
         </div>
       </CardContent>
     </Card>

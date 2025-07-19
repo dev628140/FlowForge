@@ -26,6 +26,8 @@ export interface Mood {
 export interface AssistantMessage {
     role: 'user' | 'model';
     content: string;
+    mediaDataUri?: string | null;
+    mediaType?: string | null;
 }
 
 // New type for Chat Sessions

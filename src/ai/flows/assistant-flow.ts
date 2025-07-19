@@ -31,6 +31,8 @@ const AssistantInputSchema = z.object({
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
   date: z.string().describe("The current date in YYYY-MM-DD format."),
   chatSessionId: z.string().optional().nullable().describe("The ID of the current chat session."),
+  mediaDataUri: z.string().optional().nullable().describe("A media file provided by the user, as a data URI that must include a MIME type and use Base64 encoding. Format: 'data:<mimetype>;base64,<encoded_data>'."),
+  mediaType: z.string().optional().nullable().describe("The MIME type of the provided media file (e.g., 'image/jpeg', 'application/pdf')."),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
@@ -100,6 +102,11 @@ const assistantPrompt = ai.definePrompt({
     Current Date: {{{date}}}
     User's Role: {{{role}}}
 
+    {{#if mediaDataUri}}
+    The user has provided a file with the MIME type "{{mediaType}}". Analyze it and use it as the primary context for responding to their prompt. For example, if it's an image, describe it. If it's a PDF, summarize it or answer questions about its content.
+    User-provided file: {{media url=mediaDataUri}}
+    {{/if}}
+
     You have the user's current task list and the conversation history for context. You MUST use the provided task IDs when a tool requires one, but you MUST NOT mention the IDs in your conversational responses to the user.
     
     CONVERSATION HISTORY:
@@ -134,7 +141,15 @@ const assistantFlow = ai.defineFlow(
     outputSchema: AssistantOutputSchema,
   },
   async (input) => {
-    const { output } = await assistantPrompt(input);
+    // Hide task IDs from the AI's direct view in the prompt history to prevent echoing them.
+    const historyWithoutIds = input.history.map(h => ({
+        ...h,
+        content: h.content.replace(/ \(ID: [a-zA-Z0-9-]+\)/g, ''),
+    }));
+
+    const sanitizedInput = { ...input, history: historyWithoutIds };
+
+    const { output } = await assistantPrompt(sanitizedInput);
     if (!output) {
       // This case handles content filtering or other generation errors.
       throw new Error("The AI was unable to generate a response. This may be due to content safety filters. Please try rephrasing your request.");
