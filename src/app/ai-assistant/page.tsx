@@ -172,7 +172,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     };
     
     const canSubmit = () => {
-        if (loading || currentPlan) return false;
+        if (loading) return false;
         if (history.length > 0) return prompt.trim() !== '';
         
         switch (mode) {
@@ -540,7 +540,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             placeholder="Need changes? Type here..."
-                            disabled={loading || !!currentPlan}
+                            disabled={loading}
                             autoFocus
                         />
                     )}
