@@ -92,7 +92,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [suggestionMood, setSuggestionMood] = React.useState<Mood['label']>('Motivated');
     const [breakdownDate, setBreakdownDate] = React.useState<Date | undefined>(new Date());
     const [selectedTaskToBreakdown, setSelectedTaskToBreakdown] = React.useState<string>('');
-    const [audioResponse, setAudioResponse] = React.useState<string | null>(null);
 
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
     
@@ -224,29 +223,27 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             let result;
             let title = 'New Chat'; // Default title
 
-            const plannerInput: PlannerInput = {
-                history: newHistory.map(h => ({ role: h.role, content: h.content })),
-            };
-
-            const assistantInput: AssistantInput = {
-                history: newHistory.map(h => ({ role: h.role, content: h.content })),
-                tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
-                role: userRole,
-                date: format(new Date(), 'yyyy-MM-dd'),
-                chatSessionId: currentChatId,
-            };
-            
-            if (newHistory.some(h => h.mediaDataUri)) {
-                (assistantInput as any).historyWithMedia = newHistory;
-            }
-
             // Route to the correct flow based on the mode
             if (mode === 'breakdown') {
+                const plannerInput: PlannerInput = {
+                    history: newHistory.map(h => ({ role: h.role, content: h.content })),
+                };
                 result = await runPlanner(plannerInput);
                 if (isNewChat) {
                     title = `Breakdown: ${finalPrompt.substring(0, 30)}...`;
                 }
             } else {
+                 const assistantInput: AssistantInput = {
+                    history: newHistory.map(h => ({ role: h.role, content: h.content })),
+                    tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
+                    role: userRole,
+                    date: format(new Date(), 'yyyy-MM-dd'),
+                    chatSessionId: currentChatId,
+                };
+                
+                if (newHistory.some(h => h.mediaDataUri)) {
+                    (assistantInput as any).historyWithMedia = newHistory;
+                }
                 result = await runAssistant(assistantInput);
                 if (result.title) {
                     title = result.title;
@@ -266,7 +263,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         const ttsResult = await textToSpeech({ text: result.response });
                         if(ttsResult.audioDataUri) {
                             playAudio(ttsResult.audioDataUri);
-                            setAudioResponse(ttsResult.audioDataUri); // Store for potential re-play
                         }
                     } catch (ttsError) {
                         console.error("Text-to-speech failed:", ttsError);
@@ -523,6 +519,41 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                             <span className="absolute left-0 top-1/2 w-full h-px bg-border"></span>
                             <span className="relative bg-muted/30 px-2 text-xs text-muted-foreground">OR</span>
                         </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (mode === 'suggester') {
+            return (
+                <div className="p-4 bg-muted/30 rounded-lg border border-dashed h-full flex flex-col justify-center">
+                    {currentTemplate.icon}
+                    <h3 className="text-center font-semibold">{currentTemplate.title}</h3>
+                    <p className="text-center text-sm text-muted-foreground mt-1 mb-4 max-w-sm mx-auto">{currentTemplate.description}</p>
+                     <div className="max-w-md w-full mx-auto space-y-4">
+                        <Select onValueChange={(role: UserRole) => setSuggestionRole(role)} defaultValue={suggestionRole}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select your role..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {userRoles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select onValueChange={(mood: Mood['label']) => setSuggestionMood(mood)} defaultValue={suggestionMood}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="How are you feeling?" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {moods.map(mood => (
+                                    <SelectItem key={mood.label} value={mood.label}>
+                                        <span className="mr-2">{mood.emoji}</span> {mood.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-center text-xs text-muted-foreground pt-2">
+                            Now, describe your goal in the chat box below to get started.
+                        </p>
                     </div>
                 </div>
             );
@@ -929,3 +960,5 @@ export default function AIAssistantPage() {
         </div>
     );
 }
+
+    
