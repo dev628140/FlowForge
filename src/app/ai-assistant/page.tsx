@@ -158,6 +158,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
           if (activeSession) {
             setHistory(activeSession.history);
           } else {
+            // This can happen if a chat is deleted from another client.
+            // Reset to a new chat state.
+            setActiveChatId(null);
             setHistory([]);
           }
         } else {
@@ -202,7 +205,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         if (isPlaying) stopAudio();
 
         setLoading(true);
-        setCurrentPlan(null);
+setCurrentPlan(null);
 
         const isFirstMessage = history.length === 0;
         const currentPrompt = isFirstMessage ? getInitialPrompt(finalPrompt) : finalPrompt;
@@ -224,13 +227,13 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             let title = 'New Chat'; // Default title
 
             // Route to the correct flow based on the mode
-            if (mode === 'breakdown') {
+            if (mode === 'breakdown' || mode === 'planner' || mode === 'suggester') {
                 const plannerInput: PlannerInput = {
                     history: newHistory.map(h => ({ role: h.role, content: h.content })),
                 };
                 result = await runPlanner(plannerInput);
                 if (isNewChat) {
-                    title = `Breakdown: ${finalPrompt.substring(0, 30)}...`;
+                    title = `${mode.charAt(0).toUpperCase() + mode.slice(1)}: ${finalPrompt.substring(0, 25)}...`;
                 }
             } else {
                  const assistantInput: AssistantInput = {
