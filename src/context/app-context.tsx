@@ -2,12 +2,14 @@
 'use client';
 
 import * as React from 'react';
-import type { Task } from '@/lib/types';
+import type { Task, ChatSession, AssistantMessage } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, deleteDoc, setDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { generateChatTitle } from '@/ai/flows/generate-chat-title-flow';
+import { type GenerateChatTitleInput } from '@/lib/types/conversational-agent';
 
 interface AppContextType {
   tasks: Task[];
@@ -19,6 +21,12 @@ interface AppContextType {
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   handleReorderTask: (taskId: string, direction: 'up' | 'down', contextTasks: Task[]) => Promise<void>;
+  
+  // Chat Session Management
+  chatSessions: ChatSession[];
+  createChatSession: (history: AssistantMessage[]) => Promise<string>;
+  updateChatSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
+  deleteChatSession: (sessionId: string) => Promise<void>;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -29,6 +37,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [showConfetti, setShowConfetti] = React.useState(false);
+  const [chatSessions, setChatSessions] = React.useState<ChatSession[]>([]);
   
   // Listen for task changes in Firestore
   React.useEffect(() => {
@@ -76,6 +85,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTasks([]);
     }
   }, [user, toast]);
+  
+  // Listen for chat session changes in Firestore
+  React.useEffect(() => {
+    if (user && db) {
+      const q = query(
+        collection(db, "chatSessions"),
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc")
+      );
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const sessions: ChatSession[] = [];
+        querySnapshot.forEach((doc) => {
+          sessions.push({ id: doc.id, ...doc.data() } as ChatSession);
+        });
+        setChatSessions(sessions);
+      }, (error) => {
+        console.error("Error listening to chat sessions:", error);
+        toast({ title: "Error", description: "Could not fetch chat history.", variant: "destructive" });
+      });
+
+      return () => unsubscribe();
+    } else {
+      setChatSessions([]);
+    }
+  }, [user, toast]);
+
 
   const handleToggleTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
@@ -303,6 +339,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTasks(tasks); 
     }
   };
+  
+  // Chat Session CRUD
+  const createChatSession = async (history: AssistantMessage[]): Promise<string> => {
+      if (!user || !db) throw new Error("User not authenticated.");
+      const sessionId = uuidv4();
+      const sessionRef = doc(db, 'chatSessions', sessionId);
+
+      try {
+        const { title } = await generateChatTitle({ history: history as GenerateChatTitleInput['history'] });
+
+        const newSession: ChatSession = {
+          id: sessionId,
+          userId: user.uid,
+          title: title || 'New Chat',
+          createdAt: new Date().toISOString(),
+          history: history,
+          pinned: false,
+        };
+        await setDoc(sessionRef, newSession);
+        return sessionId;
+      } catch (error) {
+        console.error("Error creating chat session and generating title:", error);
+        // Fallback to a default title if AI fails
+        const newSession: ChatSession = {
+          id: sessionId,
+          userId: user.uid,
+          title: 'New Chat',
+          createdAt: new Date().toISOString(),
+          history: history,
+          pinned: false,
+        };
+        await setDoc(sessionRef, newSession);
+        return sessionId;
+      }
+  };
+
+  const updateChatSession = async (sessionId: string, updates: Partial<ChatSession>) => {
+      if (!user || !db) return;
+      const sessionRef = doc(db, 'chatSessions', sessionId);
+      await updateDoc(sessionRef, updates);
+  };
+
+  const deleteChatSession = async (sessionId: string) => {
+      if (!user || !db) return;
+      const sessionRef = doc(db, 'chatSessions', sessionId);
+      await deleteDoc(sessionRef);
+  };
+
 
   return (
     <AppContext.Provider value={{
@@ -313,7 +397,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleAddSubtasks,
       handleDeleteTask,
       updateTask,
-      handleReorderTask
+      handleReorderTask,
+      // Chat
+      chatSessions,
+      createChatSession,
+      updateChatSession,
+      deleteChatSession,
     }}>
       {children}
     </AppContext.Provider>

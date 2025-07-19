@@ -20,3 +20,19 @@ export interface Mood {
   emoji: string;
   label: MoodLabel;
 }
+
+// New type for AI Assistant Messages
+export interface AssistantMessage {
+    role: 'user' | 'model';
+    content: string;
+}
+
+// New type for Chat Sessions
+export interface ChatSession {
+    id: string;
+    userId: string;
+    title: string;
+    createdAt: string; // ISO 8601 timestamp
+    history: AssistantMessage[];
+    pinned: boolean;
+}

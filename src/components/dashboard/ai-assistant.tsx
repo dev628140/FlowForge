@@ -2,32 +2,49 @@
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
 import { useOfflineStatus } from '@/hooks/use-offline-status';
-import type { Task, UserRole } from '@/lib/types';
+import type { Task, UserRole, AssistantMessage, ChatSession } from '@/lib/types';
 import { runAssistant, type AssistantOutput } from '@/ai/flows/assistant-flow';
 import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
+import { Separator } from '../ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface AIAssistantProps {
   allTasks: Task[];
   role: UserRole;
 }
 
-interface Message {
-    role: 'user' | 'model';
-    content: string;
-}
-
 export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
-  const { handleAddTasks, updateTask, handleDeleteTask, handleAddSubtasks } = useAppContext();
+  const { 
+    handleAddTasks, 
+    updateTask, 
+    handleDeleteTask, 
+    handleAddSubtasks,
+    chatSessions,
+    createChatSession,
+    updateChatSession,
+    deleteChatSession,
+  } = useAppContext();
+  
   const { toast } = useToast();
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -35,15 +52,50 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const [aiPlan, setAiPlan] = React.useState<AssistantOutput | null>(null);
   const isOffline = useOfflineStatus();
   
-  const [history, setHistory] = React.useState<Message[]>([]);
+  const [activeChatId, setActiveChatId] = React.useState<string | null>(null);
+  const [history, setHistory] = React.useState<AssistantMessage[]>([]);
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+  const isNewChat = activeChatId === null;
 
+  // Effect to load a chat session's history when it becomes active
+  React.useEffect(() => {
+    if (activeChatId) {
+      const activeSession = chatSessions.find(s => s.id === activeChatId);
+      setHistory(activeSession ? activeSession.history : []);
+    } else {
+      setHistory([]);
+    }
+    setAiPlan(null); // Clear any pending plans when switching chats
+    setError(null);
+  }, [activeChatId, chatSessions]);
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
         scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [history, aiPlan]);
+  }, [history, aiPlan, loading]);
+
+  const handleNewChat = () => {
+    setActiveChatId(null);
+  };
+
+  const handleSelectChat = (sessionId: string) => {
+    setActiveChatId(sessionId);
+  };
+
+  const handleTogglePin = async (session: ChatSession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await updateChatSession(session.id, { pinned: !session.pinned });
+  };
+  
+  const handleDeleteChat = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await deleteChatSession(sessionId);
+    if (activeChatId === sessionId) {
+      handleNewChat();
+    }
+     toast({ title: 'Chat Deleted', description: 'The conversation has been removed.' });
+  };
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,23 +109,41 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     setError(null);
     setAiPlan(null);
     
-    const newHistory: Message[] = [...history, { role: 'user', content: prompt }];
+    const newHistory: AssistantMessage[] = [...history, { role: 'user', content: prompt }];
     setHistory(newHistory);
+    const currentPrompt = prompt;
     setPrompt('');
 
+    let currentChatId = activeChatId;
+
     try {
+      // If it's a new chat, create it first to get an ID
+      if (isNewChat) {
+         // Create a temporary session to get a title
+        currentChatId = await createChatSession(newHistory);
+        setActiveChatId(currentChatId);
+      }
+      
       const result = await runAssistant({
         history: newHistory,
         tasks: allTasks,
         role,
         date: format(new Date(), 'yyyy-MM-dd'),
+        chatSessionId: currentChatId,
       });
 
       if (!result) {
         throw new Error("I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?");
       }
       
-      setHistory(prev => [...prev, { role: 'model', content: result.response }]);
+      const updatedHistory = [...newHistory, { role: 'model', content: result.response }];
+      setHistory(updatedHistory);
+      
+      // Update the session in Firestore
+      if(currentChatId) {
+          await updateChatSession(currentChatId, { history: updatedHistory });
+      }
+
 
       const hasActions = (result.tasksToAdd && result.tasksToAdd.length > 0) ||
                          (result.tasksToUpdate && result.tasksToUpdate.length > 0) ||
@@ -87,8 +157,11 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     } catch (err: any) {
       console.error('Error in AI Assistant:', err);
       const errorMessage = err.message || "I'm sorry, something went wrong. Please try again.";
-      setError(errorMessage);
-      setHistory(prev => [...prev, { role: 'model', content: `Error: ${errorMessage}` }]);
+      const errorHistory = [...newHistory, { role: 'model', content: `Error: ${errorMessage}` }];
+      setHistory(errorHistory);
+      if (currentChatId) {
+        await updateChatSession(currentChatId, { history: errorHistory });
+      }
     } finally {
       setLoading(false);
     }
@@ -121,6 +194,13 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       
       await Promise.all(promises);
       
+      const planAppliedHistory = [...history, { role: 'model', content: "I've applied the plan to your tasks." }];
+      setHistory(planAppliedHistory);
+
+      if (activeChatId) {
+          await updateChatSession(activeChatId, { history: planAppliedHistory });
+      }
+
       toast({
         title: 'Plan Applied!',
         description: 'Your tasks have been updated successfully.',
@@ -131,17 +211,24 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
        toast({ title: "Error Applying Plan", description: "Could not apply all parts of the AI plan. Please check your tasks.", variant: "destructive" });
     } finally {
         setAiPlan(null);
-        setHistory([]); // Clear conversation on success
         setLoading(false);
     }
   };
 
   const handleDiscardPlan = () => {
     setAiPlan(null);
-    setHistory([]); // Clear conversation on discard
-    setError(null);
-    setPrompt('');
+    setHistory(prev => [...prev, {role: 'model', content: "Okay, I've discarded that plan."}]);
+    if (activeChatId) {
+        updateChatSession(activeChatId, { history: history });
+    }
   }
+  
+  const sortedSessions = React.useMemo(() => {
+    return [...chatSessions].sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [chatSessions]);
 
   const PlanSection: React.FC<{title: string; icon: React.ReactNode; className: string; children: React.ReactNode}> = ({ title, icon, className, children }) => (
     <div>
@@ -155,126 +242,182 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   );
 
   return (
-    <Card className="flex flex-col h-[480px]">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Wand2 className="w-6 h-6 text-primary" />
-          FlowForge Assistant
-        </CardTitle>
-        <CardDescription>
-          Your conversational AI partner. Start by typing a command or question below.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
-        <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
-            <div className="space-y-4">
-                {history.map((msg, index) => (
-                    <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                        {msg.role === 'model' && (
-                            <div className="bg-primary/10 text-primary rounded-full p-2">
-                                <Bot className="w-5 h-5" />
+    <Card className="flex flex-row h-[480px]">
+      {/* Chat History Sidebar */}
+      <div className="w-1/3 min-w-[200px] max-w-[300px] border-r flex flex-col">
+        <div className="p-2 border-b">
+            <Button variant="outline" className="w-full" onClick={handleNewChat}>
+                <PlusCircle className="mr-2 h-4 w-4" /> New Chat
+            </Button>
+        </div>
+        <ScrollArea className="flex-grow">
+            <div className="space-y-1 p-2">
+                {sortedSessions.map(session => (
+                    <div key={session.id} className="relative group">
+                        <Button
+                            variant={activeChatId === session.id ? 'secondary' : 'ghost'}
+                            className="w-full justify-start text-left h-auto py-2"
+                            onClick={() => handleSelectChat(session.id)}
+                        >
+                            <div className="flex-1 truncate pr-10">
+                                <p className="font-medium text-sm truncate">{session.title}</p>
+                                <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
                             </div>
-                        )}
-                        <div className={cn(
-                            "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap", 
-                            msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
-                            msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
-                        )}>
-                            {msg.content.replace(/^Error: /, '')}
+                            {session.pinned && <Pin className="absolute right-10 top-1/2 -translate-y-1/2 w-3 h-3 text-primary" />}
+                        </Button>
+                        <div className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleTogglePin(session, e)}>
+                                {session.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete "{session.title}".
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
-                         {msg.role === 'user' && (
-                            <div className="bg-muted text-foreground rounded-full p-2">
-                                <User className="w-5 h-5" />
-                            </div>
-                        )}
                     </div>
                 ))}
-                {loading && (
-                    <div className="flex items-start gap-3 justify-start">
-                         <div className="bg-primary/10 text-primary rounded-full p-2">
-                            <Bot className="w-5 h-5" />
-                        </div>
-                        <div className="p-3 rounded-2xl bg-muted rounded-bl-none flex items-center gap-2">
-                            <Loader2 className="animate-spin w-4 h-4" />
-                            <span>Thinking...</span>
-                        </div>
-                    </div>
-                )}
             </div>
         </ScrollArea>
-        
-        {aiPlan && (
-            <div className="p-4 border rounded-md space-y-4 bg-muted/30 flex-shrink-0">
-                <div>
-                  <h4 className="font-semibold mb-2">Here's the plan I've generated:</h4>
-                </div>
+      </div>
 
-                <div className="space-y-4 text-sm max-h-[150px] overflow-y-auto pr-2">
-                    {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
-                        <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
-                           {aiPlan.tasksToAdd.map((t, i) => (
-                                <li key={`add-${i}`}>
-                                    {t.title}
-                                    {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
-                                </li>
-                            ))}
-                        </PlanSection>
-                    )}
-                     {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
-                        <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
-                           {aiPlan.subtasksToAdd.map((item, i) => (
-                                <li key={`subtask-${i}`}>
-                                   To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
-                                </li>
-                            ))}
-                        </PlanSection>
-                    )}
-                     {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
-                        <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
-                            {aiPlan.tasksToUpdate.map((t, i) => {
-                                const originalTask = allTasks.find(task => task.id === t.taskId);
-                                const updates = Object.entries(t.updates)
-                                    .map(([key, value]) => {
-                                        if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
-                                        return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
-                                    })
-                                    .join(', ');
-                                return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
-                            })}
-                        </PlanSection>
-                    )}
-                     {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
-                        <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
-                            {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
-                        </PlanSection>
-                    )}
-                </div>
+      {/* Main Chat Area */}
+      <div className="w-2/3 flex flex-col">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wand2 className="w-6 h-6 text-primary" />
+            FlowForge Assistant
+          </CardTitle>
+          <CardDescription>
+            {isNewChat ? "Start a new conversation by typing below." : "Continuing your conversation."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
+          <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
+              <div className="space-y-4">
+                  {history.map((msg, index) => (
+                      <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                          {msg.role === 'model' && (
+                              <div className="bg-primary/10 text-primary rounded-full p-2">
+                                  <Bot className="w-5 h-5" />
+                              </div>
+                          )}
+                          <div className={cn(
+                              "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap", 
+                              msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
+                              msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
+                          )}>
+                              {msg.content.replace(/^Error: /, '')}
+                          </div>
+                           {msg.role === 'user' && (
+                              <div className="bg-muted text-foreground rounded-full p-2">
+                                  <User className="w-5 h-5" />
+                              </div>
+                          )}
+                      </div>
+                  ))}
+                  {loading && !aiPlan && (
+                      <div className="flex items-start gap-3 justify-start">
+                           <div className="bg-primary/10 text-primary rounded-full p-2">
+                              <Bot className="w-5 h-5" />
+                          </div>
+                          <div className="p-3 rounded-2xl bg-muted rounded-bl-none flex items-center gap-2">
+                              <Loader2 className="animate-spin w-4 h-4" />
+                              <span>Thinking...</span>
+                          </div>
+                      </div>
+                  )}
+              </div>
+          </ScrollArea>
+          
+          {aiPlan && (
+              <div className="p-4 border rounded-md space-y-4 bg-muted/30 flex-shrink-0">
+                  <div>
+                    <h4 className="font-semibold mb-2">Here's the plan I've generated:</h4>
+                  </div>
 
-                <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2"/> Discard</Button>
-                    <Button onClick={handleApplyPlan} disabled={loading}>
-                        {loading && <Loader2 className="animate-spin mr-2"/>}
-                        <Check className="mr-2"/> Apply Plan
-                    </Button>
-                </div>
-            </div>
-        )}
+                  <div className="space-y-4 text-sm max-h-[150px] overflow-y-auto pr-2">
+                      {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
+                          <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
+                             {aiPlan.tasksToAdd.map((t, i) => (
+                                  <li key={`add-${i}`}>
+                                      {t.title}
+                                      {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
+                                  </li>
+                              ))}
+                          </PlanSection>
+                      )}
+                       {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
+                          <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
+                             {aiPlan.subtasksToAdd.map((item, i) => (
+                                  <li key={`subtask-${i}`}>
+                                     To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
+                                  </li>
+                              ))}
+                          </PlanSection>
+                      )}
+                       {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
+                          <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
+                              {aiPlan.tasksToUpdate.map((t, i) => {
+                                  const originalTask = allTasks.find(task => task.id === t.taskId);
+                                  const updates = Object.entries(t.updates)
+                                      .map(([key, value]) => {
+                                          if (value === null) return null;
+                                          if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
+                                          return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
+                                      })
+                                      .filter(Boolean)
+                                      .join(', ');
+                                  return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
+                              })}
+                          </PlanSection>
+                      )}
+                       {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
+                          <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
+                              {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
+                          </PlanSection>
+                      )}
+                  </div>
 
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0">
-          <Input
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
-            disabled={loading || isOffline || !!aiPlan}
-            autoFocus
-          />
-          <Button type="submit" disabled={loading || isOffline || !prompt.trim() || !!aiPlan}>
-            {loading ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
-            <span className="sr-only">Send</span>
-          </Button>
-        </form>
+                  <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2"/> Discard</Button>
+                      <Button onClick={handleApplyPlan} disabled={loading}>
+                          {loading && <Loader2 className="animate-spin mr-2"/>}
+                          <Check className="mr-2"/> Apply Plan
+                      </Button>
+                  </div>
+              </div>
+          )}
 
-      </CardContent>
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0 p-4 pt-0">
+            <Input
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
+              disabled={loading || isOffline || !!aiPlan}
+              autoFocus
+            />
+            <Button type="submit" disabled={loading || isOffline || !prompt.trim() || !!aiPlan}>
+              {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
+              <span className="sr-only">Send</span>
+            </Button>
+          </form>
+        </CardContent>
+      </div>
     </Card>
   );
 }

@@ -9,7 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import {
     breakdownTaskTool,
     generateLearningPlanTool,
@@ -30,6 +30,7 @@ const AssistantInputSchema = z.object({
   tasks: z.array(z.any()).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status."),
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
   date: z.string().describe("The current date in YYYY-MM-DD format."),
+  chatSessionId: z.string().optional().describe("The ID of the current chat session."),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
