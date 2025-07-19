@@ -527,9 +527,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 </ScrollArea>
             
                 {currentPlan && currentPlan.length > 0 && (
-                    <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex-shrink-0">
-                    <h4 className="font-semibold">Suggested Plan:</h4>
-                    <ScrollArea className="max-h-[150px] pr-4">
+                    <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex-shrink-0 flex flex-col">
+                        <h4 className="font-semibold">Suggested Plan:</h4>
+                        <ScrollArea className="max-h-[150px] pr-4">
                             <ul className="space-y-2 list-disc pl-5 text-sm">
                                 {currentPlan.map((task, i) => (
                                     <li key={i}>
@@ -538,10 +538,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                     </li>
                                 ))}
                             </ul>
-                    </ScrollArea>
-                    <Button size="sm" className="w-full" onClick={handleFinalize} disabled={loading}>
-                        <PlusCircle className="mr-2"/> Finalize & Add to Tasks
-                    </Button>
+                        </ScrollArea>
+                        <Button size="sm" className="w-full mt-auto" onClick={handleFinalize} disabled={loading}>
+                            <PlusCircle className="mr-2"/> Finalize & Add to Tasks
+                        </Button>
                     </div>
                 )}
                 
