@@ -115,14 +115,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
-             <SidebarMenuItem>
-              <Link href="/all-tasks">
-                <SidebarMenuButton isActive={pathname === '/all-tasks'}>
-                  <ListTodo />
-                  <span>All Tasks</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/schedule">
                 <SidebarMenuButton isActive={pathname === '/schedule'}>
