@@ -290,7 +290,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                               </div>
                               {session.pinned && <Pin className="absolute right-10 top-1/2 -translate-y-1/2 w-3 h-3 text-primary" />}
                           </Button>
-                          <div className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleTogglePin(session, e)}>
                                   {session.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                               </Button>
