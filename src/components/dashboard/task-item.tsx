@@ -271,16 +271,9 @@ export default function TaskItem({
             )}
         </div>
       </div>
-      <div className={cn("flex items-center transition-opacity opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
+      <div className={cn("flex items-center transition-opacity")}>
         <div className="flex flex-wrap w-[120px] justify-end">
-            {hasSubtasks && (
-            <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10" aria-label="Toggle subtasks">
-                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:-rotate-180" />
-                </Button>
-            </CollapsibleTrigger>
-            )}
-            
+          <div className="flex">
             {isDraggable && !task.completed && (
                 <TooltipProvider>
                 <div className="flex items-center">
@@ -328,6 +321,15 @@ export default function TaskItem({
             </Tooltip>
             </TooltipProvider>
 
+            {hasSubtasks && (
+            <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-10 h-10" aria-label="Toggle subtasks">
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:-rotate-180" />
+                </Button>
+            </CollapsibleTrigger>
+            )}
+          </div>
+          <div className="flex">
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <TooltipProvider>
                 <Tooltip>
@@ -554,6 +556,7 @@ export default function TaskItem({
                 </AlertDialogFooter>
             </AlertDialogContent>
             </AlertDialog>
+          </div>
         </div>
       </div>
     </div>
