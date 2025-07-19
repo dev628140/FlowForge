@@ -1,5 +1,8 @@
 import type {NextConfig} from 'next';
 import dotenv from 'dotenv';
+const withPWA = require("@ducanh2912/next-pwa").default({
+  dest: "public",
+});
 
 dotenv.config({ path: './.env' });
 
@@ -31,4 +34,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
