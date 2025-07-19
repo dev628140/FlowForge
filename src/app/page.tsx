@@ -58,6 +58,7 @@ import { Badge } from '@/components/ui/badge';
 import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-card';
 import { Label } from '@/components/ui/label';
 import AIAssistant from '@/components/dashboard/ai-assistant';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -189,7 +190,6 @@ export default function DashboardPage() {
         </div>
         
         <div className="space-y-6">
-          {/* Top Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <DailyProgressBar tasks={todaysTasks} />
             <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
@@ -264,10 +264,9 @@ export default function DashboardPage() {
               </Card>
           )}
 
-           {/* Bottom Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-             <Card>
-                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+             <Card className="flex flex-col h-[550px]">
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 flex-shrink-0">
                 <div>
                     <CardTitle className="flex items-center gap-2">
                     <CalendarIcon className="w-6 h-6" />
@@ -444,16 +443,18 @@ export default function DashboardPage() {
                     </Dialog>
                 </div>
                 </CardHeader>
-                <CardContent>
-                <TaskList
-                    tasks={todaysTasks}
-                    onToggle={handleToggleTask} 
-                    onStartFocus={handleStartFocus} 
-                    onUpdateTask={updateTask} 
-                    onMove={(taskId, direction) => handleMoveTask(taskId, direction, todaysTasks)}
-                    listId="today"
-                    emptyMessage="No tasks for today. Add one to get started!" 
-                />
+                <CardContent className="flex-grow overflow-hidden">
+                  <ScrollArea className="h-full">
+                    <TaskList
+                        tasks={todaysTasks}
+                        onToggle={handleToggleTask} 
+                        onStartFocus={handleStartFocus} 
+                        onUpdateTask={updateTask} 
+                        onMove={(taskId, direction) => handleMoveTask(taskId, direction, todaysTasks)}
+                        listId="today"
+                        emptyMessage="No tasks for today. Add one to get started!" 
+                    />
+                  </ScrollArea>
                 </CardContent>
             </Card>
             <AIAssistant allTasks={tasks} role={userRole} />

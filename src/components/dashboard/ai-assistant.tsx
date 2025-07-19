@@ -330,7 +330,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   );
 
   return (
-    <Card className="flex flex-col h-[550px] overflow-hidden">
+    <Card className="flex flex-col h-full">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="flex items-center gap-2">
           <Wand2 className="w-6 h-6 text-primary" />
