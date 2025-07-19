@@ -246,13 +246,13 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   );
 
   return (
-    <Card className="flex flex-col md:flex-row h-auto md:h-[480px]">
+    <Card className="flex flex-col md:flex-row h-auto md:h-[480px] overflow-hidden">
        {/* Chat History Sidebar */}
        <div className={cn(
         "border-b md:border-b-0 md:border-r flex flex-col transition-all duration-300",
-        isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-1/3 md:min-w-[200px] md:max-w-[300px]'
+        isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-1/3 lg:w-1/4'
       )}>
-        <div className="p-2 border-b flex items-center justify-between">
+        <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
            {!isSidebarCollapsed && (
             <Button variant="outline" className="w-full mr-2" onClick={handleNewChat}>
                 <MessageSquarePlus className="mr-2 h-4 w-4" /> New Chat
@@ -342,7 +342,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
             {isNewChat ? "Your AI companion for seamless task and goal management." : "Continuing your conversation."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden h-[300px] md:h-auto">
+        <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden h-[300px] md:h-auto p-2 sm:p-6">
           <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
               <div className="space-y-4">
                   {history.length === 0 && !loading && (
@@ -350,7 +350,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                         <Sparkles className="mx-auto h-8 w-8 text-primary/50 mb-2" />
                         <h3 className="font-semibold">I'm ready to help!</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Manage tasks, create plans, get summaries, and more. Just tell me what you need.
+                            You can ask me anything to do for you from managing,creating,deleting to anything you can think or about you tasks,goals,etc...I can do it for you seamlessly
                         </p>
                         <p className="text-xs text-muted-foreground/80 mt-4">
                             Try: "Add a task to read a book tomorrow at 8pm"
@@ -361,19 +361,19 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                   {history.map((msg, index) => (
                       <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                           {msg.role === 'model' && (
-                              <div className="bg-primary/10 text-primary rounded-full p-2">
+                              <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
                                   <Bot className="w-5 h-5" />
                               </div>
                           )}
                           <div className={cn(
-                              "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap", 
+                              "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap text-sm sm:text-base", 
                               msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
                               msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
                           )}>
                               {msg.content.replace(/^Error: /, '')}
                           </div>
                            {msg.role === 'user' && (
-                              <div className="bg-muted text-foreground rounded-full p-2">
+                              <div className="bg-muted text-foreground rounded-full p-2 flex-shrink-0">
                                   <User className="w-5 h-5" />
                               </div>
                           )}
@@ -381,7 +381,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                   ))}
                   {loading && !aiPlan && (
                       <div className="flex items-start gap-3 justify-start">
-                           <div className="bg-primary/10 text-primary rounded-full p-2">
+                           <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
                               <Bot className="w-5 h-5" />
                           </div>
                           <div className="p-3 rounded-2xl bg-muted rounded-bl-none flex items-center gap-2">
@@ -399,7 +399,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                     <h4 className="font-semibold mb-2">Here's the plan I've generated:</h4>
                   </div>
 
-                  <div className="space-y-4 text-sm max-h-[150px] overflow-y-auto pr-2">
+                  <ScrollArea className="space-y-4 text-sm max-h-[150px] pr-2">
                       {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
                           <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
                              {aiPlan.tasksToAdd.map((t, i) => (
@@ -440,7 +440,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                               {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
                           </PlanSection>
                       )}
-                  </div>
+                  </ScrollArea>
 
                   <div className="flex justify-end gap-2 pt-2">
                       <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2"/> Discard</Button>
@@ -452,7 +452,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
               </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0 p-4 pt-0">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0 pt-2">
             <Input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}

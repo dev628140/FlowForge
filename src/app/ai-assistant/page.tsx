@@ -505,7 +505,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             </div>
 
              {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col p-4 md:pl-6">
+            <div className="flex-1 flex flex-col p-2 sm:p-4 md:pl-6">
                 <ScrollArea className="flex-grow pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
                     <div className="space-y-4">
                         {history.map((msg, index) => (
@@ -516,7 +516,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                     </div>
                                 )}
                                 <div className={cn(
-                                    "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap",
+                                    "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap text-sm sm:text-base",
                                     msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
                                     msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
                                 )}>
@@ -619,5 +619,3 @@ export default function AIAssistantPage() {
         </div>
     );
 }
-
-    
