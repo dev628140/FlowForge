@@ -130,11 +130,17 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             setHistory(activeSession.history);
             // Find the last plan in the history, if any
             const lastModelMessage = activeSession.history.slice().reverse().find(m => m.role === 'model');
-            const planText = lastModelMessage?.content.split('CURRENT PLAN:')[1];
-            if (planText) {
-                // This is a simplified reconstruction. A more robust solution might store the plan structure.
-                const tasks = planText.trim().split('\n').map(line => ({ title: line.replace('- ', '') }));
-                setCurrentPlan(tasks);
+            const planAsJson = lastModelMessage?.content.split('CURRENT PLAN:')[1];
+            if (planAsJson) {
+                try {
+                    const parsedPlan = JSON.parse(planAsJson);
+                    if (parsedPlan && Array.isArray(parsedPlan)) {
+                       setCurrentPlan(parsedPlan);
+                    }
+                } catch(e) {
+                    console.error("Could not parse plan from history", e)
+                    setCurrentPlan(null);
+                }
             } else {
                 setCurrentPlan(null);
             }
@@ -238,8 +244,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 
                 let modelContent = result.response;
                 if (result.tasks && result.tasks.length > 0) {
-                    const planAsText = "\n\nCURRENT PLAN:\n" + result.tasks.map(t => `- ${t.title}`).join("\n");
-                    modelContent += planAsText;
+                    const planAsJson = "\n\nCURRENT PLAN:" + JSON.stringify(result.tasks);
+                    modelContent += planAsJson;
                 }
 
                 const modelResponse: AssistantMessage = { role: 'model', content: modelContent };
@@ -432,7 +438,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                             </Tooltip>
                         </TooltipProvider>
                     )}
-                    <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex">
+                    <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="flex">
                         {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
                     </Button>
                 </div>
@@ -613,3 +619,5 @@ export default function AIAssistantPage() {
         </div>
     );
 }
+
+    

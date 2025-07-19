@@ -125,11 +125,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
         tasks: allTasks,
         role,
         date: format(new Date(), 'yyyy-MM-dd'),
+        chatSessionId: currentChatId,
       };
-
-      if (currentChatId) {
-        assistantInput.chatSessionId = currentChatId;
-      }
       
       const result = await runAssistant(assistantInput);
 
@@ -275,7 +272,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                 </Tooltip>
              </TooltipProvider>
            )}
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex">
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="flex">
               {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
             </Button>
         </div>
@@ -460,3 +457,5 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </Card>
   );
 }
+
+    
