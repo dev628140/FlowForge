@@ -356,7 +356,7 @@ export default function AIAssistantPage() {
                     <TabsTrigger value="suggester"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
                 <Card className="mt-4">
-                    <CardContent className="p-6 h-[600px]">
+                    <CardContent className="p-6 h-[480px]">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />
                         </TabsContent>
