@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -163,7 +162,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
         const ttsResult = await textToSpeech({ text: result.response });
         if (ttsResult.audioDataUri) {
           playAudio(ttsResult.audioDataUri);
-          modelResponse.audioDataUri = ttsResult.audioDataUri;
         }
       }
 

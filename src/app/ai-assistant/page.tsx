@@ -277,16 +277,15 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 }
 
                 const modelResponse: AssistantMessage = { role: 'model', content: modelContent };
-                const updatedHistory = [...newHistory, modelResponse];
                 
                 if (isVoiceMode) {
                     const ttsResult = await textToSpeech({ text: result.response });
                     if (ttsResult.audioDataUri) {
                         playAudio(ttsResult.audioDataUri);
-                        modelResponse.audioDataUri = ttsResult.audioDataUri;
                     }
                 }
-
+                
+                const updatedHistory = [...newHistory, modelResponse];
                 setHistory(updatedHistory);
 
                 if (currentChatId) {
