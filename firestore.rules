@@ -3,14 +3,23 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read and write their own tasks
+
+    // Allow users to read and write tasks if they are the owner.
     match /tasks/{taskId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
     }
-    
-    // Users can only read and write their own chat sessions
+
+    // Allow users to fully manage their own chat sessions.
+    // This is more specific to prevent access errors.
     match /chatSessions/{sessionId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Allow reading a session if the user is the owner.
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      
+      // Allow creating a session if the new data's userId matches the user.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+
+      // Allow updating or deleting a session if the user is the owner.
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
   }
 }
