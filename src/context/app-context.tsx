@@ -92,7 +92,7 @@ function createSessionManager(
     
     const newSession: ChatSession = {
         id: sessionId,
-        userId: user.uid,
+        userId: user.uid, // Ensure userId is passed correctly
         title: 'New Chat',
         createdAt: new Date().toISOString(),
         history,
