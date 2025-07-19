@@ -36,14 +36,15 @@ export default function SchedulePage() {
             }
 
             const result = await autoSchedule({
-                tasks: unscheduledTasks,
+                tasks: unscheduledTasks.map(t => ({ id: t.id, title: t.title, description: t.description })),
                 startDate: format(selectedWeekStart, 'yyyy-MM-dd'),
             });
 
             if (result.schedule) {
-                 result.schedule.forEach(scheduledTask => {
-                    updateTask(scheduledTask.taskId, { scheduledDate: scheduledTask.date });
+                 const batchUpdates = result.schedule.map(scheduledTask => {
+                    return updateTask(scheduledTask.taskId, { scheduledDate: scheduledTask.date });
                  });
+                 await Promise.all(batchUpdates);
                 toast({
                     title: 'Schedule Generated!',
                     description: 'Your tasks have been scheduled for the week.',
@@ -61,16 +62,25 @@ export default function SchedulePage() {
         }
     };
     
-    const tasksByDate = tasks.reduce((acc, task) => {
-        if (task.scheduledDate) {
-            const dateStr = format(new Date(task.scheduledDate), 'yyyy-MM-dd');
-            if (!acc[dateStr]) {
-                acc[dateStr] = [];
+    const tasksByDate = React.useMemo(() => {
+        const groups = tasks.reduce((acc, task) => {
+            if (task.scheduledDate) {
+                const dateStr = format(new Date(task.scheduledDate), 'yyyy-MM-dd');
+                if (!acc[dateStr]) {
+                    acc[dateStr] = [];
+                }
+                acc[dateStr].push(task);
             }
-            acc[dateStr].push(task);
+            return acc;
+        }, {} as Record<string, Task[]>);
+
+        // Sort tasks within each day by their order property
+        for (const date in groups) {
+            groups[date].sort((a, b) => (a.order || 0) - (b.order || 0));
         }
-        return acc;
-    }, {} as Record<string, Task[]>);
+
+        return groups;
+    }, [tasks]);
     
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(selectedWeekStart, i));
 
