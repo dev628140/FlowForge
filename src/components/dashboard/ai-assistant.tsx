@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
 import { useOfflineStatus } from '@/hooks/use-offline-status';
 import type { Task, UserRole, AssistantMessage, ChatSession } from '@/lib/types';
-import { runAssistant, type AssistantOutput } from '@/ai/flows/assistant-flow';
+import { runAssistant, type AssistantOutput, type AssistantInput } from '@/ai/flows/assistant-flow';
 import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -120,13 +120,18 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     let currentChatId = activeChatId;
 
     try {
-      const result = await runAssistant({
+      const assistantInput: AssistantInput = {
         history: newHistory,
         tasks: allTasks,
         role,
         date: format(new Date(), 'yyyy-MM-dd'),
-        chatSessionId: currentChatId,
-      });
+      };
+
+      if (currentChatId) {
+        assistantInput.chatSessionId = currentChatId;
+      }
+      
+      const result = await runAssistant(assistantInput);
 
       if (!result) {
         throw new Error("I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?");
