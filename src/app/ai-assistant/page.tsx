@@ -505,7 +505,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             </div>
 
              {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col p-2 sm:p-4 md:pl-6">
+            <div className="flex-1 flex flex-col p-2 sm:p-4 md:pl-6 overflow-hidden">
                 <ScrollArea className="flex-grow pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
                     <div className="space-y-4">
                         {history.map((msg, index) => (
@@ -562,7 +562,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     </div>
                 )}
                 
-                <form onSubmit={handleSubmit} className="mt-auto space-y-4">
+                <form onSubmit={handleSubmit} className="mt-auto space-y-4 flex-shrink-0">
                     {history.length === 0 && renderInitialInputs()}
 
                     {history.length > 0 && (
@@ -589,21 +589,23 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 export default function AIAssistantPage() {
     const isMobile = useIsMobile();
     return (
-        <div className="p-4 md:p-6 space-y-6">
-            <div className="flex items-center gap-2">
-                <BrainCircuit className="w-8 h-8 text-primary" />
-                <h1 className="text-3xl font-bold font-headline">AI Assistant Hub</h1>
-            </div>
-            <p className="text-muted-foreground">Your command center for AI-powered productivity. Converse with the AI to plan, break down, and create tasks.</p>
+        <div className="p-4 md:p-6 space-y-6 h-full flex flex-col">
+            <header>
+                <div className="flex items-center gap-2">
+                    <BrainCircuit className="w-8 h-8 text-primary" />
+                    <h1 className="text-3xl font-bold font-headline">AI Assistant Hub</h1>
+                </div>
+                <p className="text-muted-foreground">Your command center for AI-powered productivity. Converse with the AI to plan, break down, and create tasks.</p>
+            </header>
 
-            <Tabs defaultValue="planner" className="w-full">
+            <Tabs defaultValue="planner" className="w-full flex-grow flex flex-col">
                 <TabsList className={cn("grid w-full h-auto", isMobile ? "grid-cols-1" : "grid-cols-3")}>
                     <TabsTrigger value="planner" className="py-2 sm:py-1.5"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
                     <TabsTrigger value="breakdown" className="py-2 sm:py-1.5"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
                     <TabsTrigger value="suggester" className="py-2 sm:py-1.5"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
-                <Card className="mt-4">
-                    <CardContent className="p-0 h-[70vh] min-h-[500px] overflow-hidden">
+                <Card className="mt-4 flex-grow">
+                    <CardContent className="p-0 h-full overflow-hidden">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />
                         </TabsContent>
