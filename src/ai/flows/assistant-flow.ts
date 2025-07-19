@@ -67,6 +67,7 @@ const SubtasksToAddSchema = z.object({
 
 
 const AssistantOutputSchema = z.object({
+  title: z.string().optional().nullable().describe("A short, concise title (4-5 words max) for this conversation. You should ONLY generate this on the very first turn of the conversation (when history has only one user message)."),
   response: z.string().describe("A concise, friendly summary of the plan you have generated, or a conversational response if you are asking for clarification or providing information. For example, 'I can add 2 tasks and delete 1.' or 'I've scheduled that for you.' or 'Which task are you referring to?'. If no actions are taken, provide a helpful conversational response or the direct result from a tool (like a summary or analysis)."),
   tasksToAdd: z.array(TaskToAddSchema).optional().nullable().describe("A list of new tasks to be added based on the user's command."),
   tasksToUpdate: z.array(TaskToUpdateSchema).optional().nullable().describe("A list of existing tasks to be updated."),
@@ -110,6 +111,7 @@ const assistantPrompt = ai.definePrompt({
     - If you have enough information to create a plan, generate the plan and a summary response.
     - If the user's request is unclear or you need more information, ask a clarifying question in your response and do not generate any actions.
     - If the command is conversational (e.g., "hello", "thank you"), just provide a friendly text response and do not generate any actions.
+    - IMPORTANT: If this is the first turn of the conversation (i.e., the history only has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation based on the user's request. On all subsequent turns, you must leave the title field empty.
 
     User's Task List (for context):
     {{#if tasks}}

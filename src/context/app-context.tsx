@@ -8,8 +8,6 @@ import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { generateChatTitle } from '@/ai/flows/generate-chat-title-flow';
-import { type GenerateChatTitleInput } from '@/lib/types/conversational-agent';
 import { isToday, parseISO } from 'date-fns';
 
 const USER_ROLE_STORAGE_KEY = 'flowforge_user_role';
@@ -28,7 +26,7 @@ interface AppContextType {
   
   // Dashboard Chat Session Management
   chatSessions: ChatSession[];
-  createChatSession: (history: AssistantMessage[]) => Promise<string>;
+  createChatSession: (history: AssistantMessage[], title: string) => Promise<string>;
   updateChatSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
   deleteChatSession: (sessionId: string) => Promise<void>;
   
@@ -63,7 +61,7 @@ function createSessionManager(
   collectionName: string,
   user: any,
   toast: any
-): [ChatSession[], (history: AssistantMessage[]) => Promise<string>, (sessionId: string, updates: Partial<ChatSession>) => Promise<void>, (sessionId: string) => Promise<void>] {
+): [ChatSession[], (history: AssistantMessage[], title?: string) => Promise<string>, (sessionId: string, updates: Partial<ChatSession>) => Promise<void>, (sessionId: string) => Promise<void>] {
   
   const [sessions, setSessions] = React.useState<ChatSession[]>([]);
 
@@ -84,7 +82,7 @@ function createSessionManager(
     }
   }, [user, toast, collectionName]);
 
-  const createSession = async (history: AssistantMessage[]): Promise<string> => {
+  const createSession = async (history: AssistantMessage[], title: string = 'New Chat'): Promise<string> => {
     if (!user || !db) throw new Error("User not authenticated.");
     
     const sessionId = uuidv4();
@@ -92,27 +90,14 @@ function createSessionManager(
     
     const newSession: ChatSession = {
         id: sessionId,
-        userId: user.uid, // Ensure userId is passed correctly
-        title: 'New Chat',
+        userId: user.uid,
+        title: title,
         createdAt: new Date().toISOString(),
         history,
         pinned: false,
     };
     
-    // Create the session immediately with a default title
     await setDoc(sessionRef, newSession);
-
-    // Then, asynchronously generate and update the title
-    generateChatTitle({ history: history as GenerateChatTitleInput['history'] })
-        .then(async ({ title }) => {
-            if (title) {
-                await updateDoc(sessionRef, { title });
-            }
-        })
-        .catch(error => {
-            console.warn("Could not generate chat title:", error);
-            // The session is already created, so we just log the warning.
-        });
 
     return sessionId;
   };

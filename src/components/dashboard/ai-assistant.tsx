@@ -120,13 +120,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     let currentChatId = activeChatId;
 
     try {
-      // If it's a new chat, create it first to get an ID
-      if (isNewChat) {
-         // Create a temporary session to get a title
-        currentChatId = await createChatSession(newHistory);
-        setActiveChatId(currentChatId);
-      }
-      
       const result = await runAssistant({
         history: newHistory,
         tasks: allTasks,
@@ -137,6 +130,12 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
       if (!result) {
         throw new Error("I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?");
+      }
+
+      // If it's a new chat, create it now that we have a title
+      if (isNewChat && result.title) {
+        currentChatId = await createChatSession(newHistory, result.title);
+        setActiveChatId(currentChatId);
       }
       
       const updatedHistory = [...newHistory, { role: 'model', content: result.response }];
