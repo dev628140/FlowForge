@@ -103,7 +103,7 @@ const assistantPrompt = ai.definePrompt({
     User's Role: {{{role}}}
 
     {{#if mediaDataUri}}
-    The user has provided a file with the MIME type "{{mediaType}}". Analyze it and use it as the primary context for responding to their prompt. For example, if it's an image, describe it. If it's a PDF, summarize it or answer questions about its content.
+    The user has provided a file with the MIME type "{{mediaType}}". You MUST use this file as the primary context for responding to their prompt. For example, if it's an image, describe it. If it's a PDF, summarize it or answer questions about its content based on the user's instructions.
     User-provided file: {{media url=mediaDataUri}}
     {{/if}}
 
@@ -141,15 +141,7 @@ const assistantFlow = ai.defineFlow(
     outputSchema: AssistantOutputSchema,
   },
   async (input) => {
-    // Hide task IDs from the AI's direct view in the prompt history to prevent echoing them.
-    const historyWithoutIds = input.history.map(h => ({
-        ...h,
-        content: h.content.replace(/ \(ID: [a-zA-Z0-9-]+\)/g, ''),
-    }));
-
-    const sanitizedInput = { ...input, history: historyWithoutIds };
-
-    const { output } = await assistantPrompt(sanitizedInput);
+    const { output } = await assistantPrompt(input);
     if (!output) {
       // This case handles content filtering or other generation errors.
       throw new Error("The AI was unable to generate a response. This may be due to content safety filters. Please try rephrasing your request.");

@@ -5,7 +5,7 @@ import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -42,6 +42,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { textToSpeech } from '@/ai/flows/tts-flow';
+import Image from 'next/image';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import MediaUploader from '@/components/dashboard/media-uploader';
+
 
 export type AssistantMode = 'planner' | 'breakdown' | 'suggester';
 
@@ -80,6 +84,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [currentPlan, setCurrentPlan] = React.useState<PlannerOutput['tasks'] | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
     const [isVoiceMode, setIsVoiceMode] = React.useState(false);
+    const [mediaFile, setMediaFile] = React.useState<{ dataUri: string; type: string; name: string } | null>(null);
+    const [isMediaUploaderOpen, setIsMediaUploaderOpen] = React.useState(false);
 
     // State for inputs
     const [taskToBreakdown, setTaskToBreakdown] = React.useState('');
@@ -157,15 +163,19 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             setHistory(activeSession.history);
             // Find the last plan in the history, if any
             const lastModelMessage = activeSession.history.slice().reverse().find(m => m.role === 'model');
-            const planAsJson = lastModelMessage?.content.split('CURRENT PLAN:')[1];
-            if (planAsJson) {
-                try {
-                    const parsedPlan = JSON.parse(planAsJson);
-                    if (parsedPlan && Array.isArray(parsedPlan)) {
-                       setCurrentPlan(parsedPlan);
+            if (lastModelMessage?.content) {
+                const planAsJson = lastModelMessage.content.split('CURRENT PLAN:')[1];
+                if (planAsJson) {
+                    try {
+                        const parsedPlan = JSON.parse(planAsJson);
+                        if (parsedPlan && Array.isArray(parsedPlan)) {
+                           setCurrentPlan(parsedPlan);
+                        }
+                    } catch(e) {
+                        console.error("Could not parse plan from history", e)
+                        setCurrentPlan(null);
                     }
-                } catch(e) {
-                    console.error("Could not parse plan from history", e)
+                } else {
                     setCurrentPlan(null);
                 }
             } else {
@@ -213,7 +223,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 return `Goal: ${prompt}`;
             case 'breakdown':
                 const task = tasks.find(t => t.id === taskToBreakdown);
-                return `Break down this task: "${task?.title}" (ID: ${task?.id})`;
+                return `Break down this task: "${task?.title}"`;
             case 'suggester':
                 return `My goal is: "${prompt}". My role is ${suggestionRole} and my mood is ${suggestionMood}. Give me some ideas.`;
             default:
@@ -223,6 +233,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     
     const canSubmit = () => {
         if (loading) return false;
+        if (prompt.trim() !== '' || mediaFile) return true;
         
         // Allow submitting follow-up messages
         if (history.length > 0) {
@@ -254,13 +265,23 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         const isFirstMessage = history.length === 0;
         const currentPrompt = isFirstMessage ? getInitialPrompt() : prompt;
         
-        const newHistory: AssistantMessage[] = [...history, { role: 'user', content: currentPrompt }];
+        const newHistory: AssistantMessage[] = [...history, { 
+            role: 'user', 
+            content: currentPrompt,
+            mediaDataUri: mediaFile?.dataUri,
+            mediaType: mediaFile?.type
+        }];
         setHistory(newHistory);
         setPrompt('');
+        setMediaFile(null);
 
         let currentChatId = activeChatId;
 
         try {
+            // Note: The AI Hub flows don't natively accept media. We are passing it
+            // here for consistency, but the underlying specialized flows (planner, breakdown, etc.)
+            // might not use it. The main 'runAssistant' flow is designed for it.
+            // For now, let's keep the structure simple.
             const result: PlannerOutput = await runAIFlow({
                 history: newHistory,
             });
@@ -282,9 +303,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 
                 if (isVoiceMode) {
                     const ttsResult = await textToSpeech({ text: result.response });
-                    if (ttsResult.audioDataUri) {
-                        playAudio(ttsResult.audioDataUri);
-                    }
+                    playAudio(ttsResult.audioDataUri);
                 }
                 
                 const updatedHistory = [...newHistory, modelResponse];
@@ -386,6 +405,11 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
           startListening();
         }
     };
+
+    const handleMediaSelect = (file: { dataUri: string; type: string; name: string }) => {
+        setMediaFile(file);
+        setIsMediaUploaderOpen(false);
+    }
 
     const sortedSessions = React.useMemo(() => {
         return [...sessions].sort((a, b) => {
@@ -516,7 +540,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
                     </Button>
                 </div>
-                 <div className="flex-grow overflow-y-auto h-40 md:h-auto">
+                 <ScrollArea className="flex-grow h-40 md:h-auto">
                     {!isSidebarCollapsed && (
                     <div className="space-y-1 p-2">
                         {sortedSessions.map(session => (
@@ -575,12 +599,12 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         ))}
                     </div>
                     )}
-                </div>
+                </ScrollArea>
             </div>
 
              {/* Main Chat Area */}
             <div className="flex-1 flex flex-col p-2 sm:p-4 md:pl-6 overflow-hidden">
-                <div className="flex-grow overflow-y-auto pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
+                <ScrollArea className="flex-grow overflow-y-auto pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
                     <div className="space-y-4">
                         {history.length === 0 && !loading && renderInitialInputs()}
                         {history.map((msg, index) => (
@@ -595,6 +619,15 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                     msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
                                     msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
                                 )}>
+                                    {msg.mediaDataUri && msg.mediaType?.startsWith('image/') && (
+                                        <Image src={msg.mediaDataUri} alt="User upload" width={200} height={200} className="rounded-md mb-2" />
+                                    )}
+                                    {msg.mediaDataUri && !msg.mediaType?.startsWith('image/') && (
+                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
+                                            <Paperclip className="h-4 w-4" />
+                                            <span className="text-xs truncate">Attached: {msg.mediaType}</span>
+                                        </div>
+                                    )}
                                     {msg.content.replace(/^Error: /, '').split('CURRENT PLAN:')[0]}
                                 </div>
                                 {msg.role === 'user' && (
@@ -616,12 +649,12 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         </div>
                     )}
                     </div>
-                </div>
+                </ScrollArea>
             
                  {currentPlan && currentPlan.length > 0 && (
                     <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex flex-col overflow-hidden max-h-[250px] sm:max-h-[200px]">
                         <h4 className="font-semibold flex-shrink-0">Suggested Plan:</h4>
-                        <div className="flex-grow overflow-y-auto pr-2">
+                        <ScrollArea className="flex-grow overflow-y-auto pr-2">
                           <ul className="space-y-2 list-disc pl-5 text-sm">
                               {currentPlan.map((task, i) => (
                                   <li key={i}>
@@ -630,7 +663,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                   </li>
                               ))}
                           </ul>
-                        </div>
+                        </ScrollArea>
                         <Button size="sm" className="w-full mt-auto flex-shrink-0" onClick={handleFinalize}>
                             <PlusCircle className="mr-2"/> Finalize & Add to Tasks
                         </Button>
@@ -638,6 +671,19 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 )}
                 
                 <form onSubmit={handleSubmit} ref={formRef} className="mt-auto space-y-4 flex-shrink-0">
+                     {mediaFile && (
+                        <div className="flex items-center gap-2 p-2 mb-2 border rounded-md bg-muted/50 text-sm">
+                            {mediaFile.type.startsWith('image/') ? (
+                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                            <Paperclip className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <span className="flex-1 truncate text-muted-foreground">{mediaFile.name}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setMediaFile(null)}>
+                                <X className="h-4 w-4"/>
+                            </Button>
+                        </div>
+                    )}
                     {history.length > 0 && (
                          <div className="relative w-full">
                             <Input
@@ -652,6 +698,26 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     )}
                 
                     <div className="flex items-center gap-2">
+                         <Dialog open={isMediaUploaderOpen} onOpenChange={setIsMediaUploaderOpen}>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DialogTrigger asChild>
+                                            <Button type="button" variant="outline" size="icon" disabled={loading || isListening || isPlaying}>
+                                                <Paperclip className="h-5 w-5"/>
+                                            </Button>
+                                        </DialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Attach File or Photo</p></TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Attach Media</DialogTitle>
+                                </DialogHeader>
+                                <MediaUploader onMediaSelect={handleMediaSelect} />
+                            </DialogContent>
+                        </Dialog>
                          {isAvailable && (
                             <TooltipProvider>
                                 <Tooltip>
