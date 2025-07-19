@@ -58,29 +58,19 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     }, [history, loading]);
 
     const getGroupedTasks = React.useMemo(() => {
-        const incompleteTasks = tasks.filter(t => !t.completed);
-        const grouped: { [key: string]: Task[] } = {
-            Today: incompleteTasks.filter(t => t.scheduledDate && isToday(parseISO(t.scheduledDate))),
-            Unscheduled: incompleteTasks.filter(t => !t.scheduledDate),
-        };
+        if (!breakdownDate) return {};
+        
+        const selectedDateStr = format(breakdownDate, 'yyyy-MM-dd');
+        
+        const tasksForSelectedDate = tasks
+            .filter(t => !t.completed && t.scheduledDate === selectedDateStr)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-        incompleteTasks.forEach(task => {
-            if (task.scheduledDate && !isToday(parseISO(task.scheduledDate))) {
-                const dateKey = format(parseISO(task.scheduledDate), 'PPP');
-                if (!grouped[dateKey]) {
-                    grouped[dateKey] = [];
-                }
-                grouped[dateKey].push(task);
-            }
-        });
-
-        if (breakdownDate) {
-            const dateKey = format(breakdownDate, 'PPP');
-            if (!grouped[dateKey]) {
-                 grouped[dateKey] = [];
-            }
-        }
-
+        const groupTitle = format(breakdownDate, 'PPP');
+        
+        const grouped: { [key: string]: Task[] } = {};
+        grouped[groupTitle] = tasksForSelectedDate;
+        
         return grouped;
 
     }, [tasks, breakdownDate]);
@@ -209,7 +199,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                             </SelectTrigger>
                             <SelectContent>
                                 {Object.entries(getGroupedTasks).map(([group, tasksInGroup]) => {
-                                    if (tasksInGroup.length === 0 && breakdownDate && group !== format(breakdownDate, 'PPP')) return null;
                                     return (
                                         <SelectGroup key={group}>
                                             <SelectLabel>{group}</SelectLabel>
@@ -330,7 +319,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 )}
                
                 <Button type="submit" disabled={!canSubmit()} className="w-full">
-                    {loading ? <Loader2 className="animate-spin" /> : history.length > 0 ? <CornerDownLeft/> : 'Generate'}
+                    {loading ? <Loader2 className="animate-spin" /> : history.length > 0 ? <CornerDownLeft/> : <Wand2/>}
                     <span className="ml-2">{loading ? 'Generating...' : history.length > 0 ? 'Send' : 'Generate'}</span>
                 </Button>
             </form>
@@ -356,7 +345,7 @@ export default function AIAssistantPage() {
                     <TabsTrigger value="suggester"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
                 <Card className="mt-4">
-                    <CardContent className="p-6 h-[300px]">
+                    <CardContent className="p-6 h-[480px]">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />
                         </TabsContent>
