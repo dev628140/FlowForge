@@ -190,7 +190,7 @@ export default function DashboardPage() {
         </div>
         
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <DailyProgressBar tasks={todaysTasks} />
             <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
           </div>
@@ -264,8 +264,8 @@ export default function DashboardPage() {
               </Card>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-             <Card className="flex flex-col h-[550px]">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+             <Card className="flex flex-col">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 flex-shrink-0">
                 <div>
                     <CardTitle className="flex items-center gap-2">
@@ -443,7 +443,7 @@ export default function DashboardPage() {
                     </Dialog>
                 </div>
                 </CardHeader>
-                <CardContent className="flex-grow overflow-hidden">
+                <CardContent className="flex-grow overflow-hidden max-h-[440px]">
                   <ScrollArea className="h-full">
                     <TaskList
                         tasks={todaysTasks}

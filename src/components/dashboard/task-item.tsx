@@ -230,7 +230,7 @@ export default function TaskItem({
   }
   
   const itemContent = (
-    <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
+    <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors min-h-[64px]", isSubtask && "pl-6")}>
       {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 mt-1.5 text-muted-foreground" />}
        <Checkbox
         id={`task-${task.id}`}
