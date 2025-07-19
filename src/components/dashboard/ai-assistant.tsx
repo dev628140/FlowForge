@@ -153,20 +153,24 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     let currentChatId = activeChatId;
 
     try {
-      const assistantInput: AssistantInput = {
+      const assistantInput = {
         history: newHistory.map(h => ({
             role: h.role,
             content: h.content,
         })),
-        tasks: allTasks,
+        historyWithMedia: newHistory, // Pass full history with media for prompt construction
+        tasks: allTasks.map(t => ({
+            id: t.id,
+            title: t.title,
+            completed: t.completed,
+            scheduledDate: t.scheduledDate,
+        })),
         role,
         date: format(new Date(), 'yyyy-MM-dd'),
         chatSessionId: currentChatId,
-        mediaDataUri: mediaFile?.dataUri,
-        mediaType: mediaFile?.type
       };
       
-      const result = await runAssistant(assistantInput);
+      const result = await runAssistant(assistantInput as any);
 
       if (!result) {
         throw new Error("I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?");

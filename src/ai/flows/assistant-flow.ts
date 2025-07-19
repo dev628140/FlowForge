@@ -31,8 +31,6 @@ const AssistantInputSchema = z.object({
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
   date: z.string().describe("The current date in YYYY-MM-DD format."),
   chatSessionId: z.string().optional().nullable().describe("The ID of the current chat session."),
-  mediaDataUri: z.string().optional().nullable().describe("A media file provided by the user, as a data URI that must include a MIME type and use Base64 encoding. Format: 'data:<mimetype>;base64,<encoded_data>'."),
-  mediaType: z.string().optional().nullable().describe("The MIME type of the provided media file (e.g., 'image/jpeg', 'application/pdf')."),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
@@ -81,14 +79,47 @@ export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
 // The main exported function that the UI will call
 export async function runAssistant(input: AssistantInput): Promise<AssistantOutput> {
-  return assistantFlow(input);
+  // We need to construct the full input for the prompt, including media from history
+  const historyWithMedia = input.history.map(msg => {
+    const content: any[] = [{ text: msg.content }];
+    // This is where we re-integrate the media for the prompt, finding it from the full history passed from the client
+    const fullMessage = (input as any).historyWithMedia?.find((h: any, i: number) => i === input.history.indexOf(msg));
+    if (fullMessage?.mediaDataUri) {
+        content.push({ media: { url: fullMessage.mediaDataUri } });
+    }
+    return { role: msg.role, content };
+  });
+
+  const promptInput = {
+      ...input,
+      history: historyWithMedia,
+  };
+
+  return assistantFlow(promptInput);
 }
+
+const FullMessageSchema = z.object({
+  role: z.enum(['user', 'model']),
+  content: z.array(z.union([
+      z.object({text: z.string()}),
+      z.object({media: z.object({url: z.string()})})
+  ])),
+});
+
+// Define the input schema for the assistant
+const AssistantPromptInputSchema = z.object({
+  history: z.array(FullMessageSchema).describe("The full conversation history between the user and the assistant, including any media."),
+  tasks: z.array(z.any()).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status."),
+  role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
+  date: z.string().describe("The current date in YYYY-MM-DD format."),
+  chatSessionId: z.string().optional().nullable().describe("The ID of the current chat session."),
+});
 
 
 // Define the AI prompt. This is where we instruct the AI on how to behave.
 const assistantPrompt = ai.definePrompt({
     name: 'assistantPrompt',
-    input: { schema: AssistantInputSchema },
+    input: { schema: AssistantPromptInputSchema },
     output: { schema: AssistantOutputSchema },
     tools: [
         breakdownTaskTool,
@@ -99,19 +130,20 @@ const assistantPrompt = ai.definePrompt({
     ],
     prompt: `You are FlowForge, an expert AI task management assistant. Your goal is to have a conversation with the user to understand their needs. Based on the conversation, you will eventually create a structured plan of action which will be reviewed and confirmed by the user. You can also answer questions and provide analysis using your available tools.
 
+    IMPORTANT: If the user provides a file (image, document, etc.), you MUST use its content as the primary source of information to respond to their request. Do not ask for information that is likely contained within the file.
+
     Current Date: {{{date}}}
     User's Role: {{{role}}}
-
-    {{#if mediaDataUri}}
-    The user has provided a file with the MIME type "{{mediaType}}". You MUST use this file as the primary context for responding to their prompt. For example, if it's an image, describe it. If it's a PDF, summarize it or answer questions about its content based on the user's instructions.
-    User-provided file: {{media url=mediaDataUri}}
-    {{/if}}
 
     You have the user's current task list and the conversation history for context. You MUST use the provided task IDs when a tool requires one, but you MUST NOT mention the IDs in your conversational responses to the user.
     
     CONVERSATION HISTORY:
     {{#each history}}
-      **{{this.role}}**: {{this.content}}
+      **{{this.role}}**:
+      {{#each this.content}}
+        {{#if this.text}}{{this.text}}{{/if}}
+        {{#if this.media}}<media url="{{this.media.url}}"/>{{/if}}
+      {{/each}}
     {{/each}}
     
     Based on the latest user message and the entire conversation, determine the next step.
@@ -137,7 +169,7 @@ const assistantPrompt = ai.definePrompt({
 const assistantFlow = ai.defineFlow(
   {
     name: 'assistantFlow',
-    inputSchema: AssistantInputSchema,
+    inputSchema: AssistantPromptInputSchema,
     outputSchema: AssistantOutputSchema,
   },
   async (input) => {
