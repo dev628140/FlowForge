@@ -246,7 +246,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   );
 
   return (
-    <Card className="flex flex-col h-[80vh] overflow-hidden">
+    <Card className="flex flex-col h-full overflow-hidden">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="flex items-center gap-2">
           <Wand2 className="w-6 h-6 text-primary" />
@@ -344,14 +344,14 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>
               <div className="space-y-4">
                   {history.length === 0 && !loading && (
-                    <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center">
+                    <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center items-center">
                         <Sparkles className="mx-auto h-8 w-8 text-primary/50 mb-2" />
-                        <h3 className="font-semibold">How can I help you today?</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            I can manage tasks, generate ideas, break down goals, and much more. Just ask!
+                        <h3 className="font-semibold">How can I help you?</h3>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                           I can manage tasks, generate ideas, break down goals, and much more. Just type your request below!
                         </p>
                         <p className="text-xs text-muted-foreground/80 mt-4">
-                            Try: "Add a task to read a book tomorrow at 8pm"
+                            Example: "Add a task to read a book tomorrow at 8pm"
                         </p>
                     </div>
                   )}
@@ -392,57 +392,57 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           </ScrollArea>
           
           {aiPlan && (
-              <div className="p-4 border rounded-md space-y-4 bg-muted/30 flex-shrink-0 mt-4">
-                  <div>
-                    <h4 className="font-semibold mb-2">Here's the plan I've generated:</h4>
+              <div className="p-4 border rounded-md bg-muted/30 flex-shrink-0 mt-4 flex flex-col">
+                  <h4 className="font-semibold mb-2 flex-shrink-0">Here's the plan I've generated:</h4>
+                  
+                  <div className="flex-grow overflow-hidden relative">
+                    <ScrollArea className="max-h-[150px] pr-2">
+                        <div className="space-y-4 text-sm">
+                            {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
+                                <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
+                                  {aiPlan.tasksToAdd.map((t, i) => (
+                                        <li key={`add-${i}`}>
+                                            {t.title}
+                                            {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
+                                        </li>
+                                    ))}
+                                </PlanSection>
+                            )}
+                            {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
+                                <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
+                                  {aiPlan.subtasksToAdd.map((item, i) => (
+                                        <li key={`subtask-${i}`}>
+                                          To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
+                                        </li>
+                                    ))}
+                                </PlanSection>
+                            )}
+                            {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
+                                <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
+                                    {aiPlan.tasksToUpdate.map((t, i) => {
+                                        const originalTask = allTasks.find(task => task.id === t.taskId);
+                                        const updates = Object.entries(t.updates)
+                                            .map(([key, value]) => {
+                                                if (value === null) return null;
+                                                if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
+                                                return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
+                                            })
+                                            .filter(Boolean)
+                                            .join(', ');
+                                        return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
+                                    })}
+                                </PlanSection>
+                            )}
+                            {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
+                                <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
+                                    {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
+                                </PlanSection>
+                            )}
+                        </div>
+                    </ScrollArea>
                   </div>
 
-                  <ScrollArea className="max-h-[150px] pr-2">
-                      <div className="space-y-4 text-sm">
-                          {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
-                              <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
-                                {aiPlan.tasksToAdd.map((t, i) => (
-                                      <li key={`add-${i}`}>
-                                          {t.title}
-                                          {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
-                                      </li>
-                                  ))}
-                              </PlanSection>
-                          )}
-                          {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
-                              <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
-                                {aiPlan.subtasksToAdd.map((item, i) => (
-                                      <li key={`subtask-${i}`}>
-                                        To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
-                                      </li>
-                                  ))}
-                              </PlanSection>
-                          )}
-                          {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
-                              <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
-                                  {aiPlan.tasksToUpdate.map((t, i) => {
-                                      const originalTask = allTasks.find(task => task.id === t.taskId);
-                                      const updates = Object.entries(t.updates)
-                                          .map(([key, value]) => {
-                                              if (value === null) return null;
-                                              if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
-                                              return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
-                                          })
-                                          .filter(Boolean)
-                                          .join(', ');
-                                      return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
-                                  })}
-                              </PlanSection>
-                          )}
-                          {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
-                              <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
-                                  {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
-                              </PlanSection>
-                          )}
-                      </div>
-                  </ScrollArea>
-
-                  <div className="flex justify-end gap-2 pt-2">
+                  <div className="flex justify-end gap-2 pt-2 flex-shrink-0">
                       <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2"/> Discard</Button>
                       <Button onClick={handleApplyPlan} disabled={loading}>
                           {loading && <Loader2 className="animate-spin mr-2"/>}
