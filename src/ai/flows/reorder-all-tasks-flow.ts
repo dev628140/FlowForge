@@ -69,6 +69,7 @@ const reorderAllTasksFlow = ai.defineFlow(
     const titleOrderMap = new Map<string, number>();
     templateTasks.forEach((task, index) => {
       // Use the index as the definitive order for the template
+      // If a title is duplicated, its first appearance sets the order
       if (!titleOrderMap.has(task.title)) {
         titleOrderMap.set(task.title, index);
       }
