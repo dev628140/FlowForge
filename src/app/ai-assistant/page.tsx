@@ -544,19 +544,19 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 </ScrollArea>
             
                 {currentPlan && currentPlan.length > 0 && (
-                    <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex-shrink-0 flex flex-col">
-                        <h4 className="font-semibold">Suggested Plan:</h4>
-                        <ScrollArea className="max-h-[150px] pr-4">
-                            <ul className="space-y-2 list-disc pl-5 text-sm">
-                                {currentPlan.map((task, i) => (
-                                    <li key={i}>
-                                        {task.title}
-                                        {task.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(task.scheduledDate + 'T00:00:00'), 'MMM d')}{task.scheduledTime && ` @ ${task.scheduledTime}`}</Badge>}
-                                    </li>
-                                ))}
-                            </ul>
-                        </ScrollArea>
-                        <Button size="sm" className="w-full mt-auto" onClick={handleFinalize}>
+                    <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex-shrink-0 flex flex-col overflow-hidden">
+                        <h4 className="font-semibold flex-shrink-0">Suggested Plan:</h4>
+                        <div className="flex-grow overflow-y-auto max-h-[150px] pr-2">
+                          <ul className="space-y-2 list-disc pl-5 text-sm">
+                              {currentPlan.map((task, i) => (
+                                  <li key={i}>
+                                      {task.title}
+                                      {task.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(task.scheduledDate + 'T00:00:00'), 'MMM d')}{task.scheduledTime && ` @ ${task.scheduledTime}`}</Badge>}
+                                  </li>
+                              ))}
+                          </ul>
+                        </div>
+                        <Button size="sm" className="w-full mt-auto flex-shrink-0" onClick={handleFinalize}>
                             <PlusCircle className="mr-2"/> Finalize & Add to Tasks
                         </Button>
                     </div>

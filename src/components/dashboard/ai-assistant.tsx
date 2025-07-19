@@ -246,7 +246,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   );
 
   return (
-    <Card className="flex flex-col h-full overflow-hidden">
+    <Card className="flex flex-col h-[550px] overflow-hidden">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="flex items-center gap-2">
           <Wand2 className="w-6 h-6 text-primary" />
@@ -348,7 +348,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                         <Sparkles className="mx-auto h-8 w-8 text-primary/50 mb-2" />
                         <h3 className="font-semibold">How can I help you?</h3>
                         <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                           You can ask me to manage tasks, generate ideas, break down goals, and much more. Just type your request below!
+                           You can ask me anything to do for you from managing,creating,deleting to anything you can think or about you tasks,goals,etc...I can do it for you seamlessly
                         </p>
                         <p className="text-xs text-muted-foreground/80 mt-4">
                             Example: "Add a task to read a book tomorrow at 8pm"
