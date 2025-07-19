@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Plus, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Plus, GripVertical, ArrowUp, ArrowDown, Wand2, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -59,6 +59,7 @@ import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-car
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import AIAssistant from '@/components/dashboard/ai-assistant';
+import { reorderAllTasks } from '@/ai/flows/reorder-all-tasks-flow';
 
 
 const taskFormSchema = z.object({
@@ -85,6 +86,7 @@ export default function DashboardPage() {
     handleAddTasks,
     handleDeleteTask,
     updateTask,
+    batchUpdateTasks,
     handleReorderTask
   } = useAppContext();
 
@@ -95,6 +97,8 @@ export default function DashboardPage() {
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
   const [isFabPopoverOpen, setIsFabPopoverOpen] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState<UserRole>('Developer');
+  const [showReorderAll, setShowReorderAll] = React.useState(false);
+  const [isReorderingAll, setIsReorderingAll] = React.useState(false);
   
   // Load role from localStorage on mount
   React.useEffect(() => {
@@ -142,6 +146,11 @@ export default function DashboardPage() {
     setIsTodayAddDialogOpen(false);
     setIsFabPopoverOpen(false);
   };
+
+  const onReorderToday = async (taskId: string, direction: 'up' | 'down') => {
+    await handleReorderTask(taskId, direction, todaysTasks);
+    setShowReorderAll(true); // Show the "Apply to all" button
+  }
   
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -161,6 +170,34 @@ export default function DashboardPage() {
       title: 'Task Rescheduled',
       description: `"${task.title}" has been moved to today.`,
     });
+  }
+
+  const handleReorderAll = async () => {
+    setIsReorderingAll(true);
+    try {
+      const result = await reorderAllTasks({
+        allTasks: tasks,
+        templateDate: format(new Date(), 'yyyy-MM-dd')
+      });
+      if (result.updates && result.updates.length > 0) {
+        await batchUpdateTasks(result.updates);
+        toast({
+          title: "Tasks Reordered",
+          description: "The new order has been applied to all matching tasks on other days."
+        });
+      } else {
+        toast({
+          title: "No Changes Needed",
+          description: "All other days already match today's order."
+        });
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'Error', description: e.message || 'Failed to reorder tasks.', variant: 'destructive' });
+    } finally {
+      setIsReorderingAll(false);
+      setShowReorderAll(false);
+    }
   }
 
   const todaysTasks = React.useMemo(() => tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate))).sort((a,b) => (a.order || 0) - (b.order || 0)), [tasks]);
@@ -216,7 +253,13 @@ export default function DashboardPage() {
                     </CardTitle>
                     <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
                 </div>
-                <div className="hidden sm:flex items-stretch flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex items-stretch flex-col sm:flex-row sm:items-center gap-2">
+                    {showReorderAll && (
+                      <Button onClick={handleReorderAll} disabled={isReorderingAll} variant="outline" size="sm">
+                        {isReorderingAll ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <Wand2 className="mr-2 h-4 w-4"/>}
+                        Apply Today's Order to All
+                      </Button>
+                    )}
                     <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
                         <DialogTrigger asChild>
                             <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
@@ -391,7 +434,7 @@ export default function DashboardPage() {
                     onToggle={handleToggleTask} 
                     onStartFocus={handleStartFocus} 
                     onUpdateTask={updateTask} 
-                    onReorder={handleReorderTask}
+                    onReorder={onReorderToday}
                     emptyMessage="No tasks for today. Add one to get started!" 
                 />
                 </CardContent>

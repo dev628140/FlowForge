@@ -11,7 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { Task } from '@/lib/types';
+import type { Task } from '@/lib/types';
 
 // We don't export the schemas anymore to comply with "use server" rules.
 const TaskSchema = z.object({

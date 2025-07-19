@@ -21,6 +21,7 @@ interface AppContextType {
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   handleReorderTask: (taskId: string, direction: 'up' | 'down', contextTasks: Task[]) => Promise<void>;
+  batchUpdateTasks: (updates: { taskId: string; updates: Partial<Task> }[]) => Promise<void>;
   
   // Chat Session Management
   chatSessions: ChatSession[];
@@ -238,6 +239,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
     }
   };
+  
+  const batchUpdateTasks = async (updates: { taskId: string; updates: Partial<Task> }[]) => {
+      if (!user || !db || updates.length === 0) return;
+      const batch = writeBatch(db);
+      updates.forEach(update => {
+          const taskRef = doc(db, 'tasks', update.taskId);
+          batch.update(taskRef, update.updates);
+      });
+      await batch.commit();
+  }
 
   const handleAddSubtasks = async (parentId: string, subtasks: { title: string; description?: string }[]) => {
      if (!user || !db) return;
@@ -400,6 +411,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleDeleteTask,
       updateTask,
       handleReorderTask,
+      batchUpdateTasks,
       // Chat
       chatSessions,
       createChatSession,

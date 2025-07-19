@@ -13,6 +13,8 @@ import '@/ai/flows/role-based-task-suggestions.ts';
 import '@/ai/flows/summarize-task.ts';
 import '@/ai/flows/assistant-flow.ts';
 import '@/ai/flows/generate-chat-title-flow.ts';
+import '@/ai/flows/reorder-all-tasks-flow.ts';
 import '@/ai/tools.ts';
+
 
 
