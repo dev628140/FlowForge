@@ -8,16 +8,13 @@ import type { Task } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import TaskList from '@/components/dashboard/task-list';
 import FocusMode from '@/components/dashboard/focus-mode';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { parseISO } from 'date-fns';
-
-type SortOption = 'order' | 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
+import { format, parseISO, compareAsc } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
 
 export default function AllTasksPage() {
   const { tasks, handleToggleTask, updateTask, handleReorderTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
-  const [sortBy, setSortBy] = React.useState<SortOption>('order');
 
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -30,43 +27,32 @@ export default function AllTasksPage() {
     setFocusTask(null);
   };
 
-  const sortedTasks = React.useMemo(() => {
-    const sortableTasks = [...tasks];
-    return sortableTasks.sort((a, b) => {
-      switch (sortBy) {
-        case 'order':
-            return (a.order || 0) - (b.order || 0);
-        case 'scheduledDate':
-          if (a.scheduledDate && b.scheduledDate) {
-            const dateComparison = parseISO(a.scheduledDate).getTime() - parseISO(b.scheduledDate).getTime();
-            // If dates are the same, sort by the custom order.
-            if (dateComparison === 0) {
-              return (a.order || 0) - (b.order || 0);
-            }
-            return dateComparison;
-          }
-          if (a.scheduledDate) return -1; // a comes first
-          if (b.scheduledDate) return 1;  // b comes first
-          // if neither have a scheduled date, sort by custom order
-          return (a.order || 0) - (b.order || 0);
-        case 'createdAt-desc':
-            if (a.createdAt && b.createdAt) {
-                return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
-            }
-            return 0;
-        case 'createdAt-asc':
-            if (a.createdAt && b.createdAt) {
-                return parseISO(a.createdAt).getTime() - parseISO(b.createdAt).getTime();
-            }
-            return 0;
-        case 'title':
-          return a.title.localeCompare(b.title);
-        default:
-          return (a.order || 0) - (b.order || 0);
-      }
-    });
-  }, [tasks, sortBy]);
+  const tasksByDate = React.useMemo(() => {
+    const groupedTasks: Record<string, Task[]> = {};
 
+    tasks.forEach(task => {
+        const dateKey = task.scheduledDate || 'Unscheduled';
+        if (!groupedTasks[dateKey]) {
+            groupedTasks[dateKey] = [];
+        }
+        groupedTasks[dateKey].push(task);
+    });
+
+    // Sort tasks within each group by their custom order
+    for (const dateKey in groupedTasks) {
+        groupedTasks[dateKey].sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+    
+    return groupedTasks;
+  }, [tasks]);
+
+  const sortedDates = React.useMemo(() => {
+    return Object.keys(tasksByDate).sort((a, b) => {
+        if (a === 'Unscheduled') return 1;
+        if (b === 'Unscheduled') return -1;
+        return compareAsc(parseISO(a), parseISO(b));
+    });
+  }, [tasksByDate]);
 
   return (
      <div className="relative min-h-screen w-full">
@@ -76,30 +62,41 @@ export default function AllTasksPage() {
                   <ListTodo className="w-8 h-8" />
                   All Tasks
               </h1>
-              <div className="flex items-center gap-2">
-                <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
-                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Sort by..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="order">Custom Order</SelectItem>
-                    <SelectItem value="scheduledDate">Scheduled Date</SelectItem>
-                    <SelectItem value="createdAt-desc">Newest First</SelectItem>
-                    <SelectItem value="createdAt-asc">Oldest First</SelectItem>
-                    <SelectItem value="title">Title (A-Z)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             
             <Card>
                 <CardHeader>
                     <CardTitle>Your Tasks</CardTitle>
-                    <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
+                    <CardDescription>A complete list of all your scheduled tasks, grouped by date.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} onReorder={(taskId, direction) => handleReorderTask(taskId, direction, sortedTasks)} emptyMessage="No tasks found." />
+                    <div className="space-y-6">
+                        {sortedDates.map((date, index) => {
+                            const dailyTasks = tasksByDate[date];
+                            const onReorderForDate = (taskId: string, direction: 'up' | 'down') => {
+                                handleReorderTask(taskId, direction, dailyTasks);
+                            };
+
+                            return (
+                                <div key={date}>
+                                    <div className="mb-2">
+                                        <h3 className="text-lg font-semibold font-headline">
+                                            {date === 'Unscheduled' ? 'Unscheduled' : format(parseISO(date), 'EEEE, MMMM d')}
+                                        </h3>
+                                        <Separator className="mt-2"/>
+                                    </div>
+                                    <TaskList 
+                                      tasks={dailyTasks} 
+                                      onToggle={handleToggleTask} 
+                                      onStartFocus={handleStartFocus} 
+                                      onUpdateTask={updateTask} 
+                                      onReorder={onReorderForDate}
+                                      emptyMessage="No tasks for this day." 
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
                 </CardContent>
             </Card>
         </div>
