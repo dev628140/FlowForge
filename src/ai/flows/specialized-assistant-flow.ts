@@ -23,6 +23,8 @@ const SpecializedAssistantInputSchema = z.object({
   mode: z.enum(['planner', 'breakdown', 'suggester']).describe("The tool the user is currently using."),
   history: z.array(AssistantMessageSchema).describe("The conversation history for the current tool session."),
   tasks: z.array(z.any()).describe("The user's full list of tasks for context, if needed."),
+  // This will be added internally in the flow, not passed from the client
+  systemPrompt: z.string().optional(),
 });
 export type SpecializedAssistantInput = z.infer<typeof SpecializedAssistantInputSchema>;
 
@@ -66,16 +68,7 @@ const specializedAssistantPrompt = ai.definePrompt({
     name: 'specializedAssistantPrompt',
     input: { schema: SpecializedAssistantInputSchema },
     output: { schema: SpecializedAssistantOutputSchema },
-    prompt: `
-    {{#if (eq mode "planner")}}
-      ${plannerPrompt}
-    {{/if}}
-    {{#if (eq mode "breakdown")}}
-      ${breakdownPrompt}
-    {{/if}}
-    {{#if (eq mode "suggester")}}
-      ${suggesterPrompt}
-    {{/if}}
+    prompt: `{{{systemPrompt}}}
     
     CONVERSATION HISTORY:
     {{#each history}}
@@ -93,7 +86,22 @@ const specializedAssistantFlow = ai.defineFlow(
     outputSchema: SpecializedAssistantOutputSchema,
   },
   async (input) => {
-    const { output } = await specializedAssistantPrompt(input);
+    let systemPrompt = '';
+    switch (input.mode) {
+        case 'planner':
+            systemPrompt = plannerPrompt;
+            break;
+        case 'breakdown':
+            systemPrompt = breakdownPrompt;
+            break;
+        case 'suggester':
+            systemPrompt = suggesterPrompt;
+            break;
+    }
+
+    const flowInput = { ...input, systemPrompt };
+
+    const { output } = await specializedAssistantPrompt(flowInput);
     if (!output) {
       throw new Error("The AI was unable to generate a response. Please try rephrasing your request.");
     }
