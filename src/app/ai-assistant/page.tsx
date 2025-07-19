@@ -138,7 +138,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 return {
                     sessions: breakdownSessions,
                     createSession: createBreakdownSession,
-                    updateSession: updateBreakdownSession,
+                    updateSession: updateUpdateBreakdownSession,
                     deleteSession: deleteBreakdownSession,
                 };
             case 'suggester':
@@ -651,11 +651,11 @@ setCurrentPlan(null);
 
 
     return (
-        <div className="flex flex-col md:flex-row h-full">
+        <div className="flex h-full">
             {/* Chat History Sidebar */}
             <div className={cn(
-                "border-b md:border-b-0 md:border-r flex flex-col transition-all duration-300 bg-muted/20",
-                isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-72'
+                "border-r flex flex-col transition-all duration-300 bg-muted/20",
+                isSidebarCollapsed ? 'w-14' : 'w-72'
             )}>
                 <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
                     {!isSidebarCollapsed && (
@@ -663,25 +663,18 @@ setCurrentPlan(null);
                             <MessageSquarePlus className="mr-2 h-4 w-4" /> New Chat
                         </Button>
                     )}
-                    {isSidebarCollapsed && (
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" onClick={handleNewChat}>
-                                        <MessageSquarePlus className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="right">
-                                    <p>New Chat</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    )}
-                    <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="flex">
-                        {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="flex-shrink-0">
+                                  {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+                              </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right"><p>{isSidebarCollapsed ? 'Expand' : 'Collapse'}</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                 </div>
-                 <ScrollArea className="flex-grow h-40 md:h-auto">
+                 <ScrollArea className="flex-grow h-0">
                     {!isSidebarCollapsed && (
                     <div className="space-y-1 p-2">
                         {sortedSessions.map(session => (
@@ -744,8 +737,8 @@ setCurrentPlan(null);
             </div>
 
              {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col p-2 sm:p-4 md:pl-6 overflow-hidden">
-                <ScrollArea className="flex-grow overflow-y-auto pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
+            <div className="flex-1 flex flex-col p-4 overflow-hidden">
+                <ScrollArea className="flex-grow pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
                     <div className="space-y-4">
                         {history.length === 0 && !loading && renderInitialInputs()}
                         {history.map((msg, index) => (
@@ -963,3 +956,5 @@ export default function AIAssistantPage() {
         </div>
     );
 }
+
+    
