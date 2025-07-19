@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
 import { naturalLanguageTaskPlanning, NaturalLanguageTaskPlanningOutput } from '@/ai/flows/natural-language-task-planning';
 import { breakdownTask } from '@/ai/flows/breakdown-task-flow';
-import { visualTaskSnap } from '@/ai/flows/visual-task-snap-flow';
 import { getRoleBasedTaskSuggestions } from '@/ai/flows/role-based-task-suggestions';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
@@ -42,13 +41,9 @@ export default function AIAssistantPage() {
     const [taskToBreakdown, setTaskToBreakdown] = React.useState('');
     const [isBreakingDown, setIsBreakingDown] = React.useState(false);
 
-    // State for Visual Task Snap
-    const [file, setFile] = React.useState<File | null>(null);
-    const [isSnapping, setIsSnapping] = React.useState(false);
-
     // State for Role-based suggestions
     const [suggestionRole, setSuggestionRole] = React.useState<UserRole>('Developer');
-    const [suggestionMood, setSuggestionMood] = React.useState<MoodLabel>('Motivated');
+    const [suggestionMood, setSuggestionMood] = React.useState<Mood['label']>('Motivated');
     const [suggestionPrompt, setSuggestionPrompt] = React.useState('');
     const [isSuggesting, setIsSuggesting] = React.useState(false);
     const [suggestions, setSuggestions] = React.useState<string[]>([]);
@@ -60,6 +55,10 @@ export default function AIAssistantPage() {
         accept: { 'image/*': ['.jpeg', '.png', '.jpg', '.gif', '.webp'] },
         multiple: false,
     });
+    
+    // This state was missing, let's add it.
+    const [file, setFile] = React.useState<File | null>(null);
+
 
     const handlePlanGoal = async () => {
         if (!goal.trim()) return;
@@ -111,26 +110,6 @@ export default function AIAssistantPage() {
         }
     };
 
-    const handleVisualSnap = async () => {
-        if (!file) return;
-        setIsSnapping(true);
-        try {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const dataUri = reader.result as string;
-                const result = await visualTaskSnap({ photoDataUri: dataUri });
-                await handleAddTasks([{ title: result.taskTitle, description: result.taskDescription }]);
-                toast({ title: 'Task Created!', description: 'The task from your image has been added.' });
-                setFile(null);
-            };
-        } catch (e: any) {
-            console.error(e);
-            toast({ title: 'Error', description: e.message || 'Failed to process image.', variant: 'destructive' });
-        } finally {
-            setIsSnapping(false);
-        }
-    };
 
     const handleGetSuggestions = async () => {
         if(!suggestionPrompt.trim()) return;
@@ -215,31 +194,6 @@ export default function AIAssistantPage() {
                     </CardContent>
                 </Card>
 
-                {/* Visual Task Snap */}
-                <Card className="flex flex-col">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Upload /> Visual Task Snap</CardTitle>
-                        <CardDescription>Upload a picture of a note or whiteboard, and the AI will turn it into a task.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow flex flex-col gap-4">
-                        <div {...getRootProps()} className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors">
-                            <input {...getInputProps()} />
-                            {file ? (
-                                <div className="flex flex-col items-center gap-2">
-                                  <Image src={URL.createObjectURL(file)} alt="Preview" width={100} height={100} className="rounded-md object-cover" />
-                                  <p className="text-sm font-medium">{file.name}</p>
-                                </div>
-                            ) : isDragActive ? (
-                                <p>Drop the image here ...</p>
-                            ) : (
-                                <p>Drag 'n' drop an image here, or click to select one</p>
-                            )}
-                        </div>
-                        <Button onClick={handleVisualSnap} disabled={isSnapping || !file}>
-                            {isSnapping ? <Loader2 className="animate-spin" /> : 'Create Task from Image'}
-                        </Button>
-                    </CardContent>
-                </Card>
 
                  {/* Role-based Suggestions */}
                 <Card className="flex flex-col">
@@ -248,14 +202,14 @@ export default function AIAssistantPage() {
                         <CardDescription>Feeling stuck? Get task ideas based on your role, mood, and current goal.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-grow flex flex-col gap-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                              <Select onValueChange={(v: UserRole) => setSuggestionRole(v)} defaultValue={suggestionRole}>
                                 <SelectTrigger><SelectValue placeholder="Select role..." /></SelectTrigger>
                                 <SelectContent>
                                     {userRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Select onValueChange={(v: MoodLabel) => setSuggestionMood(v)} defaultValue={suggestionMood}>
+                            <Select onValueChange={(v: Mood['label']) => setSuggestionMood(v)} defaultValue={suggestionMood}>
                                 <SelectTrigger><SelectValue placeholder="Select mood..." /></SelectTrigger>
                                 <SelectContent>
                                     {moods.map(m => <SelectItem key={m.label} value={m.label}>{m.emoji} {m.label}</SelectItem>)}
@@ -289,4 +243,3 @@ export default function AIAssistantPage() {
         </div>
     );
 }
-

@@ -11,31 +11,13 @@ import FocusMode from '@/components/dashboard/focus-mode';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { parseISO } from 'date-fns';
 
-type SortOption = 'order' | 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
-
-const SORT_ORDER_STORAGE_KEY = 'flowforge_all_tasks_sort_order';
+type SortOption = 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
 
 export default function AllTasksPage() {
-  const { tasks, handleToggleTask, updateTask, handleReorderTask } = useAppContext();
+  const { tasks, handleToggleTask, updateTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
-  const [sortBy, setSortBy] = React.useState<SortOption>('order');
-  const [isClient, setIsClient] = React.useState(false);
-
-  React.useEffect(() => {
-    setIsClient(true);
-    const savedSortOrder = localStorage.getItem(SORT_ORDER_STORAGE_KEY) as SortOption;
-    if (savedSortOrder) {
-      setSortBy(savedSortOrder);
-    }
-  }, []);
-
-  const handleSortChange = (value: SortOption) => {
-    setSortBy(value);
-    if (isClient) {
-      localStorage.setItem(SORT_ORDER_STORAGE_KEY, value);
-    }
-  };
+  const [sortBy, setSortBy] = React.useState<SortOption>('scheduledDate');
 
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -49,35 +31,32 @@ export default function AllTasksPage() {
   };
 
   const sortedTasks = React.useMemo(() => {
-    const sortableTasks = [...tasks]; 
-
+    const sortableTasks = [...tasks];
     return sortableTasks.sort((a, b) => {
       switch (sortBy) {
-        case 'order':
-          return (a.order ?? Infinity) - (b.order ?? Infinity);
-
         case 'scheduledDate':
-          const dateA = a.scheduledDate ? parseISO(a.scheduledDate).getTime() : Infinity;
-          const dateB = b.scheduledDate ? parseISO(b.scheduledDate).getTime() : Infinity;
-          
-          if (dateA !== dateB) {
-            return dateA - dateB;
+          if (a.scheduledDate && b.scheduledDate) {
+            return parseISO(a.scheduledDate).getTime() - parseISO(b.scheduledDate).getTime();
           }
-          return (a.order ?? Infinity) - (b.order ?? Infinity);
-
+          if (a.scheduledDate) return -1; // a comes first
+          if (b.scheduledDate) return 1;  // b comes first
+          // if neither have a scheduled date, sort by creation
+          if (a.createdAt && b.createdAt) {
+            return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
+          }
+          return 0;
         case 'createdAt-desc':
-          const timeA_desc = a.createdAt ? parseISO(a.createdAt).getTime() : 0;
-          const timeB_desc = b.createdAt ? parseISO(b.createdAt).getTime() : 0;
-          return timeB_desc - timeA_desc;
-
+            if (a.createdAt && b.createdAt) {
+                return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
+            }
+            return 0;
         case 'createdAt-asc':
-          const timeA_asc = a.createdAt ? parseISO(a.createdAt).getTime() : 0;
-          const timeB_asc = b.createdAt ? parseISO(b.createdAt).getTime() : 0;
-          return timeA_asc - timeB_asc;
-
+            if (a.createdAt && b.createdAt) {
+                return parseISO(a.createdAt).getTime() - parseISO(b.createdAt).getTime();
+            }
+            return 0;
         case 'title':
           return a.title.localeCompare(b.title);
-
         default:
           return 0;
       }
@@ -95,12 +74,11 @@ export default function AllTasksPage() {
               </h1>
               <div className="flex items-center gap-2">
                 <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
-                <Select value={sortBy} onValueChange={handleSortChange}>
+                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort by..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="order">Priority</SelectItem>
                     <SelectItem value="scheduledDate">Scheduled Date</SelectItem>
                     <SelectItem value="createdAt-desc">Newest First</SelectItem>
                     <SelectItem value="createdAt-asc">Oldest First</SelectItem>
@@ -116,14 +94,7 @@ export default function AllTasksPage() {
                     <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <TaskList 
-                        tasks={sortedTasks}
-                        onToggle={handleToggleTask} 
-                        onStartFocus={handleStartFocus} 
-                        onUpdateTask={updateTask} 
-                        onReorder={(taskId, direction) => handleReorderTask(taskId, direction, sortedTasks)}
-                        emptyMessage="No tasks found."
-                    />
+                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks found." />
                 </CardContent>
             </Card>
         </div>

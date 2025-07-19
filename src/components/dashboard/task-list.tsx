@@ -10,17 +10,19 @@ interface TaskListProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onReorder: (taskId: string, direction: 'up' | 'down') => void;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;
 }
 
-export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, onReorder, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
-  
-  // The `tasks` prop is already sorted by the parent component.
-  // We no longer need to sort it here.
-  const sortedTasks = tasks;
+export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, isSubtaskList = false, emptyMessage, parentId }: TaskListProps) {
+  const sortedTasks = React.useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      if (a.completed && !b.completed) return 1;
+      if (!a.completed && b.completed) return -1;
+      return 0;
+    });
+  }, [tasks]);
 
   const incompleteTasks = sortedTasks.filter(t => !t.completed);
   const completedTasks = sortedTasks.filter(t => t.completed);
@@ -32,40 +34,36 @@ export default function TaskList({ tasks, onToggle, onStartFocus, onUpdateTask, 
       </div>
     );
   }
-  
-  const renderTasks = (tasksToRender: Task[], isCompletedList: boolean) => {
-    return tasksToRender.map((task, index) => {
-      const isFirstInList = index === 0;
-      const isLastInList = index === tasksToRender.length - 1;
 
-      // Determine if the task is the very first or very last in the *visible* list.
-      const isFirstOverall = !isCompletedList && isFirstInList;
-      const isLastOverall = (isCompletedList && isLastInList) || (!completedTasks.length && !isCompletedList && isLastInList);
-
-      return (
+  return (
+    <div className="space-y-1">
+      {incompleteTasks.map(task => (
         <TaskItem 
           key={task.id} 
           task={task} 
           onToggle={onToggle} 
           onStartFocus={onStartFocus}
           onUpdateTask={onUpdateTask}
-          onReorder={onReorder}
           isSubtask={isSubtaskList}
           parentId={parentId}
-          isFirst={isFirstOverall}
-          isLast={isLastOverall}
         />
-      )
-    });
-  }
+      ))}
 
-  return (
-    <div className="space-y-1">
-      {renderTasks(incompleteTasks, false)}
       {completedTasks.length > 0 && incompleteTasks.length > 0 && !isSubtaskList && (
         <div className="text-xs font-semibold text-muted-foreground pt-4 pb-2">COMPLETED</div>
       )}
-      {renderTasks(completedTasks, true)}
+
+      {completedTasks.map(task => (
+        <TaskItem 
+          key={task.id} 
+          task={task} 
+          onToggle={onToggle} 
+          onStartFocus={onStartFocus}
+          onUpdateTask={onUpdateTask}
+          isSubtask={isSubtaskList}
+          parentId={parentId}
+        />
+      ))}
     </div>
   );
 }
