@@ -10,7 +10,7 @@ interface TaskListProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onMove?: (taskId: string, direction: 'up' | 'down') => void;
+  onMove?: (taskId: string, direction: 'up' | 'down', listId: string) => void;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;
@@ -41,7 +41,7 @@ export default function TaskList({
   }
 
   const handleMove = (taskId: string, direction: 'up' | 'down') => {
-    onMove?.(taskId, direction);
+    onMove?.(taskId, direction, listId);
   };
 
   return (

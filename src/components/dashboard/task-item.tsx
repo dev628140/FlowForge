@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil, GripVertical } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -232,9 +232,12 @@ export default function TaskItem({
   const itemContent = (
     <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
       {isDraggable && !task.completed && (
-        <div className="flex flex-col items-center mr-2">
-           <Button variant="ghost" size="icon" className="h-5 w-5 cursor-grab" onClick={() => onMove?.(task.id, 'up')} aria-label="Move up">
-                <GripVertical className="h-4 w-4" />
+        <div className="flex flex-col items-center mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+           <Button variant="ghost" size="icon" className="h-5 w-5 cursor-n-resize" onClick={() => onMove?.(task.id, 'up')} aria-label="Move up">
+                <ArrowUp className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-5 w-5 cursor-s-resize" onClick={() => onMove?.(task.id, 'down')} aria-label="Move down">
+                <ArrowDown className="h-4 w-4" />
             </Button>
         </div>
       )}

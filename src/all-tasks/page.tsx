@@ -62,9 +62,9 @@ export default function AllTasksPage() {
   }, [tasks, sortBy]);
 
   const onMove = (taskId: string, direction: 'up' | 'down') => {
-    const listId = sortBy === 'scheduledDate' 
-      ? tasks.find(t => t.id === taskId)?.scheduledDate || 'unscheduled' 
-      : 'all';
+    // When sorting by date, the listId context is the date itself.
+    // For other sorts, it's a generic 'all'.
+    const listId = sortBy === 'scheduledDate' ? 'byDate' : 'all';
     handleMoveTask(taskId, direction, listId);
   };
 
@@ -78,7 +78,7 @@ export default function AllTasksPage() {
               </h1>
               <div className="flex items-center gap-2">
                 <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
-                <Select value={sortBy} onValueChange={(value: SortOption) => setSortby(value)}>
+                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort by..." />
                   </SelectTrigger>

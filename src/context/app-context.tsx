@@ -289,51 +289,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!user || !db) return;
 
       const getList = () => {
-          if (listId === 'today') {
-              return tasks.filter(t => t.scheduledDate && isToday(parseISO(t.scheduledDate)));
-          }
-          if (listId === 'all') {
-              return tasks;
-          }
-          // Handle date-specific lists on All Tasks page
-          return tasks.filter(t => t.scheduledDate === listId);
+        if (listId === 'today') {
+            return tasks.filter(t => t.scheduledDate && isToday(parseISO(t.scheduledDate)));
+        }
+        // Handle 'all' and date-specific lists
+        if (listId === 'all' || listId === 'byDate') {
+            const task = tasks.find(t => t.id === taskId);
+            const date = task?.scheduledDate;
+            if (date) {
+                return tasks.filter(t => t.scheduledDate === date);
+            }
+        }
+        return [];
       };
 
       const taskList = getList().filter(t => !t.completed).sort((a, b) => (a.order || 0) - (b.order || 0));
-
+      
       const currentIndex = taskList.findIndex(t => t.id === taskId);
 
-      if (currentIndex === -1) return; // Task not in the draggable list
+      if (currentIndex === -1) return; 
 
       const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
 
-      if (targetIndex < 0 || targetIndex >= taskList.length) return; // Cannot move further
+      if (targetIndex < 0 || targetIndex >= taskList.length) return;
 
       const currentTask = taskList[currentIndex];
       const targetTask = taskList[targetIndex];
-      const isMovingDown = direction === 'down';
+      
+      const newOrder =
+        direction === 'up'
+          ? (taskList[targetIndex - 1]?.order ?? targetTask.order! - 1000) / 2 + targetTask.order! / 2
+          : (taskList[targetIndex + 1]?.order ?? targetTask.order! + 1000) / 2 + targetTask.order! / 2;
 
-      // Calculate the new order
-      let newOrder;
-      if (isMovingDown) {
-          const nextTask = taskList[targetIndex + 1];
-          newOrder = nextTask ? (targetTask.order! + nextTask.order!) / 2 : targetTask.order! + 1000;
-      } else { // Moving Up
-          const prevTask = taskList[targetIndex - 1];
-          newOrder = prevTask ? (targetTask.order! + prevTask.order!) / 2 : targetTask.order! - 1000;
-      }
-
-      // Optimistically update the UI
       setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, order: newOrder } : t));
 
-      // Update in Firestore
       try {
           const taskRef = doc(db, 'tasks', taskId);
           await updateDoc(taskRef, { order: newOrder });
       } catch (error) {
           console.error("Error reordering task:", error);
           toast({ title: "Error", description: "Could not save new order.", variant: "destructive" });
-          setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, order: currentTask.order } : t)); // Revert
+          setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, order: currentTask.order } : t));
       }
   };
 
