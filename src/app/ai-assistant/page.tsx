@@ -34,10 +34,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-import { runPlanner, type PlannerOutput } from '@/ai/flows/planner-flow';
-import { runBreakdowner, type BreakdownerOutput } from '@/ai/flows/breakdown-flow';
-import { runSuggester, type SuggesterOutput } from '@/ai/flows/suggester-flow';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
@@ -45,6 +41,7 @@ import { textToSpeech } from '@/ai/flows/tts-flow';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import MediaUploader from '@/components/dashboard/media-uploader';
+import { runAssistant, type AssistantOutput, type AssistantInput } from '@/ai/flows/assistant-flow';
 
 
 export type AssistantMode = 'planner' | 'breakdown' | 'suggester';
@@ -70,6 +67,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         userRole, 
         handleAddTasks, 
         handleAddSubtasks,
+        updateTask,
+        handleDeleteTask,
         plannerSessions, createPlannerSession, updatePlannerSession, deletePlannerSession,
         breakdownSessions, createBreakdownSession, updateBreakdownSession, deleteBreakdownSession,
         suggesterSessions, createSuggesterSession, updateSuggesterSession, deleteSuggesterSession,
@@ -81,18 +80,15 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [history, setHistory] = React.useState<AssistantMessage[]>([]);
     const [prompt, setPrompt] = React.useState('');
     const [loading, setLoading] = React.useState(false);
-    const [currentPlan, setCurrentPlan] = React.useState<PlannerOutput['tasks'] | null>(null);
+    const [currentPlan, setCurrentPlan] = React.useState<AssistantOutput | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
     const [isVoiceMode, setIsVoiceMode] = React.useState(false);
     const [mediaFile, setMediaFile] = React.useState<{ dataUri: string; type: string; name: string } | null>(null);
     const [isMediaUploaderOpen, setIsMediaUploaderOpen] = React.useState(false);
-    const [audioResponseUri, setAudioResponseUri] = React.useState<string | null>(null);
 
     // State for inputs
-    const [taskToBreakdown, setTaskToBreakdown] = React.useState('');
     const [suggestionRole, setSuggestionRole] = React.useState<UserRole>(userRole);
     const [suggestionMood, setSuggestionMood] = React.useState<Mood['label']>('Motivated');
-    const [breakdownDate, setBreakdownDate] = React.useState<Date | undefined>(new Date());
     
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
     
@@ -126,7 +122,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
       createSession,
       updateSession,
       deleteSession,
-      runAIFlow,
     } = React.useMemo(() => {
         switch (mode) {
             case 'planner':
@@ -135,7 +130,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     createSession: createPlannerSession,
                     updateSession: updatePlannerSession,
                     deleteSession: deletePlannerSession,
-                    runAIFlow: runPlanner as any,
                 };
             case 'breakdown':
                 return {
@@ -143,7 +137,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     createSession: createBreakdownSession,
                     updateSession: updateBreakdownSession,
                     deleteSession: deleteBreakdownSession,
-                    runAIFlow: runBreakdowner as any,
                 };
             case 'suggester':
                 return {
@@ -151,7 +144,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     createSession: createSuggesterSession,
                     updateSession: updateSuggesterSession,
                     deleteSession: deleteSuggesterSession,
-                    runAIFlow: runSuggester as any,
                 };
         }
     }, [mode, plannerSessions, createPlannerSession, updatePlannerSession, deletePlannerSession, breakdownSessions, createBreakdownSession, updateBreakdownSession, deleteBreakdownSession, suggesterSessions, createSuggesterSession, updateSuggesterSession, deleteSuggesterSession]);
@@ -162,34 +154,13 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
           const activeSession = sessions.find(s => s.id === activeChatId);
           if (activeSession) {
             setHistory(activeSession.history);
-            // Find the last plan in the history, if any
-            const lastModelMessage = activeSession.history.slice().reverse().find(m => m.role === 'model');
-            if (lastModelMessage?.content) {
-                const planAsJson = lastModelMessage.content.split('CURRENT PLAN:')[1];
-                if (planAsJson) {
-                    try {
-                        const parsedPlan = JSON.parse(planAsJson);
-                        if (parsedPlan && Array.isArray(parsedPlan)) {
-                           setCurrentPlan(parsedPlan);
-                        }
-                    } catch(e) {
-                        console.error("Could not parse plan from history", e)
-                        setCurrentPlan(null);
-                    }
-                } else {
-                    setCurrentPlan(null);
-                }
-            } else {
-                setCurrentPlan(null);
-            }
           } else {
             setHistory([]);
-            setCurrentPlan(null);
           }
         } else {
           setHistory([]);
-          setCurrentPlan(null);
         }
+        setCurrentPlan(null); // Clear plan when switching chats
     }, [activeChatId, sessions]);
     
      React.useEffect(() => {
@@ -198,59 +169,22 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         }
     }, [history, loading, currentPlan]);
 
-    const getGroupedTasks = React.useMemo(() => {
-        if (!breakdownDate) return {};
-        
-        const selectedDateStr = format(breakdownDate, 'yyyy-MM-dd');
-        
-        const tasksForSelectedDate = tasks
-            .filter(t => !t.completed && t.scheduledDate === selectedDateStr)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        const groupTitle = format(breakdownDate, 'PPP');
-        
-        const grouped: { [key: string]: Task[] } = {};
-        if (tasksForSelectedDate.length > 0) {
-            grouped[groupTitle] = tasksForSelectedDate;
-        }
-        
-        return grouped;
-
-    }, [tasks, breakdownDate]);
-
     const getInitialPrompt = () => {
         switch (mode) {
             case 'planner':
-                return `Goal: ${prompt}`;
+                return `My goal is: "${prompt}". Please create a detailed, step-by-step plan to achieve this.`;
             case 'breakdown':
-                const task = tasks.find(t => t.id === taskToBreakdown);
-                return `Break down this task: "${task?.title}"`;
+                 return `My task is: "${prompt}". Please break this down into smaller, actionable sub-tasks.`;
             case 'suggester':
-                return `My goal is: "${prompt}". My role is ${suggestionRole} and my mood is ${suggestionMood}. Give me some ideas.`;
+                return `My goal is: "${prompt}". My role is ${suggestionRole} and my mood is ${suggestionMood}. Give me some creative ideas or tasks to get started.`;
             default:
                 return prompt;
         }
     };
     
     const canSubmit = () => {
-        if (loading) return false;
-        if (prompt.trim() !== '' || mediaFile) return true;
-        
-        // Allow submitting follow-up messages
-        if (history.length > 0) {
-            return prompt.trim() !== '';
-        }
-
-        // Initial submission logic
-        switch (mode) {
-            case 'planner':
-            case 'suggester':
-                return prompt.trim() !== '';
-            case 'breakdown':
-                return taskToBreakdown !== '';
-            default:
-                return false;
-        }
+        if (loading || isListening || isPlaying) return false;
+        return prompt.trim() !== '' || !!mediaFile;
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -279,33 +213,29 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         let currentChatId = activeChatId;
 
         try {
-            // The AI Hub flows don't natively accept media. We are passing it
-            // here for consistency, but the underlying specialized flows (planner, breakdown, etc.)
-            // might not use it. We are passing it into the history.
-            const result: PlannerOutput = await runAIFlow({
-                history: newHistory,
-            });
+            const assistantInput = {
+                history: newHistory.map(h => ({ role: h.role, content: h.content })),
+                historyWithMedia: newHistory,
+                tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
+                role: userRole,
+                date: format(new Date(), 'yyyy-MM-dd'),
+                chatSessionId: currentChatId,
+            };
+            
+            const result = await runAssistant(assistantInput as any);
             
             if (result) {
-                if (isNewChat) {
-                    const title = newHistory[0].content.substring(0, 40) + '...';
-                    currentChatId = await createSession(newHistory, title);
+                if (isNewChat && result.title) {
+                    currentChatId = await createSession(newHistory, result.title);
                     setActiveChatId(currentChatId);
                 }
                 
-                let modelContent = result.response;
-                if (result.tasks && result.tasks.length > 0) {
-                    const planAsJson = "\n\nCURRENT PLAN:" + JSON.stringify(result.tasks);
-                    modelContent += planAsJson;
-                }
-
-                const modelResponse: AssistantMessage = { role: 'model', content: modelContent };
+                const modelResponse: AssistantMessage = { role: 'model', content: result.response };
                 
                 if (isVoiceMode) {
                     try {
                         const ttsResult = await textToSpeech({ text: result.response });
-                        setAudioResponseUri(ttsResult.audioDataUri); // This state is temporary, not saved
-                        playAudio(ttsResult.audioDataUri);
+                        if(ttsResult.audioDataUri) playAudio(ttsResult.audioDataUri);
                     } catch (ttsError) {
                         console.error("Text-to-speech failed:", ttsError);
                         toast({ title: "Voice Error", description: "Could not generate audio response.", variant: "destructive"});
@@ -319,8 +249,13 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     await updateSession(currentChatId, { history: updatedHistory });
                 }
 
-                if (result.tasks && result.tasks.length > 0) {
-                    setCurrentPlan(result.tasks);
+                const hasActions = (result.tasksToAdd && result.tasksToAdd.length > 0) ||
+                    (result.tasksToUpdate && result.tasksToUpdate.length > 0) ||
+                    (result.tasksToDelete && result.tasksToDelete.length > 0) ||
+                    (result.subtasksToAdd && result.subtasksToAdd.length > 0);
+
+                if (hasActions) {
+                    setCurrentPlan(result);
                 } else {
                     setCurrentPlan(null);
                 }
@@ -346,24 +281,53 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     
     const handleFinalize = async () => {
         if (!currentPlan) return;
-        
-        if (mode === 'breakdown') {
-            const parentId = tasks.find(t => t.id === taskToBreakdown)?.id;
-            if (parentId) {
-                await handleAddSubtasks(parentId, currentPlan.map(p => ({ title: p.title })));
-                toast({ title: "Subtasks Added!", description: "The new subtasks have been added to the parent task." });
+
+        setLoading(true);
+        try {
+            const promises = [];
+            if (currentPlan.tasksToAdd && currentPlan.tasksToAdd.length > 0) {
+                promises.push(handleAddTasks(currentPlan.tasksToAdd));
             }
-        } else {
-            await handleAddTasks(currentPlan);
-            toast({ title: 'Tasks Added!', description: 'The new tasks have been added to your list.' });
+            if (currentPlan.tasksToUpdate && currentPlan.tasksToUpdate.length > 0) {
+                for (const task of currentPlan.tasksToUpdate) {
+                promises.push(updateTask(task.taskId, task.updates));
+                }
+            }
+            if (currentPlan.tasksToDelete && currentPlan.tasksToDelete.length > 0) {
+                for (const task of currentPlan.tasksToDelete) {
+                promises.push(handleDeleteTask(task.taskId));
+                }
+            }
+            if (currentPlan.subtasksToAdd && currentPlan.subtasksToAdd.length > 0) {
+                for (const parent of currentPlan.subtasksToAdd) {
+                    promises.push(handleAddSubtasks(parent.parentId, parent.subtasks));
+                }
+            }
+            
+            await Promise.all(promises);
+            
+            const planAppliedHistory = [...history, { role: 'model', content: "Okay, I've applied that plan." }];
+            setHistory(planAppliedHistory);
+            if (activeChatId) {
+                await updateSession(activeChatId, { history: planAppliedHistory });
+            }
+            toast({ title: 'Plan Applied!', description: 'Your tasks have been updated.' });
+
+        } catch (error) {
+            console.error("Error applying AI plan:", error);
+            toast({ title: "Error Applying Plan", description: "Could not apply all parts of the AI plan.", variant: "destructive" });
+        } finally {
+            setCurrentPlan(null);
+            setLoading(false);
         }
-        
-        const planAppliedHistory = [...history, { role: 'model', content: "Okay, I've added that to your list." }];
-        setHistory(planAppliedHistory);
+    };
+    
+    const handleDiscardPlan = () => {
+        const discardedHistory = [...history, { role: 'model', content: "Okay, I've discarded that plan." }];
+        setHistory(discardedHistory);
         if (activeChatId) {
-            await updateSession(activeChatId, { history: planAppliedHistory });
+            updateSession(activeChatId, { history: discardedHistory });
         }
-        
         setCurrentPlan(null);
     };
 
@@ -428,65 +392,33 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const renderInitialInputs = () => {
         if (history.length > 0) return null;
 
+        const templates = {
+            planner: {
+                title: 'AI Task Planner',
+                description: "Describe your goal, and I'll generate a step-by-step plan for you.",
+                placeholder: "e.g., Learn to build a website in 30 days, starting tomorrow.",
+            },
+            breakdown: {
+                title: 'Task Breakdown',
+                description: "Describe a complex task, and I'll break it into smaller, actionable subtasks.",
+                placeholder: "e.g., Plan and launch a new marketing campaign for Q3.",
+            },
+            suggester: {
+                title: 'Smart Suggestions',
+                description: "Tell me your goal, role, and mood, and I'll brainstorm some ideas.",
+                placeholder: "e.g., get fit",
+            }
+        };
+
+        const currentTemplate = templates[mode];
+
         return (
              <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center items-center">
-                {mode === 'planner' && (
-                    <>
-                        <h3 className="font-semibold">AI Task Planner</h3>
-                        <p className="text-sm text-muted-foreground mt-1 max-w-sm">Describe your goal, and I'll generate a step-by-step plan for you.</p>
-                        <Textarea
-                            className="mt-4"
-                            placeholder="e.g., Learn to build a website in 30 days, starting tomorrow."
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            rows={isMobile ? 2 : 3}
-                            disabled={loading || isListening}
-                        />
-                    </>
-                )}
-                {mode === 'breakdown' && (
-                    <>
-                        <h3 className="font-semibold">Task Breakdown</h3>
-                        <p className="text-sm text-muted-foreground mt-1 max-w-sm">Select a task from your list, and I'll break it into smaller subtasks.</p>
-                        <div className="space-y-4 w-full mt-4">
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !breakdownDate && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {breakdownDate ? format(breakdownDate, "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar mode="single" selected={breakdownDate} onSelect={setBreakdownDate} initialFocus />
-                                </PopoverContent>
-                            </Popover>
-                            <Select onValueChange={setTaskToBreakdown} value={taskToBreakdown} disabled={loading}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a task to break down..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(getGroupedTasks).length > 0 ? (
-                                        Object.entries(getGroupedTasks).map(([group, tasksInGroup]) => (
-                                            <SelectGroup key={group}>
-                                                <SelectLabel>{group}</SelectLabel>
-                                                {tasksInGroup.map(task => (
-                                                    <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
-                                                ))}
-                                            </SelectGroup>
-                                        ))
-                                    ) : (
-                                        <SelectItem value="no-tasks" disabled>No tasks for the selected day</SelectItem>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </>
-                )}
-                {mode === 'suggester' && (
-                     <>
-                        <h3 className="font-semibold">Smart Suggestions</h3>
-                        <p className="text-sm text-muted-foreground mt-1 max-w-sm">Tell me your goal, role, and mood, and I'll brainstorm some ideas.</p>
-                        <div className="space-y-4 w-full mt-4">
+                <h3 className="font-semibold">{currentTemplate.title}</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">{currentTemplate.description}</p>
+                <div className="w-full mt-4">
+                     {mode === 'suggester' ? (
+                        <div className="space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Select onValueChange={(v: UserRole) => setSuggestionRole(v)} defaultValue={suggestionRole} disabled={loading}>
                                     <SelectTrigger><SelectValue placeholder="Select role..." /></SelectTrigger>
@@ -502,17 +434,36 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                 </Select>
                             </div>
                             <Input 
-                                placeholder="What do you want to accomplish? (e.g., get fit)"
+                                placeholder={currentTemplate.placeholder}
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 disabled={loading || isListening}
                             />
                         </div>
-                     </>
-                )}
+                    ) : (
+                         <Textarea
+                            placeholder={currentTemplate.placeholder}
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            rows={isMobile ? 2 : 3}
+                            disabled={loading || isListening}
+                        />
+                    )}
+                </div>
              </div>
         );
     };
+
+    const PlanSection: React.FC<{title: string; icon: React.ReactNode; className: string; children: React.ReactNode}> = ({ title, icon, className, children }) => (
+        <div>
+            <div className={cn("font-medium flex items-center gap-2", className)}>
+                {icon} {title}:
+            </div>
+            <ul className="list-disc pl-8 mt-1 space-y-1 text-muted-foreground">
+                {children}
+            </ul>
+        </div>
+      );
 
 
     return (
@@ -634,7 +585,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                             <span className="text-xs truncate">Attached: {msg.mediaType}</span>
                                         </div>
                                     )}
-                                    {msg.content.replace(/^Error: /, '').split('CURRENT PLAN:')[0]}
+                                    {msg.content.replace(/^Error: /, '')}
                                 </div>
                                 {msg.role === 'user' && (
                                     <div className="bg-muted text-foreground rounded-full p-2 flex-shrink-0">
@@ -643,7 +594,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                 )}
                             </div>
                         ))}
-                        {loading && (
+                        {loading && !currentPlan && (
                         <div className="flex items-start gap-3 justify-start">
                             <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
                                 <Bot className="w-5 h-5" />
@@ -657,22 +608,60 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     </div>
                 </ScrollArea>
             
-                 {currentPlan && currentPlan.length > 0 && (
+                {currentPlan && (
                     <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex flex-col overflow-hidden max-h-[250px] sm:max-h-[200px]">
                         <h4 className="font-semibold flex-shrink-0">Suggested Plan:</h4>
                         <ScrollArea className="flex-grow overflow-y-auto pr-2">
-                          <ul className="space-y-2 list-disc pl-5 text-sm">
-                              {currentPlan.map((task, i) => (
-                                  <li key={i}>
-                                      {task.title}
-                                      {task.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(task.scheduledDate + 'T00:00:00'), 'MMM d')}{task.scheduledTime && ` @ ${task.scheduledTime}`}</Badge>}
-                                  </li>
-                              ))}
-                          </ul>
+                            <div className="space-y-4 text-sm">
+                                {currentPlan.tasksToAdd && currentPlan.tasksToAdd.length > 0 && (
+                                <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
+                                    {currentPlan.tasksToAdd.map((t, i) => (
+                                    <li key={`add-${i}`}>
+                                        {t.title}
+                                        {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
+                                    </li>
+                                    ))}
+                                </PlanSection>
+                                )}
+                                {currentPlan.subtasksToAdd && currentPlan.subtasksToAdd.length > 0 && (
+                                <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
+                                    {currentPlan.subtasksToAdd.map((item, i) => (
+                                    <li key={`subtask-${i}`}>
+                                        To "{tasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
+                                    </li>
+                                    ))}
+                                </PlanSection>
+                                )}
+                                {currentPlan.tasksToUpdate && currentPlan.tasksToUpdate.length > 0 && (
+                                <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
+                                    {currentPlan.tasksToUpdate.map((t, i) => {
+                                    const originalTask = tasks.find(task => task.id === t.taskId);
+                                    const updates = Object.entries(t.updates)
+                                        .map(([key, value]) => {
+                                        if (value === null) return null;
+                                        if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
+                                        return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
+                                        })
+                                        .filter(Boolean)
+                                        .join(', ');
+                                    return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
+                                    })}
+                                </PlanSection>
+                                )}
+                                {currentPlan.tasksToDelete && currentPlan.tasksToDelete.length > 0 && (
+                                <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
+                                    {currentPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{tasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
+                                </PlanSection>
+                                )}
+                            </div>
                         </ScrollArea>
-                        <Button size="sm" className="w-full mt-auto flex-shrink-0" onClick={handleFinalize}>
-                            <PlusCircle className="mr-2"/> Finalize & Add to Tasks
-                        </Button>
+                        <div className="flex justify-end gap-2 pt-2 flex-shrink-0">
+                            <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2"/> Discard</Button>
+                            <Button onClick={handleFinalize} disabled={loading}>
+                                {loading && <Loader2 className="animate-spin mr-2"/>}
+                                <PlusCircle className="mr-2"/> Finalize & Add
+                            </Button>
+                        </div>
                     </div>
                 )}
                 
@@ -690,18 +679,16 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                             </Button>
                         </div>
                     )}
-                    {history.length > 0 && (
-                         <div className="relative w-full">
-                            <Input
-                                value={prompt}
-                                onChange={(e) => setPrompt(e.target.value)}
-                                placeholder="Need changes? Type or use the mic..."
-                                disabled={loading || isListening || isPlaying}
-                                autoFocus
-                                className={cn(isAvailable && "pr-10")}
-                            />
-                        </div>
-                    )}
+                    <div className="relative w-full">
+                        <Input
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            placeholder={history.length > 0 ? "Need changes? Type or use the mic..." : "Describe your goal..."}
+                            disabled={loading || isListening || isPlaying}
+                            autoFocus
+                            className={cn(isAvailable && "pr-10")}
+                        />
+                    </div>
                 
                     <div className="flex items-center gap-2">
                          <Dialog open={isMediaUploaderOpen} onOpenChange={setIsMediaUploaderOpen}>
@@ -777,7 +764,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                 )}
                             </TooltipProvider>
                         )}
-                        <Button type="submit" disabled={!canSubmit() || isListening || isPlaying} className="w-full">
+                        <Button type="submit" disabled={!canSubmit()} className="w-full">
                             {loading ? <Loader2 className="animate-spin" /> : history.length > 0 ? <CornerDownLeft/> : <Wand2/>}
                             <span className="ml-2">{loading ? 'Generating...' : history.length > 0 ? 'Send' : 'Generate'}</span>
                         </Button>
