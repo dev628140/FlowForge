@@ -64,15 +64,18 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
   const handleSpeechResult = (text: string) => {
       setPrompt(text);
-      if (isVoiceMode) {
-          // Delay submission slightly to allow state to update
-          setTimeout(() => {
-              formRef.current?.requestSubmit();
-          }, 100);
-      }
   };
   
-  const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
+  const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition({
+    onResult: handleSpeechResult,
+    onEnd: () => {
+      // This will only trigger auto-submit in voice mode.
+      if (isVoiceMode && prompt) {
+        formRef.current?.requestSubmit();
+      }
+    },
+  });
+  
   const { play: playAudio, stop: stopAudio, isPlaying } = useSpeechSynthesis();
 
   // Effect to load a chat session's history when it becomes active
@@ -121,6 +124,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       if (isOffline) toast({ title: 'You are offline', description: 'AI features are unavailable.', variant: 'destructive' });
       return;
     }
+
+    if(isListening) stopListening();
 
     setLoading(true);
     setAiPlan(null);
@@ -189,6 +194,9 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       }
     } finally {
       setLoading(false);
+      if(isVoiceMode) {
+        setIsVoiceMode(false);
+      }
     }
   };
 
@@ -248,14 +256,22 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     }
   }
 
-  const handleToggleVoiceMode = () => {
-    const newVoiceModeState = !isVoiceMode;
-    setIsVoiceMode(newVoiceModeState);
-    if (newVoiceModeState) {
-        startListening();
+  const handleDictation = () => {
+    if (isListening) {
+      stopListening();
     } else {
-        if (isListening) stopListening();
-        if (isPlaying) stopAudio();
+      setIsVoiceMode(false); // Ensure we are in dictation mode
+      startListening();
+    }
+  };
+
+  const handleVoiceMode = () => {
+    if (isListening) {
+      stopListening();
+      setIsVoiceMode(false);
+    } else {
+      setIsVoiceMode(true);
+      startListening();
     }
   };
   
@@ -423,10 +439,10 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
               </div>
           </div>
           
-          {aiPlan && (
-               <div className="p-4 border rounded-md bg-muted/30 flex-shrink-0 mt-4 flex flex-col overflow-hidden">
+           {aiPlan && (
+               <div className="p-4 border rounded-md bg-muted/30 flex-shrink-0 mt-4 flex flex-col overflow-hidden max-h-[250px] sm:max-h-[200px]">
                 <h4 className="font-semibold mb-2 flex-shrink-0">Here's the plan I've generated:</h4>
-                <div className="flex-grow overflow-y-auto max-h-[150px] pr-2">
+                <div className="flex-grow overflow-y-auto pr-2">
                   <div className="space-y-4 text-sm">
                     {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
                       <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
@@ -491,17 +507,22 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                 />
                  {isAvailable && (
                     <div className="absolute top-1/2 right-1.5 -translate-y-1/2 flex items-center">
-                        <Button
-                            type="button"
-                            size="icon"
-                            variant={isListening ? "destructive" : "ghost"}
-                            className="h-7 w-7"
-                            onClick={isListening ? stopListening : () => { setIsVoiceMode(false); startListening(); }}
-                            disabled={loading || isOffline || !!aiPlan || isPlaying}
-                        >
-                            {isListening && !isVoiceMode ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
-                        </Button>
                         <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant={isListening && !isVoiceMode ? "destructive" : "ghost"}
+                                        className="h-7 w-7"
+                                        onClick={handleDictation}
+                                        disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && isVoiceMode)}
+                                    >
+                                        {isListening && !isVoiceMode ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Dictate Message</p></TooltipContent>
+                            </Tooltip>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
@@ -509,8 +530,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                                         size="icon"
                                         variant={isVoiceMode ? "default" : "ghost"}
                                         className="h-7 w-7"
-                                        onClick={handleToggleVoiceMode}
-                                        disabled={loading || isOffline || !!aiPlan || (isVoiceMode && isPlaying)}
+                                        onClick={handleVoiceMode}
+                                        disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && !isVoiceMode)}
                                     >
                                         <Voicemail className={cn("h-4 w-4", isListening && isVoiceMode && "animate-pulse")}/>
                                     </Button>

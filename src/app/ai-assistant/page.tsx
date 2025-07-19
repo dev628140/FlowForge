@@ -101,7 +101,16 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         }
     };
 
-    const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
+    const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition({
+        onResult: handleSpeechResult,
+        onEnd: () => {
+          // This will only trigger auto-submit in voice mode.
+          if (isVoiceMode && prompt) {
+            formRef.current?.requestSubmit();
+          }
+        },
+      });
+      
     const { play: playAudio, stop: stopAudio, isPlaying } = useSpeechSynthesis();
 
     const {
@@ -235,6 +244,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         e.preventDefault();
         if (!canSubmit()) return;
 
+        if (isListening) stopListening();
+
         setLoading(true);
         setCurrentPlan(null);
 
@@ -301,6 +312,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             }
         } finally {
             setLoading(false);
+            if (isVoiceMode) {
+                setIsVoiceMode(false);
+            }
         }
     };
     
@@ -349,14 +363,22 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         toast({ title: 'Chat Deleted', description: 'The conversation has been removed.' });
     };
     
-    const handleToggleVoiceMode = () => {
-        const newVoiceModeState = !isVoiceMode;
-        setIsVoiceMode(newVoiceModeState);
-        if (newVoiceModeState) {
-            startListening();
+    const handleDictation = () => {
+        if (isListening) {
+          stopListening();
         } else {
-            if (isListening) stopListening();
-            if (isPlaying) stopAudio();
+          setIsVoiceMode(false); // Ensure we are in dictation mode
+          startListening();
+        }
+    };
+    
+    const handleVoiceMode = () => {
+        if (isListening) {
+          stopListening();
+          setIsVoiceMode(false);
+        } else {
+          setIsVoiceMode(true);
+          startListening();
         }
     };
 
@@ -591,10 +613,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     </div>
                 </div>
             
-                {currentPlan && currentPlan.length > 0 && (
-                    <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex flex-col overflow-hidden">
+                 {currentPlan && currentPlan.length > 0 && (
+                    <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex flex-col overflow-hidden max-h-[250px] sm:max-h-[200px]">
                         <h4 className="font-semibold flex-shrink-0">Suggested Plan:</h4>
-                        <div className="flex-grow overflow-y-auto max-h-[150px] pr-2">
+                        <div className="flex-grow overflow-y-auto pr-2">
                           <ul className="space-y-2 list-disc pl-5 text-sm">
                               {currentPlan.map((task, i) => (
                                   <li key={i}>
@@ -621,18 +643,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                 autoFocus
                                 className={cn(isAvailable && "pr-10")}
                             />
-                            {isAvailable && (
-                                <Button
-                                    type="button"
-                                    size="icon"
-                                    variant={isListening ? "destructive" : "ghost"}
-                                    className="absolute top-1/2 right-1.5 -translate-y-1/2 h-7 w-7"
-                                    onClick={isListening ? stopListening : startListening}
-                                    disabled={loading || isPlaying}
-                                >
-                                    {isListening ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
-                                </Button>
-                            )}
                         </div>
                     )}
                 
@@ -644,11 +654,27 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                         <Button
                                             type="button"
                                             size="icon"
-                                            variant={isVoiceMode ? "default" : "outline"}
-                                            onClick={handleToggleVoiceMode}
-                                            disabled={loading || (isVoiceMode && isPlaying)}
+                                            variant={isListening && !isVoiceMode ? "destructive" : "outline"}
+                                            onClick={handleDictation}
+                                            disabled={loading || isPlaying || (isListening && isVoiceMode)}
                                         >
-                                            {isVoiceMode || isListening ? <Voicemail className={cn("h-5 w-5", isListening && "animate-pulse")}/> : <Voicemail className="h-5 w-5"/>}
+                                            {isListening && !isVoiceMode ? <MicOff className="h-5 w-5"/> : <Mic className="h-5 w-5"/>}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Dictate Message</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant={isVoiceMode ? "default" : "outline"}
+                                            onClick={handleVoiceMode}
+                                            disabled={loading || isPlaying || (isListening && !isVoiceMode)}
+                                        >
+                                            <Voicemail className={cn("h-5 w-5", isListening && isVoiceMode && "animate-pulse")}/>
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
