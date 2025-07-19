@@ -230,13 +230,13 @@ export default function TaskItem({
   }
   
   const itemContent = (
-    <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors min-h-[64px]", isSubtask && "pl-6")}>
-      {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 mt-1.5 text-muted-foreground" />}
+    <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
+      {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 text-muted-foreground" />}
        <Checkbox
         id={`task-${task.id}`}
         checked={task.completed}
         onCheckedChange={() => onToggle(task.id, parentId)}
-        className="w-5 h-5 mr-4 mt-1"
+        className="w-5 h-5 mr-4"
         aria-label={`Mark task ${task.title} as ${task.completed ? 'incomplete' : 'complete'}`}
       />
       <div className="flex-1">
@@ -271,8 +271,8 @@ export default function TaskItem({
             )}
         </div>
       </div>
-      <div className={cn("flex items-center transition-opacity")}>
-        <div className="flex flex-wrap w-[120px] justify-end">
+      <div className={cn("flex items-center transition-opacity", "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
+        <div className="flex flex-wrap w-[160px] justify-end">
           <div className="flex">
             {isDraggable && !task.completed && (
                 <TooltipProvider>
