@@ -214,7 +214,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             
             if (result) {
                 if (isNewChat) {
-                    currentChatId = await createSession(newHistory);
+                    const title = newHistory[0].content.substring(0, 40) + '...';
+                    currentChatId = await createSession(newHistory, title);
                     setActiveChatId(currentChatId);
                 }
                 

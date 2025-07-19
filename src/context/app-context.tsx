@@ -32,19 +32,19 @@ interface AppContextType {
   
   // AI Hub Planner Sessions
   plannerSessions: ChatSession[];
-  createPlannerSession: (history: AssistantMessage[]) => Promise<string>;
+  createPlannerSession: (history: AssistantMessage[], title: string) => Promise<string>;
   updatePlannerSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
   deletePlannerSession: (sessionId: string) => Promise<void>;
 
   // AI Hub Breakdown Sessions
   breakdownSessions: ChatSession[];
-  createBreakdownSession: (history: AssistantMessage[]) => Promise<string>;
+  createBreakdownSession: (history: AssistantMessage[], title: string) => Promise<string>;
   updateBreakdownSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
   deleteBreakdownSession: (sessionId: string) => Promise<void>;
   
   // AI Hub Suggester Sessions
   suggesterSessions: ChatSession[];
-  createSuggesterSession: (history: AssistantMessage[]) => Promise<string>;
+  createSuggesterSession: (history: AssistantMessage[], title: string) => Promise<string>;
   updateSuggesterSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
   deleteSuggesterSession: (sessionId: string) => Promise<void>;
 
@@ -61,7 +61,7 @@ function createSessionManager(
   collectionName: string,
   user: any,
   toast: any
-): [ChatSession[], (history: AssistantMessage[], title?: string) => Promise<string>, (sessionId: string, updates: Partial<ChatSession>) => Promise<void>, (sessionId: string) => Promise<void>] {
+): [ChatSession[], (history: AssistantMessage[], title: string) => Promise<string>, (sessionId: string, updates: Partial<ChatSession>) => Promise<void>, (sessionId: string) => Promise<void>] {
   
   const [sessions, setSessions] = React.useState<ChatSession[]>([]);
 
