@@ -82,36 +82,39 @@ function createSessionManager(
     } else {
       setSessions([]);
     }
-  }, [user, toast]);
+  }, [user, toast, collectionName]);
 
   const createSession = async (history: AssistantMessage[]): Promise<string> => {
     if (!user || !db) throw new Error("User not authenticated.");
+    
     const sessionId = uuidv4();
     const sessionRef = doc(db, collectionName, sessionId);
-    try {
-      const { title } = await generateChatTitle({ history: history as GenerateChatTitleInput['history'] });
-      const newSession: ChatSession = {
-        id: sessionId,
-        userId: user.uid,
-        title: title || 'New Chat',
-        createdAt: new Date().toISOString(),
-        history,
-        pinned: false,
-      };
-      await setDoc(sessionRef, newSession);
-      return sessionId;
-    } catch (error) {
-      const newSession: ChatSession = {
+    
+    const newSession: ChatSession = {
         id: sessionId,
         userId: user.uid,
         title: 'New Chat',
         createdAt: new Date().toISOString(),
         history,
         pinned: false,
-      };
-      await setDoc(sessionRef, newSession);
-      return sessionId;
-    }
+    };
+    
+    // Create the session immediately with a default title
+    await setDoc(sessionRef, newSession);
+
+    // Then, asynchronously generate and update the title
+    generateChatTitle({ history: history as GenerateChatTitleInput['history'] })
+        .then(async ({ title }) => {
+            if (title) {
+                await updateDoc(sessionRef, { title });
+            }
+        })
+        .catch(error => {
+            console.warn("Could not generate chat title:", error);
+            // The session is already created, so we just log the warning.
+        });
+
+    return sessionId;
   };
 
   const updateSession = async (sessionId: string, updates: Partial<ChatSession>) => {
