@@ -5,7 +5,7 @@ import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon, X, RefreshCcw
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon, X, RefreshCcw, Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -42,7 +42,7 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import MediaUploader from '@/components/dashboard/media-uploader';
 import { runAssistant, type AssistantOutput, type AssistantInput } from '@/ai/flows/assistant-flow';
-import { runPlanner, type PlannerOutput } from '@/ai/flows/planner-flow';
+import { runPlanner, type PlannerOutput, type PlannerInput } from '@/ai/flows/planner-flow';
 
 
 export type AssistantMode = 'planner' | 'breakdown' | 'suggester';
@@ -92,6 +92,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [suggestionMood, setSuggestionMood] = React.useState<Mood['label']>('Motivated');
     const [breakdownDate, setBreakdownDate] = React.useState<Date | undefined>(new Date());
     const [selectedTaskToBreakdown, setSelectedTaskToBreakdown] = React.useState<string>('');
+    const [audioResponse, setAudioResponse] = React.useState<string | null>(null);
 
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
     
@@ -175,8 +176,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const getInitialPrompt = (currentPrompt: string) => {
         switch (mode) {
             case 'planner':
-                return `My goal is: "${currentPrompt}". Please create a detailed, step-by-step plan to achieve this.`;
+                return currentPrompt;
             case 'suggester':
+                // For the suggester, the initial prompt should include the role and mood
                 return `My goal is: "${currentPrompt}". My role is ${suggestionRole} and my mood is ${suggestionMood}. Give me some creative ideas or tasks to get started.`;
             case 'breakdown':
                 return `Break down this task: "${currentPrompt}". Please provide a list of subtasks.`;
@@ -222,28 +224,29 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             let result;
             let title = 'New Chat'; // Default title
 
-            if (mode === 'planner' || mode === 'breakdown') {
-                const plannerInput = {
-                    history: newHistory.map(h => ({ role: h.role, content: h.content })),
-                };
+            const plannerInput: PlannerInput = {
+                history: newHistory.map(h => ({ role: h.role, content: h.content })),
+            };
+
+            const assistantInput: AssistantInput = {
+                history: newHistory.map(h => ({ role: h.role, content: h.content })),
+                tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
+                role: userRole,
+                date: format(new Date(), 'yyyy-MM-dd'),
+                chatSessionId: currentChatId,
+            };
+            
+            if (newHistory.some(h => h.mediaDataUri)) {
+                (assistantInput as any).historyWithMedia = newHistory;
+            }
+
+            // Route to the correct flow based on the mode
+            if (mode === 'breakdown') {
                 result = await runPlanner(plannerInput);
                 if (isNewChat) {
-                    title = `Plan: ${finalPrompt.substring(0, 30)}...`;
+                    title = `Breakdown: ${finalPrompt.substring(0, 30)}...`;
                 }
-
             } else {
-                 const assistantInput: AssistantInput = {
-                    history: newHistory.map(h => ({ role: h.role, content: h.content })),
-                    tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
-                    role: userRole,
-                    date: format(new Date(), 'yyyy-MM-dd'),
-                    chatSessionId: currentChatId,
-                };
-
-                if (newHistory.some(h => h.mediaDataUri)) {
-                    (assistantInput as any).historyWithMedia = newHistory;
-                }
-                
                 result = await runAssistant(assistantInput);
                 if (result.title) {
                     title = result.title;
@@ -261,7 +264,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 if (isVoiceMode) {
                     try {
                         const ttsResult = await textToSpeech({ text: result.response });
-                        if(ttsResult.audioDataUri) playAudio(ttsResult.audioDataUri);
+                        if(ttsResult.audioDataUri) {
+                            playAudio(ttsResult.audioDataUri);
+                            setAudioResponse(ttsResult.audioDataUri); // Store for potential re-play
+                        }
                     } catch (ttsError) {
                         console.error("Text-to-speech failed:", ttsError);
                         toast({ title: "Voice Error", description: "Could not generate audio response.", variant: "destructive"});
@@ -452,19 +458,19 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
         const templates = {
             planner: {
+                icon: <Wand2 className="mx-auto h-12 w-12 text-primary/50 mb-4" />,
                 title: 'AI Task Planner',
-                description: "Describe your goal, and I'll generate a step-by-step plan for you.",
-                placeholder: "e.g., Learn to build a website in 30 days, starting tomorrow.",
+                description: "Describe your goal, and I'll generate a step-by-step plan for you. Use the chat box below to get started.",
             },
             breakdown: {
+                icon: <ListChecks className="mx-auto h-12 w-12 text-primary/50 mb-4" />,
                 title: 'Task Breakdown',
                 description: "Select a task to break into smaller steps, or start a new chat.",
-                placeholder: "Or ask me anything else...",
             },
             suggester: {
+                icon: <Lightbulb className="mx-auto h-12 w-12 text-primary/50 mb-4" />,
                 title: 'Smart Suggestions',
-                description: "Tell me your goal, role, and mood, and I'll brainstorm some ideas.",
-                placeholder: "e.g., get fit",
+                description: "Tell me your goal and I'll brainstorm some ideas. Use the chat box below to begin.",
             }
         };
 
@@ -524,42 +530,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
         return (
              <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center items-center">
+                {currentTemplate.icon}
                 <h3 className="font-semibold">{currentTemplate.title}</h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-sm">{currentTemplate.description}</p>
-                <div className="w-full mt-4">
-                     {mode === 'suggester' ? (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Select onValueChange={(v: UserRole) => setSuggestionRole(v)} defaultValue={suggestionRole} disabled={loading}>
-                                    <SelectTrigger><SelectValue placeholder="Select role..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {userRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <Select onValueChange={(v: Mood['label']) => setSuggestionMood(v)} defaultValue={suggestionMood} disabled={loading}>
-                                    <SelectTrigger><SelectValue placeholder="Select mood..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {moods.map(m => <SelectItem key={m.label} value={m.label}>{m.emoji} {m.label}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Input 
-                                placeholder={currentTemplate.placeholder}
-                                value={prompt}
-                                onChange={(e) => setPrompt(e.target.value)}
-                                disabled={loading || isListening}
-                            />
-                        </div>
-                    ) : (
-                         <Textarea
-                            placeholder={currentTemplate.placeholder}
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            rows={isMobile ? 2 : 3}
-                            disabled={loading || isListening}
-                        />
-                    )}
-                </div>
              </div>
         );
     };
@@ -818,13 +791,20 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         </div>
                     )}
                     <div className="relative w-full">
-                        <Input
+                        <Textarea
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSubmit();
+                                }
+                            }}
                             placeholder={history.length > 0 ? "Need changes? Type or use the mic..." : "Describe your goal..."}
                             disabled={loading || isListening || isPlaying}
                             autoFocus
-                            className={cn(isAvailable && "pr-10")}
+                            className={cn("pr-10 min-h-[52px]")}
+                            rows={1}
                         />
                     </div>
                 
