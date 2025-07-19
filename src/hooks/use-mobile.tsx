@@ -6,6 +6,12 @@ export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
 
   React.useEffect(() => {
+    // Check if running in a browser environment
+    if (typeof window === "undefined") {
+      setIsMobile(false); // Default to not mobile on the server
+      return;
+    }
+    
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
     const onChange = () => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)

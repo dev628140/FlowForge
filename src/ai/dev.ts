@@ -17,6 +17,4 @@ import '@/ai/tools.ts';
 import '@/ai/flows/planner-flow.ts';
 import '@/ai/flows/breakdown-flow.ts';
 import '@/ai/flows/suggester-flow.ts';
-
-
-
+import '@/ai/flows/tts-flow.ts';

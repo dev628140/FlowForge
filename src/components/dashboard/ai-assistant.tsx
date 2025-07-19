@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -15,7 +15,6 @@ import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
-import { Separator } from '../ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +27,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
+import { textToSpeech } from '@/ai/flows/tts-flow';
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -49,7 +50,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const { toast } = useToast();
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [aiPlan, setAiPlan] = React.useState<AssistantOutput | null>(null);
   const isOffline = useOfflineStatus();
   
@@ -58,7 +58,11 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const isNewChat = activeChatId === null;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
+  const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition((text) => {
+    setPrompt(text);
+  });
 
   // Effect to load a chat session's history when it becomes active
   React.useEffect(() => {
@@ -69,7 +73,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       setHistory([]);
     }
     setAiPlan(null); // Clear any pending plans when switching chats
-    setError(null);
   }, [activeChatId, chatSessions]);
 
   React.useEffect(() => {
@@ -109,12 +112,10 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     }
 
     setLoading(true);
-    setError(null);
     setAiPlan(null);
     
     const newHistory: AssistantMessage[] = [...history, { role: 'user', content: prompt }];
     setHistory(newHistory);
-    const currentPrompt = prompt;
     setPrompt('');
 
     let currentChatId = activeChatId;
@@ -140,7 +141,8 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
         setActiveChatId(currentChatId);
       }
       
-      const updatedHistory = [...newHistory, { role: 'model', content: result.response }];
+      const modelResponse: AssistantMessage = { role: 'model', content: result.response };
+      const updatedHistory = [...newHistory, modelResponse];
       setHistory(updatedHistory);
       
       // Update the session in Firestore
@@ -148,6 +150,13 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           await updateChatSession(currentChatId, { history: updatedHistory });
       }
 
+      // Generate and play audio
+      const ttsResult = await textToSpeech({ text: result.response });
+      if (ttsResult.audioDataUri && audioRef.current) {
+          audioRef.current.src = ttsResult.audioDataUri;
+          audioRef.current.play();
+          modelResponse.audioDataUri = ttsResult.audioDataUri;
+      }
 
       const hasActions = (result.tasksToAdd && result.tasksToAdd.length > 0) ||
                          (result.tasksToUpdate && result.tasksToUpdate.length > 0) ||
@@ -253,7 +262,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           FlowForge Assistant
         </CardTitle>
         <CardDescription>
-          Your AI companion for seamless task and goal management.
+          Your AI companion for seamless task and goal management. Use the mic to talk.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col sm:flex-row gap-4 overflow-hidden p-2 sm:p-6 pt-0">
@@ -341,7 +350,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>
+          <div className="flex-grow overflow-y-auto pr-4 -mr-4" ref={scrollAreaRef}>
               <div className="space-y-4">
                   {history.length === 0 && !loading && (
                     <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center items-center">
@@ -389,75 +398,87 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                       </div>
                   )}
               </div>
-          </ScrollArea>
+          </div>
           
           {aiPlan && (
-              <div className="p-4 border rounded-md bg-muted/30 flex-shrink-0 mt-4 flex flex-col overflow-hidden">
-                  <h4 className="font-semibold mb-2 flex-shrink-0">Here's the plan I've generated:</h4>
-                  
-                  <div className="flex-grow overflow-y-auto max-h-[150px] pr-2">
-                      <div className="space-y-4 text-sm">
-                          {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
-                              <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
-                                {aiPlan.tasksToAdd.map((t, i) => (
-                                      <li key={`add-${i}`}>
-                                          {t.title}
-                                          {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
-                                      </li>
-                                  ))}
-                              </PlanSection>
-                          )}
-                          {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
-                              <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
-                                {aiPlan.subtasksToAdd.map((item, i) => (
-                                      <li key={`subtask-${i}`}>
-                                        To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
-                                      </li>
-                                  ))}
-                              </PlanSection>
-                          )}
-                          {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
-                              <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
-                                  {aiPlan.tasksToUpdate.map((t, i) => {
-                                      const originalTask = allTasks.find(task => task.id === t.taskId);
-                                      const updates = Object.entries(t.updates)
-                                          .map(([key, value]) => {
-                                              if (value === null) return null;
-                                              if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
-                                              return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
-                                          })
-                                          .filter(Boolean)
-                                          .join(', ');
-                                      return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
-                                  })}
-                              </PlanSection>
-                          )}
-                          {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
-                              <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
-                                  {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
-                              </PlanSection>
-                          )}
-                      </div>
+               <div className="p-4 border rounded-md bg-muted/30 flex-shrink-0 mt-4 flex flex-col overflow-hidden">
+                <h4 className="font-semibold mb-2 flex-shrink-0">Here's the plan I've generated:</h4>
+                <div className="flex-grow overflow-y-auto max-h-[150px] pr-2">
+                  <div className="space-y-4 text-sm">
+                    {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
+                      <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4"/>} className="text-green-600 dark:text-green-400">
+                        {aiPlan.tasksToAdd.map((t, i) => (
+                          <li key={`add-${i}`}>
+                            {t.title}
+                            {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
+                          </li>
+                        ))}
+                      </PlanSection>
+                    )}
+                    {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
+                      <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4"/>} className="text-sky-600 dark:text-sky-400">
+                        {aiPlan.subtasksToAdd.map((item, i) => (
+                          <li key={`subtask-${i}`}>
+                            To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
+                          </li>
+                        ))}
+                      </PlanSection>
+                    )}
+                    {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
+                      <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4"/>} className="text-amber-600 dark:text-amber-400">
+                        {aiPlan.tasksToUpdate.map((t, i) => {
+                          const originalTask = allTasks.find(task => task.id === t.taskId);
+                          const updates = Object.entries(t.updates)
+                            .map(([key, value]) => {
+                              if (value === null) return null;
+                              if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
+                              return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
+                            })
+                            .filter(Boolean)
+                            .join(', ');
+                          return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
+                        })}
+                      </PlanSection>
+                    )}
+                    {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
+                      <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4"/>} className="text-red-600 dark:text-red-500">
+                        {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
+                      </PlanSection>
+                    )}
                   </div>
-
-                  <div className="flex justify-end gap-2 pt-2 flex-shrink-0">
-                      <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2"/> Discard</Button>
-                      <Button onClick={handleApplyPlan} disabled={loading}>
-                          {loading && <Loader2 className="animate-spin mr-2"/>}
-                          <Check className="mr-2"/> Apply Plan
-                      </Button>
-                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2 flex-shrink-0">
+                  <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2"/> Discard</Button>
+                  <Button onClick={handleApplyPlan} disabled={loading}>
+                    {loading && <Loader2 className="animate-spin mr-2"/>}
+                    <Check className="mr-2"/> Apply Plan
+                  </Button>
+                </div>
               </div>
           )}
 
           <form onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0 pt-4">
-            <Input
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
-              disabled={loading || isOffline || !!aiPlan}
-              autoFocus
-            />
+             <div className="relative w-full">
+                <Input
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
+                disabled={loading || isOffline || !!aiPlan || isListening}
+                className={cn(isAvailable && "pr-10")}
+                />
+                {isAvailable && (
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant={isListening ? "destructive" : "ghost"}
+                        className="absolute top-1/2 right-1.5 -translate-y-1/2 h-7 w-7"
+                        onClick={isListening ? stopListening : startListening}
+                        disabled={loading || isOffline || !!aiPlan}
+                    >
+                        {isListening ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
+                    </Button>
+                )}
+            </div>
             <Button type="submit" disabled={loading || isOffline || !prompt.trim() || !!aiPlan}>
               {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
               <span className="sr-only">Send</span>
@@ -465,6 +486,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           </form>
         </div>
       </CardContent>
+      <audio ref={audioRef} className="hidden" />
     </Card>
   );
 }

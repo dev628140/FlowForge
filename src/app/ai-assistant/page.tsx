@@ -5,7 +5,7 @@ import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -39,6 +39,8 @@ import { runPlanner, type PlannerOutput } from '@/ai/flows/planner-flow';
 import { runBreakdowner, type BreakdownerOutput } from '@/ai/flows/breakdown-flow';
 import { runSuggester, type SuggesterOutput } from '@/ai/flows/suggester-flow';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
+import { textToSpeech } from '@/ai/flows/tts-flow';
 
 export type AssistantMode = 'planner' | 'breakdown' | 'suggester';
 
@@ -84,8 +86,13 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [breakdownDate, setBreakdownDate] = React.useState<Date | undefined>(new Date());
     
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+    const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
     const isNewChat = activeChatId === null;
+
+    const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition((text) => {
+        setPrompt(text);
+    });
 
     const {
       sessions,
@@ -250,6 +257,15 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
                 const modelResponse: AssistantMessage = { role: 'model', content: modelContent };
                 const updatedHistory = [...newHistory, modelResponse];
+                
+                // Generate and play audio
+                const ttsResult = await textToSpeech({ text: result.response });
+                if (ttsResult.audioDataUri && audioRef.current) {
+                    audioRef.current.src = ttsResult.audioDataUri;
+                    audioRef.current.play();
+                    modelResponse.audioDataUri = ttsResult.audioDataUri;
+                }
+
                 setHistory(updatedHistory);
 
                 if (currentChatId) {
@@ -342,7 +358,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         rows={isMobile ? 2 : 3}
-                        disabled={loading}
+                        disabled={loading || isListening}
                     />
                 );
             case 'breakdown':
@@ -401,7 +417,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                             placeholder="What do you want to accomplish? (e.g., get fit)"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
-                            disabled={loading}
+                            disabled={loading || isListening}
                         />
                     </div>
                 );
@@ -442,7 +458,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
                     </Button>
                 </div>
-                 <ScrollArea className="flex-grow h-40 md:h-auto">
+                 <div className="flex-grow overflow-y-auto h-40 md:h-auto">
                     {!isSidebarCollapsed && (
                     <div className="space-y-1 p-2">
                         {sortedSessions.map(session => (
@@ -501,12 +517,12 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         ))}
                     </div>
                     )}
-                </ScrollArea>
+                </div>
             </div>
 
              {/* Main Chat Area */}
             <div className="flex-1 flex flex-col p-2 sm:p-4 md:pl-6 overflow-hidden">
-                <ScrollArea className="flex-grow pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
+                <div className="flex-grow overflow-y-auto pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
                     <div className="space-y-4">
                         {history.map((msg, index) => (
                             <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
@@ -541,10 +557,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                         </div>
                     )}
                     </div>
-                </ScrollArea>
+                </div>
             
                 {currentPlan && currentPlan.length > 0 && (
-                    <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex-shrink-0 flex flex-col overflow-hidden">
+                    <div className="border rounded-lg p-4 space-y-3 bg-muted/50 mb-4 flex flex-col overflow-hidden">
                         <h4 className="font-semibold flex-shrink-0">Suggested Plan:</h4>
                         <div className="flex-grow overflow-y-auto max-h-[150px] pr-2">
                           <ul className="space-y-2 list-disc pl-5 text-sm">
@@ -566,21 +582,50 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     {history.length === 0 && renderInitialInputs()}
 
                     {history.length > 0 && (
-                        <Input
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            placeholder="Need changes? Type here..."
-                            disabled={loading}
-                            autoFocus
-                        />
+                        <div className="relative w-full">
+                            <Input
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                placeholder="Need changes? Type or use the mic..."
+                                disabled={loading || isListening}
+                                autoFocus
+                                className={cn(isAvailable && "pr-10")}
+                            />
+                            {isAvailable && (
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant={isListening ? "destructive" : "ghost"}
+                                    className="absolute top-1/2 right-1.5 -translate-y-1/2 h-7 w-7"
+                                    onClick={isListening ? stopListening : startListening}
+                                    disabled={loading}
+                                >
+                                    {isListening ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
+                                </Button>
+                            )}
+                        </div>
                     )}
                 
-                    <Button type="submit" disabled={!canSubmit()} className="w-full">
-                        {loading ? <Loader2 className="animate-spin" /> : history.length > 0 ? <CornerDownLeft/> : <Wand2/>}
-                        <span className="ml-2">{loading ? 'Generating...' : history.length > 0 ? 'Send' : 'Generate'}</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {isAvailable && history.length === 0 && (
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant={isListening ? "destructive" : "outline"}
+                                onClick={isListening ? stopListening : startListening}
+                                disabled={loading}
+                            >
+                                {isListening ? <MicOff/> : <Mic/>}
+                            </Button>
+                        )}
+                        <Button type="submit" disabled={!canSubmit()} className="w-full">
+                            {loading ? <Loader2 className="animate-spin" /> : history.length > 0 ? <CornerDownLeft/> : <Wand2/>}
+                            <span className="ml-2">{loading ? 'Generating...' : history.length > 0 ? 'Send' : 'Generate'}</span>
+                        </Button>
+                    </div>
                 </form>
             </div>
+            <audio ref={audioRef} className="hidden" />
         </div>
     );
 };
