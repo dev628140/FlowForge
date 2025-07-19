@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Task, ChatSession, AssistantMessage } from '@/lib/types';
+import type { Task, ChatSession, AssistantMessage, UserRole } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
@@ -11,6 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { generateChatTitle } from '@/ai/flows/generate-chat-title-flow';
 import { type GenerateChatTitleInput } from '@/lib/types/conversational-agent';
 import { isToday, parseISO } from 'date-fns';
+
+const USER_ROLE_STORAGE_KEY = 'flowforge_user_role';
+
 
 interface AppContextType {
   tasks: Task[];
@@ -28,6 +31,10 @@ interface AppContextType {
   createChatSession: (history: AssistantMessage[]) => Promise<string>;
   updateChatSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
   deleteChatSession: (sessionId: string) => Promise<void>;
+
+  // User Preferences
+  userRole: UserRole;
+  setUserRole: (role: UserRole) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -38,6 +45,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [showConfetti, setShowConfetti] = React.useState(false);
   const [chatSessions, setChatSessions] = React.useState<ChatSession[]>([]);
+  const [userRole, setUserRole] = React.useState<UserRole>('Developer');
+
+  React.useEffect(() => {
+    const savedRole = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole;
+    if (savedRole) {
+      setUserRole(savedRole);
+    }
+  }, []);
+
+  const handleSetUserRole = (role: UserRole) => {
+    setUserRole(role);
+    localStorage.setItem(USER_ROLE_STORAGE_KEY, role);
+  };
   
   React.useEffect(() => {
     if (user && db) {
@@ -379,6 +399,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       createChatSession,
       updateChatSession,
       deleteChatSession,
+      // User Prefs
+      userRole,
+      setUserRole: handleSetUserRole,
     }}>
       {children}
     </AppContext.Provider>

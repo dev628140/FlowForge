@@ -72,8 +72,6 @@ const todayTaskFormSchema = z.object({
 });
 type TodayTaskFormValues = z.infer<typeof todayTaskFormSchema>;
 
-const USER_ROLE_STORAGE_KEY = 'flowforge_user_role';
-
 export default function DashboardPage() {
   const { 
     tasks, 
@@ -82,7 +80,9 @@ export default function DashboardPage() {
     handleAddTasks,
     handleDeleteTask,
     updateTask,
-    handleMoveTask
+    handleMoveTask,
+    userRole,
+    setUserRole,
   } = useAppContext();
 
   const { toast } = useToast();
@@ -90,20 +90,7 @@ export default function DashboardPage() {
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
-  const [selectedRole, setSelectedRole] = React.useState<UserRole>('Developer');
   
-  React.useEffect(() => {
-    const savedRole = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole;
-    if (savedRole) {
-      setSelectedRole(savedRole);
-    }
-  }, []);
-
-  const handleRoleChange = (role: UserRole) => {
-    setSelectedRole(role);
-    localStorage.setItem(USER_ROLE_STORAGE_KEY, role);
-  };
-
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: { title: '', description: '' },
@@ -183,7 +170,7 @@ export default function DashboardPage() {
           </CardTitle>
            <div className="flex items-center gap-2">
               <Label htmlFor="user-role-select" className="text-sm font-medium">Your Role:</Label>
-              <Select value={selectedRole} onValueChange={handleRoleChange}>
+              <Select value={userRole} onValueChange={(role: UserRole) => setUserRole(role)}>
                     <SelectTrigger id="user-role-select" className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Select your role..." />
                     </SelectTrigger>
@@ -389,7 +376,7 @@ export default function DashboardPage() {
                 </CardContent>
             </Card>
 
-             <DynamicSuggestionCard tasks={todaysTasks} role={selectedRole} />
+             <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
             
             {overdueTasks.length > 0 && (
                 <Card className="border-destructive/50">
@@ -460,7 +447,7 @@ export default function DashboardPage() {
                 </Card>
             )}
 
-            <AIAssistant allTasks={tasks} role={selectedRole} />
+            <AIAssistant allTasks={tasks} role={userRole} />
         </div>
       </div>
 
