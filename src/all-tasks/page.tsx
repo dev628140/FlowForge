@@ -38,11 +38,16 @@ export default function AllTasksPage() {
             return (a.order || 0) - (b.order || 0);
         case 'scheduledDate':
           if (a.scheduledDate && b.scheduledDate) {
-            return parseISO(a.scheduledDate).getTime() - parseISO(b.scheduledDate).getTime();
+            const dateComparison = parseISO(a.scheduledDate).getTime() - parseISO(b.scheduledDate).getTime();
+            // If dates are the same, sort by the custom order.
+            if (dateComparison === 0) {
+              return (a.order || 0) - (b.order || 0);
+            }
+            return dateComparison;
           }
           if (a.scheduledDate) return -1; // a comes first
           if (b.scheduledDate) return 1;  // b comes first
-          // if neither have a scheduled date, sort by creation
+          // if neither have a scheduled date, sort by custom order
           return (a.order || 0) - (b.order || 0);
         case 'createdAt-desc':
             if (a.createdAt && b.createdAt) {
@@ -51,13 +56,13 @@ export default function AllTasksPage() {
             return 0;
         case 'createdAt-asc':
             if (a.createdAt && b.createdAt) {
-                return parseISO(a.createdAt).getTime() - parseISO(a.createdAt).getTime();
+                return parseISO(a.createdAt).getTime() - parseISO(b.createdAt).getTime();
             }
             return 0;
         case 'title':
           return a.title.localeCompare(b.title);
         default:
-          return 0;
+          return (a.order || 0) - (b.order || 0);
       }
     });
   }, [tasks, sortBy]);
@@ -94,7 +99,7 @@ export default function AllTasksPage() {
                     <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} onReorder={handleReorderTask} emptyMessage="No tasks found." />
+                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} onReorder={(taskId, direction) => handleReorderTask(taskId, direction, sortedTasks)} emptyMessage="No tasks found." />
                 </CardContent>
             </Card>
         </div>
