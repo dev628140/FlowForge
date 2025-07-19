@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -231,16 +231,6 @@ export default function TaskItem({
   
   const itemContent = (
     <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
-      {isDraggable && !task.completed && (
-        <div className="flex flex-col items-center mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-           <Button variant="ghost" size="icon" className="h-5 w-5 cursor-n-resize" onClick={() => onMove?.(task.id, 'up')} aria-label="Move up">
-                <ArrowUp className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-5 w-5 cursor-s-resize" onClick={() => onMove?.(task.id, 'down')} aria-label="Move down">
-                <ArrowDown className="h-4 w-4" />
-            </Button>
-        </div>
-      )}
       {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 mt-1.5 text-muted-foreground" />}
        <Checkbox
         id={`task-${task.id}`}
@@ -292,34 +282,34 @@ export default function TaskItem({
              </Button>
            </CollapsibleTrigger>
         )}
-        {!task.scheduledDate && !isSubtask && (
-            <Popover open={isSchedulePopoverOpen} onOpenChange={setIsSchedulePopoverOpen}>
-              <PopoverTrigger asChild>
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label={`Schedule task ${task.title}`}>
-                                <CalendarPlus className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Schedule Task</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-              </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={newDate} onSelect={setNewDate} initialFocus />
-                    <div className="p-2 border-t space-y-2">
-                      <div className="space-y-1">
-                        <Label htmlFor="time" className="text-xs font-medium">Time (optional)</Label>
-                        <Input id="time" type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
-                      </div>
-                      <Button onClick={handleScheduleSave} size="sm" className="w-full">Save</Button>
-                    </div>
-                </PopoverContent>
-            </Popover>
+        
+        {isDraggable && !task.completed && (
+            <TooltipProvider>
+              <div className="flex items-center">
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={() => onMove?.(task.id, 'up')} aria-label="Move up">
+                          <ArrowUp className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Move Up</p>
+                    </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={() => onMove?.(task.id, 'down')} aria-label="Move down">
+                          <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Move Down</p>
+                    </TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
         )}
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -469,6 +459,25 @@ export default function TaskItem({
                 </p>
               </div>
               <div className="grid gap-2">
+                {!task.scheduledDate && !isSubtask && (
+                  <Popover open={isSchedulePopoverOpen} onOpenChange={setIsSchedulePopoverOpen}>
+                    <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm">
+                              <CalendarPlus className="mr-2 h-4 w-4" /> Schedule Task
+                          </Button>
+                    </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                          <Calendar mode="single" selected={newDate} onSelect={setNewDate} initialFocus />
+                          <div className="p-2 border-t space-y-2">
+                            <div className="space-y-1">
+                              <Label htmlFor="time" className="text-xs font-medium">Time (optional)</Label>
+                              <Input id="time" type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
+                            </div>
+                            <Button onClick={handleScheduleSave} size="sm" className="w-full">Save</Button>
+                          </div>
+                      </PopoverContent>
+                  </Popover>
+                )}
                 <Button 
                   onClick={handleBreakdown}
                   disabled={isBreakingDown}
