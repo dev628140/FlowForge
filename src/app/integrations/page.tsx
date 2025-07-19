@@ -63,7 +63,7 @@ export default function IntegrationsPage() {
       <h1 className="text-3xl font-bold font-headline mb-2">Smart Integrations</h1>
       <p className="text-muted-foreground mb-6">Connect FlowForge to your favorite apps to centralize your workflow.</p>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {integrations.map(integration => {
           const isConnected = isClient && connected.has(integration.name);
           return (

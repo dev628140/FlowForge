@@ -168,12 +168,12 @@ export default function DashboardPage() {
       <Confetti active={showConfetti} />
       <div className="p-4 md:p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="text-3xl font-bold font-headline flex items-center gap-2">
+          <h1 className="text-3xl font-bold font-headline flex items-center gap-2">
             <LayoutDashboard className="w-8 h-8" />
             Dashboard
-          </CardTitle>
+          </h1>
            <div className="flex items-center gap-2">
-              <Label htmlFor="user-role-select" className="text-sm font-medium">Your Role:</Label>
+              <Label htmlFor="user-role-select" className="text-sm font-medium hidden sm:block">Your Role:</Label>
               <Select value={userRole} onValueChange={(role: UserRole) => setUserRole(role)}>
                     <SelectTrigger id="user-role-select" className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Select your role..." />
@@ -187,7 +187,8 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 space-y-6">
             <DailyProgressBar tasks={todaysTasks} />
             <Card>
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
@@ -198,7 +199,7 @@ export default function DashboardPage() {
                     </CardTitle>
                     <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
                 </div>
-                <div className="flex items-stretch flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex items-stretch w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-2">
                     <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
                         <DialogTrigger asChild>
                             <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
@@ -380,9 +381,7 @@ export default function DashboardPage() {
                 </CardContent>
             </Card>
 
-             <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
-            
-            {overdueTasks.length > 0 && (
+             {overdueTasks.length > 0 && (
                 <Card className="border-destructive/50">
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between text-destructive">
@@ -450,8 +449,13 @@ export default function DashboardPage() {
                 </CardContent>
                 </Card>
             )}
+          </div>
 
+          <div className="xl:col-span-1 space-y-6">
+            <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
             <AIAssistant allTasks={tasks} role={userRole} />
+          </div>
+
         </div>
       </div>
 

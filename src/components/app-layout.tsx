@@ -16,6 +16,7 @@ import {
   SidebarFooter,
   SidebarInset,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import UserProfile from '@/components/dashboard/user-profile';
 import { Icons } from './icons';
@@ -37,67 +38,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Toaster } from './ui/toaster';
 import { useOfflineStatus } from '@/hooks/use-offline-status';
+import { useIsMobile } from '@/hooks/use-mobile';
+
 
 const LAST_VISITED_PAGE_KEY = 'flowforge_last_visited_page';
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, loading, logout } = useAuth();
-  const isOffline = useOfflineStatus();
-
-  // If Firebase is not configured, we only ever render the login page,
-  // which will show instructions.
-  if (!isFirebaseConfigured) {
-    if (pathname !== '/login') {
-      router.push('/login');
-      return ( // Return a loading state while redirecting
-          <div className="flex h-screen w-full items-center justify-center">
-             <Icons.logo className="w-12 h-12 animate-pulse text-primary" />
-          </div>
-      );
-    }
-    return <>{children}</>;
-  }
-  
-  React.useEffect(() => {
-    // If online, save the current path.
-    if (!isOffline && pathname !== '/login') {
-      localStorage.setItem(LAST_VISITED_PAGE_KEY, pathname);
-    }
-  }, [pathname, isOffline]);
+  const { setOpenMobile } = useSidebar();
+  const isMobile = useIsMobile();
 
   React.useEffect(() => {
-    // If we are not loading and there's no user,
-    // and we're not on the login page, redirect to login.
-    if (!loading && !user && pathname !== '/login') {
-      router.push('/login');
+    if (isMobile) {
+      setOpenMobile(false);
     }
-  }, [user, loading, pathname, router]);
-
-  // Don't render the layout on the login page.
-  if (pathname === '/login') {
-    return <>{children}</>;
-  }
-  
-  // Show a loading screen while checking auth state or if there's no user (and not on login page)
-  if (loading || !user) {
-    // If we are offline and loading, try to route to last known page.
-    if (isOffline && !user) {
-       const lastPage = localStorage.getItem(LAST_VISITED_PAGE_KEY);
-       if(lastPage && lastPage !== pathname) {
-         router.replace(lastPage);
-       }
-    }
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Icons.logo className="w-12 h-12 animate-pulse text-primary" />
-      </div>
-    );
-  }
+  }, [pathname, isMobile, setOpenMobile]);
 
   return (
-    <SidebarProvider>
+    <>
       <Sidebar>
         <SidebarHeader>
           <Link href="/" className="flex items-center gap-2 p-2">
@@ -176,7 +134,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => logout()}>Log Out</AlertDialogAction>
+                    <AlertDialogAction onClick={() => useAuth().logout()}>Log Out</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -187,14 +145,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-10 flex h-[68px] items-center justify-between border-b bg-background/80 p-4 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <SidebarTrigger />
-            {isOffline && (
+            {useOfflineStatus() && (
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground animate-pulse rounded-full bg-background/70 p-2 backdrop-blur-sm">
                 <WifiOff className="w-4 h-4" />
                 <span>Offline</span>
               </div>
             )}
           </div>
-          <UserProfile user={user} />
+          <UserProfile user={useAuth().user} />
         </header>
         <main>
           <div>
@@ -203,6 +161,69 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
         <Toaster />
       </SidebarInset>
+    </>
+  );
+}
+
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
+  const isOffline = useOfflineStatus();
+
+  // If Firebase is not configured, we only ever render the login page,
+  // which will show instructions.
+  if (!isFirebaseConfigured) {
+    if (pathname !== '/login') {
+      router.push('/login');
+      return ( // Return a loading state while redirecting
+          <div className="flex h-screen w-full items-center justify-center">
+             <Icons.logo className="w-12 h-12 animate-pulse text-primary" />
+          </div>
+      );
+    }
+    return <>{children}</>;
+  }
+  
+  React.useEffect(() => {
+    // If online, save the current path.
+    if (!isOffline && pathname !== '/login') {
+      localStorage.setItem(LAST_VISITED_PAGE_KEY, pathname);
+    }
+  }, [pathname, isOffline]);
+
+  React.useEffect(() => {
+    // If we are not loading and there's no user,
+    // and we're not on the login page, redirect to login.
+    if (!loading && !user && pathname !== '/login') {
+      router.push('/login');
+    }
+  }, [user, loading, pathname, router]);
+
+  // Don't render the layout on the login page.
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
+  
+  // Show a loading screen while checking auth state or if there's no user (and not on login page)
+  if (loading || !user) {
+    // If we are offline and loading, try to route to last known page.
+    if (isOffline && !user) {
+       const lastPage = localStorage.getItem(LAST_VISITED_PAGE_KEY);
+       if(lastPage && lastPage !== pathname) {
+         router.replace(lastPage);
+       }
+    }
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Icons.logo className="w-12 h-12 animate-pulse text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <SidebarProvider>
+      <LayoutContent>{children}</LayoutContent>
     </SidebarProvider>
   );
 }

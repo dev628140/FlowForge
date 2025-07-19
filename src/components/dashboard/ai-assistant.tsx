@@ -249,16 +249,16 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   );
 
   return (
-    <Card className="flex flex-row h-[480px]">
+    <Card className="flex flex-col md:flex-row h-auto md:h-[480px]">
        {/* Chat History Sidebar */}
        <div className={cn(
-        "border-r flex flex-col transition-all duration-300",
-        isSidebarCollapsed ? 'w-14' : 'w-1/3 min-w-[200px] max-w-[300px]'
+        "border-b md:border-b-0 md:border-r flex flex-col transition-all duration-300",
+        isSidebarCollapsed ? 'w-full md:w-14' : 'w-full md:w-1/3 md:min-w-[200px] md:max-w-[300px]'
       )}>
         <div className="p-2 border-b flex items-center justify-between">
            {!isSidebarCollapsed && (
             <Button variant="outline" className="w-full mr-2" onClick={handleNewChat}>
-                <PlusCircle className="mr-2 h-4 w-4" /> New Chat
+                <MessageSquarePlus className="mr-2 h-4 w-4" /> New Chat
             </Button>
            )}
            {isSidebarCollapsed && (
@@ -266,7 +266,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="outline" size="icon" onClick={handleNewChat}>
-                        <PlusCircle className="h-4 w-4" />
+                        <MessageSquarePlus className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="right">
@@ -275,12 +275,12 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                 </Tooltip>
              </TooltipProvider>
            )}
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex">
               {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
             </Button>
         </div>
          {!isSidebarCollapsed && (
-          <ScrollArea className="flex-grow">
+          <ScrollArea className="flex-grow h-40 md:h-auto">
               <div className="space-y-1 p-2">
                   {sortedSessions.map(session => (
                     <div
@@ -345,7 +345,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
             {isNewChat ? "Start a new conversation by typing below." : "Continuing your conversation."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
+        <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden h-[300px] md:h-auto">
           <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
               <div className="space-y-4">
                   {history.map((msg, index) => (

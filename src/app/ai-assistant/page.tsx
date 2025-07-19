@@ -31,7 +31,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -205,11 +204,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         let currentChatId = activeChatId;
 
         try {
-            if (isNewChat) {
-                // For a new chat, we'll get the title back from the flow
-                // and then create the session.
-            }
-
             const result: PlannerOutput = await runAIFlow({
                 history: newHistory,
             });
@@ -221,7 +215,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     setActiveChatId(currentChatId);
                 }
                 
-                // For conversational memory, add the generated plan to the model's message content.
                 let modelContent = result.response;
                 if (result.tasks && result.tasks.length > 0) {
                     const planAsText = "\n\nCURRENT PLAN:\n" + result.tasks.map(t => `- ${t.title}`).join("\n");
@@ -239,8 +232,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 if (result.tasks && result.tasks.length > 0) {
                     setCurrentPlan(result.tasks);
                 } else {
-                    // If no tasks are returned, it means the conversation continues
-                    // without a concrete plan yet. Clear any old plan.
                     setCurrentPlan(null);
                 }
             } else {
@@ -488,7 +479,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             </div>
 
              {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col p-4 pl-6">
+            <div className="flex-1 flex flex-col p-4 md:pl-6">
                 <ScrollArea className="flex-grow pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
                     <div className="space-y-4">
                         {history.map((msg, index) => (
@@ -539,7 +530,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                 ))}
                             </ul>
                         </ScrollArea>
-                        <Button size="sm" className="w-full mt-auto" onClick={handleFinalize} disabled={loading}>
+                        <Button size="sm" className="w-full mt-auto" onClick={handleFinalize}>
                             <PlusCircle className="mr-2"/> Finalize & Add to Tasks
                         </Button>
                     </div>
@@ -579,13 +570,13 @@ export default function AIAssistantPage() {
             <p className="text-muted-foreground">Your command center for AI-powered productivity. Converse with the AI to plan, break down, and create tasks.</p>
 
             <Tabs defaultValue="planner" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
                     <TabsTrigger value="planner"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
                     <TabsTrigger value="breakdown"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
                     <TabsTrigger value="suggester"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
                 <Card className="mt-4">
-                    <CardContent className="p-0 h-[480px] overflow-hidden">
+                    <CardContent className="p-0 h-[60vh] min-h-[500px] overflow-hidden">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />
                         </TabsContent>

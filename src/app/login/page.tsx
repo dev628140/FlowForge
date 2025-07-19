@@ -97,7 +97,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 sm:p-6">
       <div className="flex items-center gap-2 mb-6">
         <Icons.logo className="w-10 h-10 text-primary" />
         <span className="text-2xl font-bold font-headline">FlowForge</span>
