@@ -285,12 +285,12 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                               className="w-full justify-start text-left h-auto py-2 relative"
                               onClick={() => handleSelectChat(session.id)}
                           >
-                              <div className="flex-1 truncate pr-10">
+                              <div className="flex-1 truncate">
                                   <p className="font-medium text-sm truncate">{session.title}</p>
                                   <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
                               </div>
                               
-                              <div className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center">
+                              <div className="absolute top-1/2 -translate-y-1/2 right-10 flex items-center">
                                 {session.pinned && !isSidebarCollapsed && <Pin className="w-4 h-4 text-primary mr-1" />}
                                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleTogglePin(session, e)}>
