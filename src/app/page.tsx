@@ -101,6 +101,10 @@ export default function DashboardPage() {
     defaultValues: { title: "", description: "" },
   });
   
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const handleAddTaskSubmit = (values: TaskFormValues) => {
     handleAddTasks([{ 
       title: values.title, 
