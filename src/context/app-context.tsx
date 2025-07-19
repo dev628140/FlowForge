@@ -21,7 +21,7 @@ interface AppContextType {
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  handleMoveTask: (taskId: string, direction: 'up' | 'down', listId: string) => Promise<void>;
+  handleMoveTask: (taskId: string, direction: 'up' | 'down', list: Task[]) => Promise<void>;
   
   // Chat Session Management
   chatSessions: ChatSession[];
@@ -285,26 +285,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleMoveTask = async (taskId: string, direction: 'up' | 'down', listId: string) => {
+  const handleMoveTask = async (taskId: string, direction: 'up' | 'down', list: Task[]) => {
       if (!user || !db) return;
-
-      const getList = () => {
-        if (listId === 'today') {
-            return tasks.filter(t => t.scheduledDate && isToday(parseISO(t.scheduledDate)));
-        }
-        // Handle 'all' and date-specific lists
-        if (listId === 'all' || listId === 'byDate') {
-            const task = tasks.find(t => t.id === taskId);
-            const date = task?.scheduledDate;
-            if (date) {
-                return tasks.filter(t => t.scheduledDate === date);
-            }
-        }
-        return [];
-      };
-
-      const taskList = getList().filter(t => !t.completed).sort((a, b) => (a.order || 0) - (b.order || 0));
       
+      const taskList = list.filter(t => !t.completed).sort((a, b) => (a.order || 0) - (b.order || 0));
       const currentIndex = taskList.findIndex(t => t.id === taskId);
 
       if (currentIndex === -1) return; 

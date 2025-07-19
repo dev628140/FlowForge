@@ -10,7 +10,7 @@ interface TaskListProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onMove?: (taskId: string, direction: 'up' | 'down', listId: string) => void;
+  onMove?: (taskId: string, direction: 'up' | 'down') => void;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;
@@ -40,10 +40,6 @@ export default function TaskList({
     );
   }
 
-  const handleMove = (taskId: string, direction: 'up' | 'down') => {
-    onMove?.(taskId, direction, listId);
-  };
-
   return (
     <div className="space-y-1">
       {incompleteTasks.map((task) => (
@@ -53,7 +49,7 @@ export default function TaskList({
           onToggle={onToggle} 
           onStartFocus={onStartFocus}
           onUpdateTask={onUpdateTask}
-          onMove={!isSubtaskList ? handleMove : undefined}
+          onMove={!isSubtaskList ? onMove : undefined}
           isDraggable={!isSubtaskList && !!onMove}
           isSubtask={isSubtaskList}
           parentId={parentId}

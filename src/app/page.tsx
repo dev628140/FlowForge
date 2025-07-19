@@ -382,7 +382,7 @@ export default function DashboardPage() {
                     onToggle={handleToggleTask} 
                     onStartFocus={handleStartFocus} 
                     onUpdateTask={updateTask} 
-                    onMove={handleMoveTask}
+                    onMove={(taskId, direction) => handleMoveTask(taskId, direction, todaysTasks)}
                     listId="today"
                     emptyMessage="No tasks for today. Add one to get started!" 
                 />

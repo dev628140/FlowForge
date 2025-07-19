@@ -97,7 +97,7 @@ export default function AllTasksPage() {
                         onToggle={handleToggleTask} 
                         onStartFocus={handleStartFocus} 
                         onUpdateTask={updateTask} 
-                        onMove={handleMoveTask}
+                        onMove={(taskId, direction) => handleMoveTask(taskId, direction, sortedTasks)}
                         listId="all-tasks"
                         emptyMessage="No tasks found." 
                     />
