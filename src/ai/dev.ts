@@ -14,9 +14,8 @@ import '@/ai/flows/summarize-task.ts';
 import '@/ai/flows/assistant-flow.ts';
 import '@/ai/flows/generate-chat-title-flow.ts';
 import '@/ai/flows/reorder-all-tasks-flow.ts';
-import '@/ai/flows/specialized-assistant-flow.ts';
 import '@/ai/tools.ts';
-
-
-
+import '@/ai/flows/planner-flow.ts';
+import '@/ai/flows/breakdown-flow.ts';
+import '@/ai/flows/suggester-flow.ts';
 

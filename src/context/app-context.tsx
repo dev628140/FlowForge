@@ -26,11 +26,30 @@ interface AppContextType {
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   handleMoveTask: (taskId: string, direction: 'up' | 'down', list: Task[]) => Promise<void>;
   
-  // Chat Session Management
+  // Dashboard Chat Session Management
   chatSessions: ChatSession[];
   createChatSession: (history: AssistantMessage[]) => Promise<string>;
   updateChatSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
   deleteChatSession: (sessionId: string) => Promise<void>;
+  
+  // AI Hub Planner Sessions
+  plannerSessions: ChatSession[];
+  createPlannerSession: (history: AssistantMessage[]) => Promise<string>;
+  updatePlannerSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
+  deletePlannerSession: (sessionId: string) => Promise<void>;
+
+  // AI Hub Breakdown Sessions
+  breakdownSessions: ChatSession[];
+  createBreakdownSession: (history: AssistantMessage[]) => Promise<string>;
+  updateBreakdownSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
+  deleteBreakdownSession: (sessionId: string) => Promise<void>;
+  
+  // AI Hub Suggester Sessions
+  suggesterSessions: ChatSession[];
+  createSuggesterSession: (history: AssistantMessage[]) => Promise<string>;
+  updateSuggesterSession: (sessionId: string, updates: Partial<ChatSession>) => Promise<void>;
+  deleteSuggesterSession: (sessionId: string) => Promise<void>;
+
 
   // User Preferences
   userRole: UserRole;
@@ -39,13 +58,91 @@ interface AppContextType {
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
+// Helper function to create a session manager
+function createSessionManager(
+  collectionName: string,
+  user: any,
+  toast: any
+): [ChatSession[], (history: AssistantMessage[]) => Promise<string>, (sessionId: string, updates: Partial<ChatSession>) => Promise<void>, (sessionId: string) => Promise<void>] {
+  
+  const [sessions, setSessions] = React.useState<ChatSession[]>([]);
+
+  React.useEffect(() => {
+    if (user && db) {
+      const q = query(collection(db, collectionName), where("userId", "==", user.uid));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const userSessions: ChatSession[] = [];
+        snapshot.forEach((doc) => userSessions.push({ id: doc.id, ...doc.data() } as ChatSession));
+        setSessions(userSessions);
+      }, (error) => {
+        console.error(`Error listening to ${collectionName}:`, error);
+        toast({ title: "Error", description: `Could not fetch ${collectionName}.`, variant: "destructive" });
+      });
+      return () => unsubscribe();
+    } else {
+      setSessions([]);
+    }
+  }, [user, toast]);
+
+  const createSession = async (history: AssistantMessage[]): Promise<string> => {
+    if (!user || !db) throw new Error("User not authenticated.");
+    const sessionId = uuidv4();
+    const sessionRef = doc(db, collectionName, sessionId);
+    try {
+      const { title } = await generateChatTitle({ history: history as GenerateChatTitleInput['history'] });
+      const newSession: ChatSession = {
+        id: sessionId,
+        userId: user.uid,
+        title: title || 'New Chat',
+        createdAt: new Date().toISOString(),
+        history,
+        pinned: false,
+      };
+      await setDoc(sessionRef, newSession);
+      return sessionId;
+    } catch (error) {
+      const newSession: ChatSession = {
+        id: sessionId,
+        userId: user.uid,
+        title: 'New Chat',
+        createdAt: new Date().toISOString(),
+        history,
+        pinned: false,
+      };
+      await setDoc(sessionRef, newSession);
+      return sessionId;
+    }
+  };
+
+  const updateSession = async (sessionId: string, updates: Partial<ChatSession>) => {
+    if (!user || !db) return;
+    const sessionRef = doc(db, collectionName, sessionId);
+    await updateDoc(sessionRef, updates);
+  };
+
+  const deleteSession = async (sessionId: string) => {
+    if (!user || !db) return;
+    const sessionRef = doc(db, collectionName, sessionId);
+    await deleteDoc(sessionRef);
+  };
+  
+  return [sessions, createSession, updateSession, deleteSession];
+}
+
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [showConfetti, setShowConfetti] = React.useState(false);
-  const [chatSessions, setChatSessions] = React.useState<ChatSession[]>([]);
   const [userRole, setUserRole] = React.useState<UserRole>('Developer');
+
+  // Session Management
+  const [chatSessions, createChatSession, updateChatSession, deleteChatSession] = createSessionManager('chatSessions', user, toast);
+  const [plannerSessions, createPlannerSession, updatePlannerSession, deletePlannerSession] = createSessionManager('plannerSessions', user, toast);
+  const [breakdownSessions, createBreakdownSession, updateBreakdownSession, deleteBreakdownSession] = createSessionManager('breakdownSessions', user, toast);
+  const [suggesterSessions, createSuggesterSession, updateSuggesterSession, deleteSuggesterSession] = createSessionManager('suggesterSessions', user, toast);
+
 
   React.useEffect(() => {
     const savedRole = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole;
@@ -104,31 +201,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, toast]);
   
-  React.useEffect(() => {
-    if (user && db) {
-      const q = query(
-        collection(db, "chatSessions"),
-        where("userId", "==", user.uid)
-      );
-
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const sessions: ChatSession[] = [];
-        querySnapshot.forEach((doc) => {
-          sessions.push({ id: doc.id, ...doc.data() } as ChatSession);
-        });
-        sessions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setChatSessions(sessions);
-      }, (error) => {
-        console.error("Error listening to chat sessions:", error);
-        toast({ title: "Error", description: "Could not fetch chat history. Please ensure Firestore rules are deployed.", variant: "destructive" });
-      });
-
-      return () => unsubscribe();
-    } else {
-      setChatSessions([]);
-    }
-  }, [user, toast]);
-
 
   const handleToggleTask = async (id: string, parentId?: string) => {
     if (!user || !db) return;
@@ -337,53 +409,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
   };
 
-  // Chat Session CRUD
-  const createChatSession = async (history: AssistantMessage[]): Promise<string> => {
-      if (!user || !db) throw new Error("User not authenticated.");
-      const sessionId = uuidv4();
-      const sessionRef = doc(db, 'chatSessions', sessionId);
-
-      try {
-        const { title } = await generateChatTitle({ history: history as GenerateChatTitleInput['history'] });
-
-        const newSession: ChatSession = {
-          id: sessionId,
-          userId: user.uid,
-          title: title || 'New Chat',
-          createdAt: new Date().toISOString(),
-          history: history,
-          pinned: false,
-        };
-        await setDoc(sessionRef, newSession);
-        return sessionId;
-      } catch (error) {
-        console.error("Error creating chat session and generating title:", error);
-        const newSession: ChatSession = {
-          id: sessionId,
-          userId: user.uid,
-          title: 'New Chat',
-          createdAt: new Date().toISOString(),
-          history: history,
-          pinned: false,
-        };
-        await setDoc(sessionRef, newSession);
-        return sessionId;
-      }
-  };
-
-  const updateChatSession = async (sessionId: string, updates: Partial<ChatSession>) => {
-      if (!user || !db) return;
-      const sessionRef = doc(db, 'chatSessions', sessionId);
-      await updateDoc(sessionRef, updates);
-  };
-
-  const deleteChatSession = async (sessionId: string) => {
-      if (!user || !db) return;
-      const sessionRef = doc(db, 'chatSessions', sessionId);
-      await deleteDoc(sessionRef);
-  };
-
-
   return (
     <AppContext.Provider value={{
       tasks, setTasks,
@@ -399,6 +424,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       createChatSession,
       updateChatSession,
       deleteChatSession,
+      // Planner
+      plannerSessions,
+      createPlannerSession,
+      updatePlannerSession,
+      deletePlannerSession,
+      // Breakdown
+      breakdownSessions,
+      createBreakdownSession,
+      updateBreakdownSession,
+      deleteBreakdownSession,
+      // Suggester
+      suggesterSessions,
+      createSuggesterSession,
+      updateSuggesterSession,
+      deleteSuggesterSession,
       // User Prefs
       userRole,
       setUserRole: handleSetUserRole,
