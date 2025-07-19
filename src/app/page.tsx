@@ -221,7 +221,7 @@ export default function DashboardPage() {
                               {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
                               </p>
                           </div>
-                          <div className={cn("flex items-center transition-opacity", "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}>
+                          <div className={cn("flex items-center transition-opacity")}>
                               <Button
                                   variant="ghost"
                                   size="icon"
@@ -444,8 +444,8 @@ export default function DashboardPage() {
                         </Dialog>
                     </div>
                     </CardHeader>
-                    <CardContent className="flex-grow flex flex-col overflow-hidden">
-                      <ScrollArea className="flex-grow pr-4 -mr-4">
+                    <CardContent className="flex-grow flex flex-col p-0 overflow-hidden">
+                      <ScrollArea className="flex-grow overflow-y-auto px-6">
                         <TaskList
                             tasks={todaysTasks}
                             onToggle={handleToggleTask} 
@@ -474,3 +474,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
