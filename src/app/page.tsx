@@ -457,7 +457,9 @@ export default function DashboardPage() {
                   </ScrollArea>
                 </CardContent>
             </Card>
-            <AIAssistant allTasks={tasks} role={userRole} />
+            <div className="h-[550px]">
+                <AIAssistant allTasks={tasks} role={userRole} />
+            </div>
           </div>
           
         </div>
