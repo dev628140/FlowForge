@@ -443,8 +443,8 @@ export default function DashboardPage() {
                     </Dialog>
                 </div>
                 </CardHeader>
-                <CardContent className="flex-grow flex flex-col p-0 overflow-hidden">
-                    <ScrollArea className="flex-grow px-6">
+                <CardContent className="flex-grow p-0 overflow-hidden relative">
+                    <ScrollArea className="h-full px-6">
                         <TaskList
                             tasks={todaysTasks}
                             onToggle={handleToggleTask} 
@@ -455,6 +455,7 @@ export default function DashboardPage() {
                             emptyMessage="No tasks for today. Add one to get started!" 
                         />
                     </ScrollArea>
+                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent pointer-events-none" />
                 </CardContent>
              </Card>
              <div className="w-full h-[500px] xl:h-[550px]">
