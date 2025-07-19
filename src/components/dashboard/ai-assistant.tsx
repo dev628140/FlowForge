@@ -5,7 +5,7 @@ import * as React from 'react';
 import { Wand2, Loader2, Sparkles, AlertTriangle, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
 import { useOfflineStatus } from '@/hooks/use-offline-status';
@@ -28,7 +28,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { buttonVariants } from '../ui/button';
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -280,28 +279,28 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           <ScrollArea className="flex-grow">
               <div className="space-y-1 p-2">
                   {sortedSessions.map(session => (
-                    <div key={session.id} className="group relative">
-                        <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => handleSelectChat(session.id)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
-                            className={cn(
-                                buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost' }),
-                                "w-full justify-start text-left h-auto py-2"
-                            )}
-                        >
-                            <div className="flex-1 truncate pr-10">
-                                <p className="font-medium text-sm truncate">{session.title}</p>
-                                <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
-                            </div>
+                    <div
+                      key={session.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleSelectChat(session.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
+                      className={cn(
+                          "group relative",
+                          buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost' }),
+                          "w-full justify-start text-left h-auto py-2"
+                      )}
+                    >
+                        <div className="flex-1 truncate">
+                            <p className="font-medium text-sm truncate">{session.title}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(session.createdAt).toLocaleDateString()}</p>
                         </div>
 
-                        <div className="absolute top-1/2 -translate-y-1/2 right-1 flex items-center">
+                        <div className="absolute top-1/2 -translate-y-1/2 right-4 flex items-center">
                             {session.pinned && <Pin className="w-4 h-4 text-primary mr-1" />}
                             <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleTogglePin(session, e)}>
-                                  {session.pinned ? <PinOff className="w-4 w-4" /> : <Pin className="w-4 w-4" />}
+                                  {session.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 w-4" />}
                                 </Button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
