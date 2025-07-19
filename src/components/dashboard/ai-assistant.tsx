@@ -339,12 +339,25 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
             FlowForge Assistant
           </CardTitle>
           <CardDescription>
-            {isNewChat ? "Start a new conversation by typing below." : "Continuing your conversation."}
+            {isNewChat ? "Your AI companion for seamless task and goal management." : "Continuing your conversation."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden h-[300px] md:h-auto">
           <ScrollArea className="flex-grow pr-4" ref={scrollAreaRef}>
               <div className="space-y-4">
+                  {history.length === 0 && !loading && (
+                    <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center">
+                        <Sparkles className="mx-auto h-8 w-8 text-primary/50 mb-2" />
+                        <h3 className="font-semibold">I'm ready to help!</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Manage tasks, create plans, get summaries, and more. Just tell me what you need.
+                        </p>
+                        <p className="text-xs text-muted-foreground/80 mt-4">
+                            Try: "Add a task to read a book tomorrow at 8pm"
+                        </p>
+                    </div>
+                  )}
+
                   {history.map((msg, index) => (
                       <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                           {msg.role === 'model' && (
@@ -457,5 +470,3 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </Card>
   );
 }
-
-    
