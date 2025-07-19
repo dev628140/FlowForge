@@ -432,7 +432,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                         <Sparkles className="mx-auto h-8 w-8 text-primary/50 mb-2" />
                         <h3 className="font-semibold">How can I help you?</h3>
                         <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                           Ask me to add, update, or delete tasks. You can also ask me to analyze your productivity or reflect on your day.
+                           Ask me to add, update, or delete tasks. You can also ask me for a summary, analysis, or anything else you can think of.
                         </p>
                         <p className="text-xs text-muted-foreground/80 mt-4">
                             Example: "Add a task to read a book tomorrow at 8pm"
