@@ -3,10 +3,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-export const useSpeechRecognition = (onResult: (text: string) => void) => {
+export const useSpeechRecognition = (onResult: (text: string) => void, onEnd: () => void = () => {}) => {
   const [isListening, setIsListening] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const onEndRef = useRef(onEnd);
+
+  // Keep onEnd callback ref up to date
+  useEffect(() => {
+    onEndRef.current = onEnd;
+  }, [onEnd]);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -30,6 +36,8 @@ export const useSpeechRecognition = (onResult: (text: string) => void) => {
       
       recognition.onend = () => {
         setIsListening(false);
+        // Call the onEnd callback when recognition stops
+        onEndRef.current();
       };
 
       recognitionRef.current = recognition;
@@ -37,15 +45,6 @@ export const useSpeechRecognition = (onResult: (text: string) => void) => {
         setIsAvailable(false);
     }
   }, [onResult]);
-
-  const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-    } else {
-      recognitionRef.current?.start();
-    }
-    setIsListening(!isListening);
-  };
   
   const startListening = () => {
     if (!isListening) {
@@ -61,6 +60,5 @@ export const useSpeechRecognition = (onResult: (text: string) => void) => {
     }
   }
 
-
-  return { isListening, isAvailable, startListening, stopListening, toggleListening };
+  return { isListening, isAvailable, startListening, stopListening };
 };

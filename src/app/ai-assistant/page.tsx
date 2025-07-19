@@ -5,7 +5,7 @@ import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -31,7 +31,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -40,6 +39,7 @@ import { runBreakdowner, type BreakdownerOutput } from '@/ai/flows/breakdown-flo
 import { runSuggester, type SuggesterOutput } from '@/ai/flows/suggester-flow';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
+import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { textToSpeech } from '@/ai/flows/tts-flow';
 
 export type AssistantMode = 'planner' | 'breakdown' | 'suggester';
@@ -78,6 +78,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [loading, setLoading] = React.useState(false);
     const [currentPlan, setCurrentPlan] = React.useState<PlannerOutput['tasks'] | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
+    const [isVoiceMode, setIsVoiceMode] = React.useState(false);
 
     // State for inputs
     const [taskToBreakdown, setTaskToBreakdown] = React.useState('');
@@ -86,13 +87,22 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [breakdownDate, setBreakdownDate] = React.useState<Date | undefined>(new Date());
     
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
-    const audioRef = React.useRef<HTMLAudioElement | null>(null);
-
+    
     const isNewChat = activeChatId === null;
+    const formRef = React.useRef<HTMLFormElement>(null);
 
-    const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition((text) => {
+    const handleSpeechResult = (text: string) => {
         setPrompt(text);
-    });
+        if (isVoiceMode) {
+             // Delay submission slightly to allow state to update
+            setTimeout(() => {
+                formRef.current?.requestSubmit();
+            }, 100);
+        }
+    };
+
+    const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
+    const { play: playAudio, stop: stopAudio, isPlaying } = useSpeechSynthesis();
 
     const {
       sessions,
@@ -258,12 +268,12 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 const modelResponse: AssistantMessage = { role: 'model', content: modelContent };
                 const updatedHistory = [...newHistory, modelResponse];
                 
-                // Generate and play audio
-                const ttsResult = await textToSpeech({ text: result.response });
-                if (ttsResult.audioDataUri && audioRef.current) {
-                    audioRef.current.src = ttsResult.audioDataUri;
-                    audioRef.current.play();
-                    modelResponse.audioDataUri = ttsResult.audioDataUri;
+                if (isVoiceMode) {
+                    const ttsResult = await textToSpeech({ text: result.response });
+                    if (ttsResult.audioDataUri) {
+                        playAudio(ttsResult.audioDataUri);
+                        modelResponse.audioDataUri = ttsResult.audioDataUri;
+                    }
                 }
 
                 setHistory(updatedHistory);
@@ -339,6 +349,17 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         toast({ title: 'Chat Deleted', description: 'The conversation has been removed.' });
     };
     
+    const handleToggleVoiceMode = () => {
+        const newVoiceModeState = !isVoiceMode;
+        setIsVoiceMode(newVoiceModeState);
+        if (newVoiceModeState) {
+            startListening();
+        } else {
+            if (isListening) stopListening();
+            if (isPlaying) stopAudio();
+        }
+    };
+
     const sortedSessions = React.useMemo(() => {
         return [...sessions].sort((a, b) => {
             if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
@@ -350,80 +371,90 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const renderInitialInputs = () => {
         if (history.length > 0) return null;
 
-        switch (mode) {
-            case 'planner':
-                return (
-                    <Textarea
-                        placeholder="e.g., Learn to build a website in 30 days, starting tomorrow."
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        rows={isMobile ? 2 : 3}
-                        disabled={loading || isListening}
-                    />
-                );
-            case 'breakdown':
-                return (
-                    <div className="space-y-4">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !breakdownDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {breakdownDate ? format(breakdownDate, "PPP") : <span>Pick a date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar mode="single" selected={breakdownDate} onSelect={setBreakdownDate} initialFocus />
-                            </PopoverContent>
-                        </Popover>
-                        <Select onValueChange={setTaskToBreakdown} value={taskToBreakdown} disabled={loading}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a task to break down..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {Object.entries(getGroupedTasks).length > 0 ? (
-                                    Object.entries(getGroupedTasks).map(([group, tasksInGroup]) => (
-                                        <SelectGroup key={group}>
-                                            <SelectLabel>{group}</SelectLabel>
-                                            {tasksInGroup.map(task => (
-                                                <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                    ))
-                                ) : (
-                                    <SelectItem value="no-tasks" disabled>No tasks for the selected day</SelectItem>
-                                )}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                );
-            case 'suggester':
-                return (
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                             <Select onValueChange={(v: UserRole) => setSuggestionRole(v)} defaultValue={suggestionRole} disabled={loading}>
-                                <SelectTrigger><SelectValue placeholder="Select role..." /></SelectTrigger>
+        return (
+             <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center items-center">
+                {mode === 'planner' && (
+                    <>
+                        <h3 className="font-semibold">AI Task Planner</h3>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-sm">Describe your goal, and I'll generate a step-by-step plan for you.</p>
+                        <Textarea
+                            className="mt-4"
+                            placeholder="e.g., Learn to build a website in 30 days, starting tomorrow."
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            rows={isMobile ? 2 : 3}
+                            disabled={loading || isListening}
+                        />
+                    </>
+                )}
+                {mode === 'breakdown' && (
+                    <>
+                        <h3 className="font-semibold">Task Breakdown</h3>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-sm">Select a task from your list, and I'll break it into smaller subtasks.</p>
+                        <div className="space-y-4 w-full mt-4">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !breakdownDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {breakdownDate ? format(breakdownDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar mode="single" selected={breakdownDate} onSelect={setBreakdownDate} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                            <Select onValueChange={setTaskToBreakdown} value={taskToBreakdown} disabled={loading}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a task to break down..." />
+                                </SelectTrigger>
                                 <SelectContent>
-                                    {userRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select onValueChange={(v: Mood['label']) => setSuggestionMood(v)} defaultValue={suggestionMood} disabled={loading}>
-                                <SelectTrigger><SelectValue placeholder="Select mood..." /></SelectTrigger>
-                                <SelectContent>
-                                    {moods.map(m => <SelectItem key={m.label} value={m.label}>{m.emoji} {m.label}</SelectItem>)}
+                                    {Object.entries(getGroupedTasks).length > 0 ? (
+                                        Object.entries(getGroupedTasks).map(([group, tasksInGroup]) => (
+                                            <SelectGroup key={group}>
+                                                <SelectLabel>{group}</SelectLabel>
+                                                {tasksInGroup.map(task => (
+                                                    <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        ))
+                                    ) : (
+                                        <SelectItem value="no-tasks" disabled>No tasks for the selected day</SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Input 
-                            placeholder="What do you want to accomplish? (e.g., get fit)"
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            disabled={loading || isListening}
-                        />
-                    </div>
-                );
-            default:
-                return null;
-        }
+                    </>
+                )}
+                {mode === 'suggester' && (
+                     <>
+                        <h3 className="font-semibold">Smart Suggestions</h3>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-sm">Tell me your goal, role, and mood, and I'll brainstorm some ideas.</p>
+                        <div className="space-y-4 w-full mt-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <Select onValueChange={(v: UserRole) => setSuggestionRole(v)} defaultValue={suggestionRole} disabled={loading}>
+                                    <SelectTrigger><SelectValue placeholder="Select role..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {userRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <Select onValueChange={(v: Mood['label']) => setSuggestionMood(v)} defaultValue={suggestionMood} disabled={loading}>
+                                    <SelectTrigger><SelectValue placeholder="Select mood..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {moods.map(m => <SelectItem key={m.label} value={m.label}>{m.emoji} {m.label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Input 
+                                placeholder="What do you want to accomplish? (e.g., get fit)"
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                disabled={loading || isListening}
+                            />
+                        </div>
+                     </>
+                )}
+             </div>
+        );
     };
 
 
@@ -524,6 +555,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
             <div className="flex-1 flex flex-col p-2 sm:p-4 md:pl-6 overflow-hidden">
                 <div className="flex-grow overflow-y-auto pr-4 -mr-4 mb-4" ref={scrollAreaRef}>
                     <div className="space-y-4">
+                        {history.length === 0 && !loading && renderInitialInputs()}
                         {history.map((msg, index) => (
                             <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                                 {msg.role === 'model' && (
@@ -578,16 +610,14 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     </div>
                 )}
                 
-                <form onSubmit={handleSubmit} className="mt-auto space-y-4 flex-shrink-0">
-                    {history.length === 0 && renderInitialInputs()}
-
+                <form onSubmit={handleSubmit} ref={formRef} className="mt-auto space-y-4 flex-shrink-0">
                     {history.length > 0 && (
-                        <div className="relative w-full">
+                         <div className="relative w-full">
                             <Input
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 placeholder="Need changes? Type or use the mic..."
-                                disabled={loading || isListening}
+                                disabled={loading || isListening || isPlaying}
                                 autoFocus
                                 className={cn(isAvailable && "pr-10")}
                             />
@@ -598,7 +628,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                     variant={isListening ? "destructive" : "ghost"}
                                     className="absolute top-1/2 right-1.5 -translate-y-1/2 h-7 w-7"
                                     onClick={isListening ? stopListening : startListening}
-                                    disabled={loading}
+                                    disabled={loading || isPlaying}
                                 >
                                     {isListening ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
                                 </Button>
@@ -607,25 +637,33 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     )}
                 
                     <div className="flex items-center gap-2">
-                        {isAvailable && history.length === 0 && (
-                            <Button
-                                type="button"
-                                size="icon"
-                                variant={isListening ? "destructive" : "outline"}
-                                onClick={isListening ? stopListening : startListening}
-                                disabled={loading}
-                            >
-                                {isListening ? <MicOff/> : <Mic/>}
-                            </Button>
+                         {isAvailable && (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant={isVoiceMode ? "default" : "outline"}
+                                            onClick={handleToggleVoiceMode}
+                                            disabled={loading || (isVoiceMode && isPlaying)}
+                                        >
+                                            {isVoiceMode || isListening ? <Voicemail className={cn("h-5 w-5", isListening && "animate-pulse")}/> : <Voicemail className="h-5 w-5"/>}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{isVoiceMode ? "Stop Voice Mode" : "Start Voice Mode"}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         )}
-                        <Button type="submit" disabled={!canSubmit()} className="w-full">
+                        <Button type="submit" disabled={!canSubmit() || isListening || isPlaying} className="w-full">
                             {loading ? <Loader2 className="animate-spin" /> : history.length > 0 ? <CornerDownLeft/> : <Wand2/>}
                             <span className="ml-2">{loading ? 'Generating...' : history.length > 0 ? 'Send' : 'Generate'}</span>
                         </Button>
                     </div>
                 </form>
             </div>
-            <audio ref={audioRef} className="hidden" />
         </div>
     );
 };

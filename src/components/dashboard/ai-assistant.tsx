@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff, Voicemail } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -24,10 +24,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
+import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { textToSpeech } from '@/ai/flows/tts-flow';
 
 interface AIAssistantProps {
@@ -55,14 +55,25 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   
   const [activeChatId, setActiveChatId] = React.useState<string | null>(null);
   const [history, setHistory] = React.useState<AssistantMessage[]>([]);
-  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
-  const isNewChat = activeChatId === null;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [isVoiceMode, setIsVoiceMode] = React.useState(false);
+  
+  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+  const formRef = React.useRef<HTMLFormElement>(null);
+  const isNewChat = activeChatId === null;
 
-  const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition((text) => {
-    setPrompt(text);
-  });
+  const handleSpeechResult = (text: string) => {
+      setPrompt(text);
+      if (isVoiceMode) {
+          // Delay submission slightly to allow state to update
+          setTimeout(() => {
+              formRef.current?.requestSubmit();
+          }, 100);
+      }
+  };
+  
+  const { isListening, isAvailable, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
+  const { play: playAudio, stop: stopAudio, isPlaying } = useSpeechSynthesis();
 
   // Effect to load a chat session's history when it becomes active
   React.useEffect(() => {
@@ -142,20 +153,21 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       }
       
       const modelResponse: AssistantMessage = { role: 'model', content: result.response };
+      
+      if (isVoiceMode) {
+        const ttsResult = await textToSpeech({ text: result.response });
+        if (ttsResult.audioDataUri) {
+          playAudio(ttsResult.audioDataUri);
+          modelResponse.audioDataUri = ttsResult.audioDataUri;
+        }
+      }
+
       const updatedHistory = [...newHistory, modelResponse];
       setHistory(updatedHistory);
       
       // Update the session in Firestore
       if(currentChatId) {
           await updateChatSession(currentChatId, { history: updatedHistory });
-      }
-
-      // Generate and play audio
-      const ttsResult = await textToSpeech({ text: result.response });
-      if (ttsResult.audioDataUri && audioRef.current) {
-          audioRef.current.src = ttsResult.audioDataUri;
-          audioRef.current.play();
-          modelResponse.audioDataUri = ttsResult.audioDataUri;
       }
 
       const hasActions = (result.tasksToAdd && result.tasksToAdd.length > 0) ||
@@ -235,6 +247,17 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
         updateChatSession(activeChatId, { history: history });
     }
   }
+
+  const handleToggleVoiceMode = () => {
+    const newVoiceModeState = !isVoiceMode;
+    setIsVoiceMode(newVoiceModeState);
+    if (newVoiceModeState) {
+        startListening();
+    } else {
+        if (isListening) stopListening();
+        if (isPlaying) stopAudio();
+    }
+  };
   
   const sortedSessions = React.useMemo(() => {
     return [...chatSessions].sort((a, b) => {
@@ -262,7 +285,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
           FlowForge Assistant
         </CardTitle>
         <CardDescription>
-          Your AI companion for seamless task and goal management. Use the mic to talk.
+          Your AI companion for seamless task and goal management.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col sm:flex-row gap-4 overflow-hidden p-2 sm:p-6 pt-0">
@@ -357,7 +380,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                         <Sparkles className="mx-auto h-8 w-8 text-primary/50 mb-2" />
                         <h3 className="font-semibold">How can I help you?</h3>
                         <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                           You can ask me anything to do for you from managing,creating,deleting to anything you can think or about you tasks,goals,etc...I can do it for you seamlessly
+                           Ask me to add, update, or delete tasks. You can also ask me to analyze your productivity or reflect on your day.
                         </p>
                         <p className="text-xs text-muted-foreground/80 mt-4">
                             Example: "Add a task to read a book tomorrow at 8pm"
@@ -457,36 +480,56 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
               </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0 pt-4">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex items-center gap-2 flex-shrink-0 pt-4">
              <div className="relative w-full">
                 <Input
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
-                disabled={loading || isOffline || !!aiPlan || isListening}
-                className={cn(isAvailable && "pr-10")}
+                disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}
+                className={cn(isAvailable && "pr-20")}
                 />
-                {isAvailable && (
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant={isListening ? "destructive" : "ghost"}
-                        className="absolute top-1/2 right-1.5 -translate-y-1/2 h-7 w-7"
-                        onClick={isListening ? stopListening : startListening}
-                        disabled={loading || isOffline || !!aiPlan}
-                    >
-                        {isListening ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
-                    </Button>
+                 {isAvailable && (
+                    <div className="absolute top-1/2 right-1.5 -translate-y-1/2 flex items-center">
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant={isListening ? "destructive" : "ghost"}
+                            className="h-7 w-7"
+                            onClick={isListening ? stopListening : () => { setIsVoiceMode(false); startListening(); }}
+                            disabled={loading || isOffline || !!aiPlan || isPlaying}
+                        >
+                            {isListening && !isVoiceMode ? <MicOff className="h-4 w-4"/> : <Mic className="h-4 w-4"/>}
+                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant={isVoiceMode ? "default" : "ghost"}
+                                        className="h-7 w-7"
+                                        onClick={handleToggleVoiceMode}
+                                        disabled={loading || isOffline || !!aiPlan || (isVoiceMode && isPlaying)}
+                                    >
+                                        <Voicemail className={cn("h-4 w-4", isListening && isVoiceMode && "animate-pulse")}/>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{isVoiceMode ? "Stop Voice Mode" : "Start Voice Mode"}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 )}
             </div>
-            <Button type="submit" disabled={loading || isOffline || !prompt.trim() || !!aiPlan}>
+            <Button type="submit" disabled={loading || isOffline || !prompt.trim() || !!aiPlan || isListening || isPlaying}>
               {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
               <span className="sr-only">Send</span>
             </Button>
           </form>
         </div>
       </CardContent>
-      <audio ref={audioRef} className="hidden" />
     </Card>
   );
 }
