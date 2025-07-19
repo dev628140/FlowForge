@@ -173,8 +173,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     
     const canSubmit = () => {
         if (loading) return false;
-        if (history.length > 0) return prompt.trim() !== '';
         
+        // Allow submitting for follow-up messages even with a plan
+        if (history.length > 0) return prompt.trim() !== '';
+
         switch (mode) {
             case 'planner':
             case 'suggester':
@@ -208,7 +210,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                 // and then create the session.
             }
 
-            const result = await runAIFlow({
+            const result: PlannerOutput = await runAIFlow({
                 history: newHistory,
             });
             
@@ -219,7 +221,14 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     setActiveChatId(currentChatId);
                 }
                 
-                const modelResponse: AssistantMessage = { role: 'model', content: result.response };
+                // For conversational memory, add the generated plan to the model's message content.
+                let modelContent = result.response;
+                if (result.tasks && result.tasks.length > 0) {
+                    const planAsText = "\n\nCURRENT PLAN:\n" + result.tasks.map(t => `- ${t.title}`).join("\n");
+                    modelContent += planAsText;
+                }
+
+                const modelResponse: AssistantMessage = { role: 'model', content: modelContent };
                 const updatedHistory = [...newHistory, modelResponse];
                 setHistory(updatedHistory);
 
@@ -229,6 +238,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
                 if (result.tasks && result.tasks.length > 0) {
                     setCurrentPlan(result.tasks);
+                } else {
+                    // If no tasks are returned, it means the conversation continues
+                    // without a concrete plan yet. Clear any old plan.
+                    setCurrentPlan(null);
                 }
             } else {
                  throw new Error("The AI returned an empty response.");
@@ -490,7 +503,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                     msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
                                     msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
                                 )}>
-                                    {msg.content.replace(/^Error: /, '')}
+                                    {msg.content.replace(/^Error: /, '').split('CURRENT PLAN:')[0]}
                                 </div>
                                 {msg.role === 'user' && (
                                     <div className="bg-muted text-foreground rounded-full p-2">

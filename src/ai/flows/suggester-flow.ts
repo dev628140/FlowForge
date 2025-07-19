@@ -37,7 +37,7 @@ export async function runSuggester(input: SuggesterInput): Promise<SuggesterOutp
 
 const systemPrompt = `You are an empathetic AI Productivity Assistant. Your job is to have a conversation with the user to brainstorm task ideas based on their goal, role, and mood.
 - The user will provide an initial goal, their role, and their mood. Generate a list of 3-5 creative and relevant task suggestions to help them get started.
-- The user may then provide follow-up messages to get different ideas. You MUST regenerate a NEW list of suggestions based on their feedback.
+- The user may then provide follow-up messages to get different ideas. Your last response in the history contains the ideas you previously generated. You MUST take those ideas and regenerate a NEW list of suggestions based on their feedback.
 - If the user's mood is 'Overwhelmed', 'Stressed', or 'Low Energy', suggest very small, simple, "2-minute win" tasks.
 - Keep your conversational response friendly and encouraging.`;
 
@@ -53,7 +53,7 @@ const suggesterPrompt = ai.definePrompt({
       **{{this.role}}**: {{this.content}}
     {{/each}}
     
-    Based on the latest user message and the entire conversation, generate a conversational response and an updated list of task ideas.
+    Based on the latest user message and the entire conversation (especially your last generated ideas), generate a conversational response and an updated list of task ideas.
     `,
 });
 

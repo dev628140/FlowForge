@@ -37,8 +37,8 @@ export async function runPlanner(input: PlannerInput): Promise<PlannerOutput> {
 }
 
 const systemPrompt = `You are an expert AI Task Planner. Your job is to have a conversation with the user to break down their high-level goal into a list of actionable tasks.
-- The user will provide an initial goal. Generate a comprehensive list of tasks.
-- The user may then provide follow-up messages to modify the plan. You MUST regenerate the ENTIRE task list with the requested modifications.
+- The user will provide an initial goal. Generate a comprehensive list of tasks based on that goal.
+- The user may then provide follow-up messages to modify the plan. Your last response in the history contains the plan you previously generated. You MUST take that plan and regenerate the ENTIRE task list with the requested modifications. Do not just output the changes.
 - When scheduling, provide a 'scheduledDate' in 'YYYY-MM-DD' format and optionally a 'scheduledTime' in 'HH:mm' format. Today is ${format(new Date(), 'yyyy-MM-dd')}.
 - Keep your conversational response friendly and confirm the changes you've made to the plan.`;
 
@@ -54,7 +54,7 @@ const plannerPrompt = ai.definePrompt({
       **{{this.role}}**: {{this.content}}
     {{/each}}
     
-    Based on the latest user message and the entire conversation, generate a conversational response and an updated list of tasks.
+    Based on the latest user message and the entire conversation (especially your last generated plan), generate a conversational response and an updated list of tasks.
     `,
 });
 
