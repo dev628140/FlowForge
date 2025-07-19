@@ -9,15 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import TaskList from '@/components/dashboard/task-list';
 import FocusMode from '@/components/dashboard/focus-mode';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { parseISO } from 'date-fns';
+import { format, parseISO, isToday, isFuture, isPast } from 'date-fns';
 
-type SortOption = 'scheduledDate' | 'createdAt-desc' | 'createdAt-asc' | 'title';
+type GroupOption = 'byDate' | 'byStatus';
 
 export default function AllTasksPage() {
-  const { tasks, handleToggleTask, updateTask } = useAppContext();
+  const { tasks, handleToggleTask, updateTask, handleMoveTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
-  const [sortBy, setSortBy] = React.useState<SortOption>('scheduledDate');
+  const [groupBy, setGroupBy] = React.useState<GroupOption>('byDate');
 
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -30,38 +30,50 @@ export default function AllTasksPage() {
     setFocusTask(null);
   };
 
-  const sortedTasks = React.useMemo(() => {
-    const sortableTasks = [...tasks];
-    return sortableTasks.sort((a, b) => {
-      switch (sortBy) {
-        case 'scheduledDate':
-          if (a.scheduledDate && b.scheduledDate) {
-            return parseISO(a.scheduledDate).getTime() - parseISO(b.scheduledDate).getTime();
-          }
-          if (a.scheduledDate) return -1; // a comes first
-          if (b.scheduledDate) return 1;  // b comes first
-          // if neither have a scheduled date, sort by creation
-          if (a.createdAt && b.createdAt) {
-            return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
-          }
-          return 0;
-        case 'createdAt-desc':
-            if (a.createdAt && b.createdAt) {
-                return parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime();
-            }
-            return 0;
-        case 'createdAt-asc':
-            if (a.createdAt && b.createdAt) {
-                return parseISO(a.createdAt).getTime() - parseISO(b.createdAt).getTime();
-            }
-            return 0;
-        case 'title':
-          return a.title.localeCompare(b.title);
-        default:
-          return 0;
+  const groupedTasks = React.useMemo(() => {
+    const groups: { [key: string]: Task[] } = {};
+
+    const sortedByDate = [...tasks].sort((a, b) => {
+      const dateA = a.scheduledDate ? parseISO(a.scheduledDate).getTime() : Infinity;
+      const dateB = b.scheduledDate ? parseISO(b.scheduledDate).getTime() : Infinity;
+      if (dateA !== dateB) {
+        return dateA - dateB;
       }
+      return (a.order || 0) - (b.order || 0);
     });
-  }, [tasks, sortBy]);
+
+    sortedByDate.forEach(task => {
+      const key = task.scheduledDate ? format(parseISO(task.scheduledDate), 'yyyy-MM-dd') : 'Unscheduled';
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(task);
+    });
+
+    for (const key in groups) {
+      groups[key].sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+
+    return groups;
+
+  }, [tasks]);
+
+  const onMove = (taskId: string, direction: 'up' | 'down', list: Task[]) => {
+    handleMoveTask(taskId, direction, list);
+  };
+
+  const getGroupTitle = (dateKey: string) => {
+    if (dateKey === 'Unscheduled') return 'Unscheduled';
+    const date = parseISO(dateKey);
+    if (isToday(date)) return `Today, ${format(date, 'MMMM d')}`;
+    return format(date, 'EEEE, MMMM d');
+  }
+
+  const groupKeys = Object.keys(groupedTasks).sort((a, b) => {
+      if (a === 'Unscheduled') return 1;
+      if (b === 'Unscheduled') return -1;
+      return parseISO(a).getTime() - parseISO(b).getTime();
+  });
 
 
   return (
@@ -72,31 +84,29 @@ export default function AllTasksPage() {
                   <ListTodo className="w-8 h-8" />
                   All Tasks
               </h1>
-              <div className="flex items-center gap-2">
-                <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
-                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Sort by..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scheduledDate">Scheduled Date</SelectItem>
-                    <SelectItem value="createdAt-desc">Newest First</SelectItem>
-                    <SelectItem value="createdAt-asc">Oldest First</SelectItem>
-                    <SelectItem value="title">Title (A-Z)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             
-            <Card>
-                <CardHeader>
-                    <CardTitle>Your Tasks</CardTitle>
-                    <CardDescription>A complete list of all your scheduled tasks.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <TaskList tasks={sortedTasks} onToggle={handleToggleTask} onStartFocus={handleStartFocus} onUpdateTask={updateTask} emptyMessage="No tasks found." />
-                </CardContent>
-            </Card>
+            {groupKeys.map(groupKey => {
+              const groupTasks = groupedTasks[groupKey];
+              return (
+                <Card key={groupKey}>
+                    <CardHeader>
+                        <CardTitle>{getGroupTitle(groupKey)}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <TaskList 
+                          tasks={groupTasks} 
+                          onToggle={handleToggleTask} 
+                          onStartFocus={handleStartFocus} 
+                          onUpdateTask={updateTask} 
+                          onMove={(taskId, direction) => onMove(taskId, direction, groupTasks)}
+                          listId={groupKey}
+                          emptyMessage="No tasks for this day." 
+                        />
+                    </CardContent>
+                </Card>
+              )
+            })}
         </div>
         {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={handleCompleteFocus}/>}
     </div>

@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, GitGraph, LayoutDashboard, LogOut, Settings, ListTodo, User as UserIcon, WifiOff } from 'lucide-react';
+import { Calendar, GitGraph, LayoutDashboard, LogOut, Settings, ListTodo, User as UserIcon, WifiOff, BrainCircuit } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -115,11 +115,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/all-tasks">
+                <SidebarMenuButton isActive={pathname === '/all-tasks'}>
+                  <ListTodo />
+                  <span>All Tasks</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/schedule">
                 <SidebarMenuButton isActive={pathname === '/schedule'}>
                   <Calendar />
                   <span>Schedule</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/ai-assistant">
+                <SidebarMenuButton isActive={pathname === '/ai-assistant'}>
+                  <BrainCircuit />
+                  <span>AI Hub</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
