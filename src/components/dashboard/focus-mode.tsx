@@ -48,7 +48,11 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
           });
           console.log('Screen Wake Lock is active');
         } catch (err: any) {
-          console.error(`${err.name}, ${err.message}`);
+          if (err.name === 'NotAllowedError') {
+            console.warn('Screen Wake Lock permission denied. The screen may turn off during focus sessions.');
+          } else {
+            console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+          }
         }
       }
     };
@@ -60,7 +64,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
           wakeLockRef.current = null;
           console.log('Screen Wake Lock released');
         } catch (err: any) {
-           console.error(`${err.name}, ${err.message}`);
+           console.error(`Wake Lock release error: ${err.name}, ${err.message}`);
         }
       }
     };
