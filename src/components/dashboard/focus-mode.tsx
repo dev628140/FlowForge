@@ -10,9 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
 interface FocusModeProps {
-  task: Task;
+  task?: Task;
   onClose: () => void;
-  onComplete: () => void;
+  onComplete: (taskId?: string) => void;
 }
 
 const MIN_FOCUS = 10;
@@ -126,7 +126,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   };
   
   const handleComplete = () => {
-    onComplete();
+    onComplete(task?.id);
   };
 
   const formatTime = (seconds: number) => {
@@ -148,7 +148,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
             <span>{isBreak ? 'BREAK TIME' : 'FOCUSING ON'}</span>
         </div>
 
-        {!isBreak && <h1 className="text-xl md:text-2xl font-bold font-headline mb-4 text-card-foreground">{task.title}</h1>}
+        {!isBreak && <h1 className="text-xl md:text-2xl font-bold font-headline mb-4 text-card-foreground">{task?.title || "Focus Session"}</h1>}
         
         <div className="font-mono font-bold text-6xl sm:text-7xl md:text-8xl text-card-foreground my-4">
           {formatTime(timeLeft)}
@@ -204,7 +204,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
         </div>
 
         <Button onClick={handleComplete} variant="secondary" className="w-full mb-4">
-          Mark as Complete
+          {task ? "Mark as Complete" : "End Session"}
         </Button>
         <p className="text-sm text-muted-foreground mb-4">Cycles completed: {cyclesCompleted}</p>
         

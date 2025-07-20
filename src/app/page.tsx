@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Wand2, Loader2 } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Calendar as CalendarIcon, AlertTriangle, Trash2, CalendarPlus, Wand2, Loader2, Zap } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -92,6 +92,7 @@ export default function DashboardPage() {
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
+  const [isGeneralFocusMode, setIsGeneralFocusMode] = React.useState(false);
   
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -146,6 +147,14 @@ export default function DashboardPage() {
       description: `"${task.title}" has been moved to today.`,
     });
   }
+
+  const handleCompleteFocus = (taskId?: string) => {
+    if (taskId) {
+        handleToggleTask(taskId);
+    }
+    setFocusTask(null);
+    setIsGeneralFocusMode(false);
+  };
 
   const todaysTasks = React.useMemo(() => tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate))).sort((a,b) => (a.order || 0) - (b.order || 0)), [tasks]);
   
@@ -271,6 +280,10 @@ export default function DashboardPage() {
                   <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
               </div>
               <div className="flex items-stretch w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsGeneralFocusMode(true)}>
+                    <Zap className="mr-2 h-4 w-4" />
+                    Start Focus
+                  </Button>
                   <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
                       <DialogTrigger asChild>
                           <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
@@ -462,10 +475,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {focusTask && <FocusMode task={focusTask} onClose={() => setFocusTask(null)} onComplete={() => {
-        if(focusTask) handleToggleTask(focusTask.id)
-        setFocusTask(null)
-      }}/>}
+      {(focusTask || isGeneralFocusMode) && (
+        <FocusMode 
+            task={focusTask || undefined} 
+            onClose={() => {
+                setFocusTask(null);
+                setIsGeneralFocusMode(false);
+            }} 
+            onComplete={handleCompleteFocus}
+        />
+      )}
     </div>
   );
 }
