@@ -59,7 +59,7 @@ import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-car
 import { Label } from '@/components/ui/label';
 import AIAssistant from '@/components/dashboard/ai-assistant';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -499,4 +499,5 @@ export default function DashboardPage() {
       )}
     </div>
   );
-}
+
+    
