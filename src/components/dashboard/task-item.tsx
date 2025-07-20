@@ -333,7 +333,7 @@ export default function TaskItem({
 
         {hasSubtasks && (
         <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="icon" className="w-10 h-10" aria-label="Toggle subtasks">
+            <Button variant="ghost" size="icon" className="w-10 h-10" aria-label="Toggle subtasks" disabled={task.completed}>
             <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:-rotate-180" />
             </Button>
         </CollapsibleTrigger>
@@ -343,7 +343,7 @@ export default function TaskItem({
             <Tooltip>
             <TooltipTrigger asChild>
                 <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10" aria-label={`Edit task ${task.title}`} disabled={isSubtask}>
+                <Button variant="ghost" size="icon" className="w-10 h-10" aria-label={`Edit task ${task.title}`} disabled={isSubtask || task.completed}>
                     <Pencil className="h-4 w-4" />
                 </Button>
                 </DialogTrigger>
