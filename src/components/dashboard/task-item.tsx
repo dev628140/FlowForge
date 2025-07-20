@@ -271,10 +271,9 @@ export default function TaskItem({
             )}
         </div>
       </div>
-      <div className="flex items-center lg:flex-nowrap flex-wrap justify-end">
+      <div className="grid grid-cols-3 lg:flex lg:flex-row gap-0.5">
         {isDraggable && !task.completed && (
             <TooltipProvider>
-            <div className="flex items-center">
                 <Tooltip>
                     <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="w-10 h-10" onClick={() => onMove?.(task.id, 'up')} aria-label="Move up">
@@ -285,6 +284,10 @@ export default function TaskItem({
                         <p>Move Up</p>
                     </TooltipContent>
                 </Tooltip>
+            </TooltipProvider>
+        )}
+        {isDraggable && !task.completed && (
+             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="w-10 h-10" onClick={() => onMove?.(task.id, 'down')} aria-label="Move down">
@@ -295,8 +298,7 @@ export default function TaskItem({
                         <p>Move Down</p>
                     </TooltipContent>
                 </Tooltip>
-            </div>
-            </TooltipProvider>
+             </TooltipProvider>
         )}
 
         <TooltipProvider>
