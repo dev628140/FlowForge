@@ -41,6 +41,314 @@ interface AIAssistantProps {
   role: UserRole;
 }
 
+const PlanSection: React.FC<{title: string; icon: React.ReactNode; className: string; children: React.ReactNode}> = ({ title, icon, className, children }) => (
+  <div>
+      <div className={cn("font-medium flex items-center gap-2", className)}>
+          {icon} {title}:
+      </div>
+      <ul className="list-disc pl-8 mt-1 space-y-1 text-muted-foreground">
+          {children}
+      </ul>
+  </div>
+);
+
+// Memoized MainContent to prevent re-renders causing input focus loss
+const MainContent = React.memo(function MainContent({
+    isMobile,
+    isOffline,
+    isAvailable,
+    history,
+    loading,
+    aiPlan,
+    prompt,
+    setPrompt,
+    mediaFile,
+    setMediaFile,
+    isMediaUploaderOpen,
+    setIsMediaUploaderOpen,
+    formRef,
+    scrollAreaRef,
+    handleSubmit,
+    handleDiscardPlan,
+    handleApplyPlan,
+    handleMediaSelect,
+    isListening,
+    isPlaying,
+    isVoiceMode,
+    handleDictation,
+    handleVoiceMode,
+    stopAudio,
+    allTasks,
+}: {
+    isMobile: boolean;
+    isOffline: boolean;
+    isAvailable: boolean;
+    history: AssistantMessage[];
+    loading: boolean;
+    aiPlan: AssistantOutput | null;
+    prompt: string;
+    setPrompt: (p: string) => void;
+    mediaFile: { dataUri: string; type: string; name: string } | null;
+    setMediaFile: (f: { dataUri: string; type: string; name: string } | null) => void;
+    isMediaUploaderOpen: boolean;
+    setIsMediaUploaderOpen: (o: boolean) => void;
+    formRef: React.RefObject<HTMLFormElement>;
+    scrollAreaRef: React.RefObject<HTMLDivElement>;
+    handleSubmit: (e: React.FormEvent) => void;
+    handleDiscardPlan: () => void;
+    handleApplyPlan: () => void;
+    handleMediaSelect: (file: { dataUri: string; type: string; name: string }) => void;
+    isListening: boolean;
+    isPlaying: boolean;
+    isVoiceMode: boolean;
+    handleDictation: () => void;
+    handleVoiceMode: () => void;
+    stopAudio: () => void;
+    allTasks: Task[];
+}) {
+  return (
+    <div className="flex-1 flex flex-col p-4 overflow-hidden">
+        <CardHeader className="p-0 pb-4 flex-shrink-0 flex flex-row items-center gap-2">
+            {isMobile && (
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <ChevronsRight className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+            )}
+            <CardTitle className="flex items-center gap-2">
+                <Wand2 className="w-6 h-6 text-primary" />
+                FlowForge Assistant
+            </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-grow flex flex-col overflow-hidden p-0">
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>
+                    <div className="space-y-4">
+                        {history.length === 0 && !loading && (
+                            <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center items-center">
+                                <Sparkles className="mx-auto h-8 w-8 text-primary/50 mb-2" />
+                                <h3 className="font-semibold">How can I help you?</h3>
+                                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                                    Ask me to add, update, or delete tasks. You can also ask me for a summary, analysis, or anything else you can think of.
+                                </p>
+                                <p className="text-xs text-muted-foreground/80 mt-4">
+                                    Example: "Add a task to read a book tomorrow at 8pm"
+                                </p>
+                            </div>
+                        )}
+
+                        {history.map((msg, index) => (
+                            <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                                {msg.role === 'model' && (
+                                    <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
+                                        <Bot className="w-5 h-5" />
+                                    </div>
+                                )}
+                                <div className={cn(
+                                    "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap text-sm sm:text-base",
+                                    msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
+                                    msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
+                                )}>
+                                    {msg.mediaDataUri && msg.mediaType?.startsWith('image/') && (
+                                        <Image src={msg.mediaDataUri} alt="User upload" width={200} height={200} className="rounded-md mb-2" />
+                                    )}
+                                    {msg.mediaDataUri && !msg.mediaType?.startsWith('image/') && (
+                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
+                                            <Paperclip className="h-4 w-4" />
+                                            <span className="text-xs truncate">Attached: {msg.mediaType}</span>
+                                        </div>
+                                    )}
+                                    {msg.content.replace(/^Error: /, '')}
+                                </div>
+                                {msg.role === 'user' && (
+                                    <div className="bg-muted text-foreground rounded-full p-2 flex-shrink-0">
+                                        <User className="w-5 h-5" />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        {loading && !aiPlan && (
+                            <div className="flex items-start gap-3 justify-start">
+                                <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
+                                    <Bot className="w-5 h-5" />
+                                </div>
+                                <div className="p-3 rounded-2xl bg-muted rounded-bl-none flex items-center gap-2">
+                                    <Loader2 className="animate-spin w-4 h-4" />
+                                    <span>Thinking...</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+
+                {aiPlan && (
+                    <div className="p-4 border rounded-md bg-muted/30 flex-shrink-0 mt-4 flex flex-col overflow-hidden max-h-[250px] sm:max-h-[200px]">
+                        <h4 className="font-semibold mb-2 flex-shrink-0">Here's the plan I've generated:</h4>
+                        <ScrollArea className="flex-grow pr-2">
+                            <div className="space-y-4 text-sm">
+                                {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
+                                    <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4" />} className="text-green-600 dark:text-green-400">
+                                        {aiPlan.tasksToAdd.map((t, i) => (
+                                            <li key={`add-${i}`}>
+                                                {t.title}
+                                                {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
+                                            </li>
+                                        ))}
+                                    </PlanSection>
+                                )}
+                                {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
+                                    <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4" />} className="text-sky-600 dark:text-sky-400">
+                                        {aiPlan.subtasksToAdd.map((item, i) => (
+                                            <li key={`subtask-${i}`}>
+                                                To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
+                                            </li>
+                                        ))}
+                                    </PlanSection>
+                                )}
+                                {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
+                                    <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4" />} className="text-amber-600 dark:text-amber-400">
+                                        {aiPlan.tasksToUpdate.map((t, i) => {
+                                            const originalTask = allTasks.find(task => task.id === t.taskId);
+                                            const updates = Object.entries(t.updates)
+                                                .map(([key, value]) => {
+                                                    if (value === null) return null;
+                                                    if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
+                                                    if(key === 'scheduledTime' && value === undefined) return null;
+                                                    return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
+                                                })
+                                                .filter(Boolean)
+                                                .join(', ');
+                                            return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
+                                        })}
+                                    </PlanSection>
+                                )}
+                                {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
+                                    <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4" />} className="text-red-600 dark:text-red-500">
+                                        {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
+                                    </PlanSection>
+                                )}
+                            </div>
+                        </ScrollArea>
+                        <div className="flex justify-end gap-2 pt-2 flex-shrink-0">
+                            <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2" /> Discard</Button>
+                            <Button onClick={handleApplyPlan} disabled={loading}>
+                                {loading && <Loader2 className="animate-spin mr-2" />}
+                                <Check className="mr-2" /> Apply Plan
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                <form ref={formRef} onSubmit={handleSubmit} className="flex-shrink-0 pt-4">
+                    {mediaFile && (
+                        <div className="flex items-center gap-2 p-2 mb-2 border rounded-md bg-muted/50 text-sm">
+                            {mediaFile.type.startsWith('image/') ? (
+                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <span className="flex-1 truncate text-muted-foreground">{mediaFile.name}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setMediaFile(null)}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                        <Dialog open={isMediaUploaderOpen} onOpenChange={setIsMediaUploaderOpen}>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DialogTrigger asChild>
+                                            <Button type="button" variant="outline" size="icon" disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}>
+                                                <Paperclip className="h-5 w-5" />
+                                            </Button>
+                                        </DialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Attach File or Photo</p></TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Attach Media</DialogTitle>
+                                </DialogHeader>
+                                <MediaUploader onMediaSelect={handleMediaSelect} />
+                            </DialogContent>
+                        </Dialog>
+                        <div className="relative w-full">
+                            <Input
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
+                                disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}
+                                className={cn(isAvailable && "pr-20")}
+                            />
+                            {isAvailable && (
+                                <div className="absolute top-1/2 right-1.5 -translate-y-1/2 flex items-center">
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant={isListening && !isVoiceMode ? "destructive" : "ghost"}
+                                                    className="h-7 w-7"
+                                                    onClick={handleDictation}
+                                                    disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && isVoiceMode)}
+                                                >
+                                                    {isListening && !isVoiceMode ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Dictate Message</p></TooltipContent>
+                                        </Tooltip>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant={isVoiceMode ? "default" : "ghost"}
+                                                    className="h-7 w-7"
+                                                    onClick={handleVoiceMode}
+                                                    disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && !isVoiceMode)}
+                                                >
+                                                    <Voicemail className={cn("h-4 w-4", isListening && isVoiceMode && "animate-pulse")} />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{isVoiceMode ? "Stop Voice Mode" : "Start Voice Mode"}</p></TooltipContent>
+                                        </Tooltip>
+                                        {isPlaying && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-7 w-7 text-destructive"
+                                                        onClick={stopAudio}
+                                                    >
+                                                        <Square className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent><p>Stop Speaking</p></TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                    </TooltipProvider>
+                                </div>
+                            )}
+                        </div>
+                        <Button type="submit" disabled={loading || isOffline || (!prompt && !mediaFile) || !!aiPlan || isListening || isPlaying}>
+                            {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
+                            <span className="sr-only">Send</span>
+                        </Button>
+                    </div>
+                </form>
+            </div>
+        </CardContent>
+    </div>
+  )
+});
+
 export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const { 
     handleAddTasks, 
@@ -324,17 +632,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     });
   }, [chatSessions]);
 
-  const PlanSection: React.FC<{title: string; icon: React.ReactNode; className: string; children: React.ReactNode}> = ({ title, icon, className, children }) => (
-    <div>
-        <div className={cn("font-medium flex items-center gap-2", className)}>
-            {icon} {title}:
-        </div>
-        <ul className="list-disc pl-8 mt-1 space-y-1 text-muted-foreground">
-            {children}
-        </ul>
-    </div>
-  );
-
   const SidebarContent = () => (
     <div className='h-full flex flex-col'>
       <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
@@ -402,256 +699,40 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </div>
   );
 
-  const MainContent = () => (
-      <div className="flex-1 flex flex-col p-4 overflow-hidden">
-        <CardHeader className="p-0 pb-4 flex-shrink-0 flex flex-row items-center gap-2">
-            {isMobile && (
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <ChevronsRight className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-            )}
-            <CardTitle className="flex items-center gap-2">
-                <Wand2 className="w-6 h-6 text-primary" />
-                FlowForge Assistant
-            </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-grow flex flex-col overflow-hidden p-0">
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <ScrollArea className="flex-grow pr-4 -mr-4" ref={scrollAreaRef}>
-                    <div className="space-y-4">
-                        {history.length === 0 && !loading && (
-                            <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center h-full flex flex-col justify-center items-center">
-                                <Sparkles className="mx-auto h-8 w-8 text-primary/50 mb-2" />
-                                <h3 className="font-semibold">How can I help you?</h3>
-                                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                                    Ask me to add, update, or delete tasks. You can also ask me for a summary, analysis, or anything else you can think of.
-                                </p>
-                                <p className="text-xs text-muted-foreground/80 mt-4">
-                                    Example: "Add a task to read a book tomorrow at 8pm"
-                                </p>
-                            </div>
-                        )}
-
-                        {history.map((msg, index) => (
-                            <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                                {msg.role === 'model' && (
-                                    <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
-                                        <Bot className="w-5 h-5" />
-                                    </div>
-                                )}
-                                <div className={cn(
-                                    "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap text-sm sm:text-base",
-                                    msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
-                                    msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
-                                )}>
-                                    {msg.mediaDataUri && msg.mediaType?.startsWith('image/') && (
-                                        <Image src={msg.mediaDataUri} alt="User upload" width={200} height={200} className="rounded-md mb-2" />
-                                    )}
-                                    {msg.mediaDataUri && !msg.mediaType?.startsWith('image/') && (
-                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
-                                            <Paperclip className="h-4 w-4" />
-                                            <span className="text-xs truncate">Attached: {msg.mediaType}</span>
-                                        </div>
-                                    )}
-                                    {msg.content.replace(/^Error: /, '')}
-                                </div>
-                                {msg.role === 'user' && (
-                                    <div className="bg-muted text-foreground rounded-full p-2 flex-shrink-0">
-                                        <User className="w-5 h-5" />
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        {loading && !aiPlan && (
-                            <div className="flex items-start gap-3 justify-start">
-                                <div className="bg-primary/10 text-primary rounded-full p-2 flex-shrink-0">
-                                    <Bot className="w-5 h-5" />
-                                </div>
-                                <div className="p-3 rounded-2xl bg-muted rounded-bl-none flex items-center gap-2">
-                                    <Loader2 className="animate-spin w-4 h-4" />
-                                    <span>Thinking...</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </ScrollArea>
-
-                {aiPlan && (
-                    <div className="p-4 border rounded-md bg-muted/30 flex-shrink-0 mt-4 flex flex-col overflow-hidden max-h-[250px] sm:max-h-[200px]">
-                        <h4 className="font-semibold mb-2 flex-shrink-0">Here's the plan I've generated:</h4>
-                        <ScrollArea className="flex-grow pr-2">
-                            <div className="space-y-4 text-sm">
-                                {aiPlan.tasksToAdd && aiPlan.tasksToAdd.length > 0 && (
-                                    <PlanSection title="Add" icon={<PlusCircle className="h-4 w-4" />} className="text-green-600 dark:text-green-400">
-                                        {aiPlan.tasksToAdd.map((t, i) => (
-                                            <li key={`add-${i}`}>
-                                                {t.title}
-                                                {t.scheduledDate && <Badge variant="outline" size="sm" className="ml-2">{format(parseISO(t.scheduledDate + 'T00:00:00'), 'MMM d')}{t.scheduledTime && ` @ ${t.scheduledTime}`}</Badge>}
-                                            </li>
-                                        ))}
-                                    </PlanSection>
-                                )}
-                                {aiPlan.subtasksToAdd && aiPlan.subtasksToAdd.length > 0 && (
-                                    <PlanSection title="Add Subtasks" icon={<PlusCircle className="h-4 w-4" />} className="text-sky-600 dark:text-sky-400">
-                                        {aiPlan.subtasksToAdd.map((item, i) => (
-                                            <li key={`subtask-${i}`}>
-                                                To "{allTasks.find(t => t.id === item.parentId)?.title}": {item.subtasks.length} subtask(s)
-                                            </li>
-                                        ))}
-                                    </PlanSection>
-                                )}
-                                {aiPlan.tasksToUpdate && aiPlan.tasksToUpdate.length > 0 && (
-                                    <PlanSection title="Update" icon={<RefreshCcw className="h-4 w-4" />} className="text-amber-600 dark:text-amber-400">
-                                        {aiPlan.tasksToUpdate.map((t, i) => {
-                                            const originalTask = allTasks.find(task => task.id === t.taskId);
-                                            const updates = Object.entries(t.updates)
-                                                .map(([key, value]) => {
-                                                    if (value === null) return null;
-                                                    if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
-                                                    if(key === 'scheduledTime' && value === undefined) return null;
-                                                    return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
-                                                })
-                                                .filter(Boolean)
-                                                .join(', ');
-                                            return <li key={`update-${i}`}>"{originalTask?.title || 'A task'}": {updates}</li>
-                                        })}
-                                    </PlanSection>
-                                )}
-                                {aiPlan.tasksToDelete && aiPlan.tasksToDelete.length > 0 && (
-                                    <PlanSection title="Delete" icon={<Trash2 className="h-4 w-4" />} className="text-red-600 dark:text-red-500">
-                                        {aiPlan.tasksToDelete.map((t, i) => <li key={`delete-${i}`}>"{allTasks.find(task => task.id === t.taskId)?.title || 'A task'}"</li>)}
-                                    </PlanSection>
-                                )}
-                            </div>
-                        </ScrollArea>
-                        <div className="flex justify-end gap-2 pt-2 flex-shrink-0">
-                            <Button variant="ghost" onClick={handleDiscardPlan} disabled={loading}><X className="mr-2" /> Discard</Button>
-                            <Button onClick={handleApplyPlan} disabled={loading}>
-                                {loading && <Loader2 className="animate-spin mr-2" />}
-                                <Check className="mr-2" /> Apply Plan
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                <form ref={formRef} onSubmit={handleSubmit} className="flex-shrink-0 pt-4">
-                    {mediaFile && (
-                        <div className="flex items-center gap-2 p-2 mb-2 border rounded-md bg-muted/50 text-sm">
-                            {mediaFile.type.startsWith('image/') ? (
-                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                                <Paperclip className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <span className="flex-1 truncate text-muted-foreground">{mediaFile.name}</span>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setMediaFile(null)}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                        <Dialog open={isMediaUploaderOpen} onOpenChange={setIsMediaUploaderOpen}>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <DialogTrigger asChild>
-                                            <Button type="button" variant="outline" size="icon" disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}>
-                                                <Paperclip className="h-5 w-5" />
-                                            </Button>
-                                        </DialogTrigger>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Attach File or Photo</p></TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Attach Media</DialogTitle>
-                                </DialogHeader>
-                                <MediaUploader onMediaSelect={handleMediaSelect} />
-                            </DialogContent>
-                        </Dialog>
-                        <div className="relative w-full">
-                            <Input
-                                value={prompt}
-                                onChange={(e) => setPrompt(e.target.value)}
-                                placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
-                                disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}
-                                className={cn(isAvailable && "pr-20")}
-                            />
-                            {isAvailable && (
-                                <div className="absolute top-1/2 right-1.5 -translate-y-1/2 flex items-center">
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    type="button"
-                                                    size="icon"
-                                                    variant={isListening && !isVoiceMode ? "destructive" : "ghost"}
-                                                    className="h-7 w-7"
-                                                    onClick={handleDictation}
-                                                    disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && isVoiceMode)}
-                                                >
-                                                    {isListening && !isVoiceMode ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>Dictate Message</p></TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    type="button"
-                                                    size="icon"
-                                                    variant={isVoiceMode ? "default" : "ghost"}
-                                                    className="h-7 w-7"
-                                                    onClick={handleVoiceMode}
-                                                    disabled={loading || isOffline || !!aiPlan || isPlaying || (isListening && !isVoiceMode)}
-                                                >
-                                                    <Voicemail className={cn("h-4 w-4", isListening && isVoiceMode && "animate-pulse")} />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{isVoiceMode ? "Stop Voice Mode" : "Start Voice Mode"}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        {isPlaying && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="h-7 w-7 text-destructive"
-                                                        onClick={stopAudio}
-                                                    >
-                                                        <Square className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent><p>Stop Speaking</p></TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                    </TooltipProvider>
-                                </div>
-                            )}
-                        </div>
-                        <Button type="submit" disabled={loading || isOffline || (!prompt.trim() && !mediaFile) || !!aiPlan || isListening || isPlaying}>
-                            {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
-                            <span className="sr-only">Send</span>
-                        </Button>
-                    </div>
-                </form>
-            </div>
-        </CardContent>
-    </div>
-  )
-
+  const mainContentProps = {
+    isMobile,
+    isOffline,
+    isAvailable,
+    history,
+    loading,
+    aiPlan,
+    prompt,
+    setPrompt,
+    mediaFile,
+    setMediaFile,
+    isMediaUploaderOpen,
+    setIsMediaUploaderOpen,
+    formRef,
+    scrollAreaRef,
+    handleSubmit,
+    handleDiscardPlan,
+    handleApplyPlan,
+    handleMediaSelect,
+    isListening,
+    isPlaying,
+    isVoiceMode,
+    handleDictation,
+    handleVoiceMode,
+    stopAudio,
+    allTasks,
+  };
 
   return (
     <Card className="flex flex-col h-full overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
           {isMobile ? (
              <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <MainContent />
+                <MainContent {...mainContentProps} />
                 <SheetContent side="left" className="p-0 w-[280px]">
                     <SheetHeader>
                         <SheetTitle className="sr-only">Chat History</SheetTitle>
@@ -743,8 +824,10 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
               </div>
           )}
           {/* Main Content */}
-          {!isMobile && <MainContent />}
+          {!isMobile && <MainContent {...mainContentProps} />}
       </div>
     </Card>
   );
 }
+
+    
