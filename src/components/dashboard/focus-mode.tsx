@@ -36,10 +36,10 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   
   const wakeLockRef = React.useRef<WakeLockSentinel | null>(null);
 
-  // Screen Wake Lock logic
+  // Screen Wake Lock logic - activate when component mounts, release when it unmounts
   React.useEffect(() => {
     const requestWakeLock = async () => {
-      if ('wakeLock' in navigator && isActive) {
+      if ('wakeLock' in navigator) {
         try {
           wakeLockRef.current = await navigator.wakeLock.request('screen');
           wakeLockRef.current.addEventListener('release', () => {
@@ -65,17 +65,13 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
       }
     };
 
-    if (isActive) {
-      requestWakeLock();
-    } else {
-      releaseWakeLock();
-    }
+    requestWakeLock();
     
     // Cleanup on component unmount
     return () => {
       releaseWakeLock();
     };
-  }, [isActive]);
+  }, []);
 
 
   // Update timeLeft when duration settings are changed while paused
@@ -117,7 +113,9 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
     };
   }, [isActive, timeLeft, isBreak, autoStartBreaks, autoStartFocus, breakDuration, focusDuration]);
 
-  const toggleTimer = () => setIsActive(!isActive);
+  const toggleTimer = () => {
+    setIsActive(prev => !prev);
+  };
   
   const resetTimer = () => {
     setIsActive(false);
