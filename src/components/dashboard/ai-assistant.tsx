@@ -34,7 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import MediaUploader from './media-uploader';
 import Image from 'next/image';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -406,9 +406,11 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         <CardHeader className="p-0 pb-4 flex-shrink-0 flex flex-row items-center gap-2">
             {isMobile && (
-                <Button variant="ghost" size="icon" onClick={() => setIsSheetOpen(true)}>
-                    <ChevronsRight className="h-5 w-5" />
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <ChevronsRight className="h-5 w-5" />
                 </Button>
+              </SheetTrigger>
             )}
             <CardTitle className="flex items-center gap-2">
                 <Wand2 className="w-6 h-6 text-primary" />
@@ -508,6 +510,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                                                 .map(([key, value]) => {
                                                     if (value === null) return null;
                                                     if (key === 'completed') return value ? 'Mark as complete' : 'Mark as incomplete';
+                                                    if(key === 'scheduledTime' && value === undefined) return null;
                                                     return `${key.charAt(0).toUpperCase() + key.slice(1)} to "${value}"`
                                                 })
                                                 .filter(Boolean)
@@ -648,11 +651,12 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       <div className="flex flex-1 overflow-hidden">
           {isMobile ? (
              <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetTrigger asChild>
-                    {/* The trigger is now outside the MainContent component */}
-                </SheetTrigger>
+                <MainContent />
                 <SheetContent side="left" className="p-0 w-[280px]">
-                  <SidebarContent />
+                    <SheetHeader>
+                        <SheetTitle className="sr-only">Chat History</SheetTitle>
+                    </SheetHeader>
+                    <SidebarContent />
                 </SheetContent>
             </Sheet>
           ) : (
@@ -739,7 +743,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
               </div>
           )}
           {/* Main Content */}
-          <MainContent />
+          {!isMobile && <MainContent />}
       </div>
     </Card>
   );
