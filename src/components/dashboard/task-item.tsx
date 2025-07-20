@@ -126,7 +126,12 @@ export default function TaskItem({
     if (values.scheduledDate) {
         updates.scheduledDate = format(values.scheduledDate, 'yyyy-MM-dd');
     }
-    updates.scheduledTime = values.scheduledTime || undefined;
+
+    if (values.scheduledTime) {
+      updates.scheduledTime = values.scheduledTime;
+    } else {
+      delete (updates as Partial<Task>).scheduledTime;
+    }
 
     await onUpdateTask(task.id, updates);
     setIsEditDialogOpen(false);
@@ -209,8 +214,13 @@ export default function TaskItem({
 
       const updates: Partial<Task> = {
           scheduledDate: format(newDate, 'yyyy-MM-dd'),
-          scheduledTime: newTime || undefined,
       };
+
+      if (newTime) {
+        updates.scheduledTime = newTime;
+      } else {
+        delete (updates as Partial<Task>).scheduledTime;
+      }
 
       await onUpdateTask(task.id, updates);
       setIsSchedulePopoverOpen(false);
@@ -271,7 +281,7 @@ export default function TaskItem({
             )}
         </div>
       </div>
-      <div className="grid grid-cols-3 lg:flex lg:flex-row gap-0.5">
+      <div className="grid grid-cols-3 gap-0.5 lg:flex">
         {isDraggable && !task.completed && (
             <TooltipProvider>
                 <Tooltip>
