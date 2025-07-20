@@ -33,6 +33,8 @@ import { textToSpeech } from '@/ai/flows/tts-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import MediaUploader from './media-uploader';
 import Image from 'next/image';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -63,10 +65,12 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const [isVoiceMode, setIsVoiceMode] = React.useState(false);
   const [mediaFile, setMediaFile] = React.useState<{ dataUri: string; type: string; name: string } | null>(null);
   const [isMediaUploaderOpen, setIsMediaUploaderOpen] = React.useState(false);
+  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const formRef = React.useRef<HTMLFormElement>(null);
   const isNewChat = activeChatId === null;
+  const isMobile = useIsMobile();
 
   const handleSpeechResult = (text: string) => {
       setPrompt(text);
@@ -104,11 +108,13 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const handleNewChat = () => {
     if (isPlaying) stopAudio();
     setActiveChatId(null);
+    setIsSheetOpen(false);
   };
 
   const handleSelectChat = (sessionId: string) => {
     if (isPlaying) stopAudio();
     setActiveChatId(sessionId);
+    setIsSheetOpen(false);
   };
 
   const handleTogglePin = async (session: ChatSession, e: React.MouseEvent) => {
@@ -329,94 +335,176 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </div>
   );
 
+  const SidebarContent = () => (
+    <div className='h-full flex flex-col'>
+      <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
+        <Button variant="outline" size="sm" className="w-full mr-1" onClick={handleNewChat}>
+          <MessageSquarePlus className="mr-2 h-4 w-4" /> New Chat
+        </Button>
+      </div>
+      <ScrollArea className="flex-grow">
+        <div className="space-y-1 p-2">
+          {sortedSessions.map(session => (
+            <div
+              key={session.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleSelectChat(session.id)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
+              className={cn(
+                "group relative flex w-full flex-col text-left p-2 rounded-md",
+                buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost', size: 'sm' }),
+                'h-auto min-h-[48px]'
+              )}
+            >
+              <div className="w-full">
+                <p className="font-medium text-xs break-words whitespace-normal pr-8">{session.title}</p>
+              </div>
+              <div className="absolute top-1 right-1 flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleTogglePin(session, e)}>
+                        {session.pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 w-3.5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>{session.pinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
+                  </Tooltip>
+                  <AlertDialog>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Delete</p></TooltipContent>
+                    </Tooltip>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+                        <AlertDialogDescription>This will permanently delete "{session.title}".</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </TooltipProvider>
+              </div>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
   return (
     <Card className="flex flex-col h-full overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <div className={cn(
+          {isMobile ? (
+             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetContent side="left" className="p-0 w-[280px]">
+                  <SidebarContent />
+                </SheetContent>
+            </Sheet>
+          ) : (
+             <div className={cn(
               "border-r flex flex-col transition-all duration-300 bg-muted/20",
               isSidebarCollapsed ? 'w-14' : 'w-60'
-          )}>
-              <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
-                  {!isSidebarCollapsed && (
-                      <Button variant="outline" size="sm" className="w-full mr-1" onClick={handleNewChat}>
-                          <MessageSquarePlus className="mr-2 h-4 w-4" /> New Chat
-                      </Button>
-                  )}
-                   <TooltipProvider>
-                      <Tooltip>
-                          <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="h-8 w-8">
-                                  {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
-                              </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="right"><p>{isSidebarCollapsed ? 'Expand' : 'Collapse'}</p></TooltipContent>
-                      </Tooltip>
-                  </TooltipProvider>
-              </div>
-              <ScrollArea className="flex-grow">
-                  {!isSidebarCollapsed && (
-                  <div className="space-y-1 p-2">
-                      {sortedSessions.map(session => (
-                          <div
-                              key={session.id}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => handleSelectChat(session.id)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
-                              className={cn(
-                                  "group relative flex w-full flex-col text-left p-2 rounded-md",
-                                  buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost', size: 'sm' }),
-                                  'h-auto min-h-[48px]'
-                              )}
-                          >
-                            <div className="w-full">
-                                <p className="font-medium text-xs break-words whitespace-normal pr-8">{session.title}</p>
-                            </div>
-                            <div className="absolute top-1 right-1 flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleTogglePin(session, e)}>
-                                                {session.pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 w-3.5" />}
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>{session.pinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
-                                    </Tooltip>
-                                    <AlertDialog>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={(e) => e.stopPropagation()}>
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>Delete</p></TooltipContent>
-                                        </Tooltip>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
-                                                <AlertDialogDescription>This will permanently delete "{session.title}".</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </TooltipProvider>
-                            </div>
-                          </div>
-                      ))}
+              )}>
+                  <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
+                      {!isSidebarCollapsed && (
+                          <Button variant="outline" size="sm" className="w-full mr-1" onClick={handleNewChat}>
+                              <MessageSquarePlus className="mr-2 h-4 w-4" /> New Chat
+                          </Button>
+                      )}
+                      <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="h-8 w-8">
+                                      {isSidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="right"><p>{isSidebarCollapsed ? 'Expand' : 'Collapse'}</p></TooltipContent>
+                          </Tooltip>
+                      </TooltipProvider>
                   </div>
-                  )}
-              </ScrollArea>
-          </div>
+                 {!isSidebarCollapsed && (
+                    <ScrollArea className="flex-grow">
+                        <div className="space-y-1 p-2">
+                            {sortedSessions.map(session => (
+                                <div
+                                    key={session.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => handleSelectChat(session.id)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSelectChat(session.id)}
+                                    className={cn(
+                                        "group relative flex w-full flex-col text-left p-2 rounded-md",
+                                        buttonVariants({ variant: activeChatId === session.id ? 'secondary' : 'ghost', size: 'sm' }),
+                                        'h-auto min-h-[48px]'
+                                    )}
+                                >
+                                  <div className="w-full">
+                                      <p className="font-medium text-xs break-words whitespace-normal pr-8">{session.title}</p>
+                                  </div>
+                                  <div className="absolute top-1 right-1 flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
+                                      <TooltipProvider>
+                                          <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleTogglePin(session, e)}>
+                                                      {session.pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 w-3.5" />}
+                                                  </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent><p>{session.pinned ? 'Unpin' : 'Pin'}</p></TooltipContent>
+                                          </Tooltip>
+                                          <AlertDialog>
+                                              <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                      <AlertDialogTrigger asChild>
+                                                          <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                                                              <Trash2 className="w-3.5 h-3.5" />
+                                                          </Button>
+                                                      </AlertDialogTrigger>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent><p>Delete</p></TooltipContent>
+                                              </Tooltip>
+                                              <AlertDialogContent>
+                                                  <AlertDialogHeader>
+                                                      <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+                                                      <AlertDialogDescription>This will permanently delete "{session.title}".</AlertDialogDescription>
+                                                  </AlertDialogHeader>
+                                                  <AlertDialogFooter>
+                                                      <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                                      <AlertDialogAction onClick={(e) => handleDeleteChat(session.id, e)}>Delete</AlertDialogAction>
+                                                  </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                          </AlertDialog>
+                                      </TooltipProvider>
+                                  </div>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                 )}
+              </div>
+          )}
           {/* Main Content */}
           <div className="flex-1 flex flex-col p-4 overflow-hidden">
-              <CardHeader className="p-0 pb-4 flex-shrink-0">
+              <CardHeader className="p-0 pb-4 flex-shrink-0 flex flex-row items-center gap-2">
+                 {isMobile && (
+                     <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <ChevronsRight className="h-5 w-5" />
+                        </Button>
+                    </SheetTrigger>
+                 )}
                   <CardTitle className="flex items-center gap-2">
                       <Wand2 className="w-6 h-6 text-primary" />
                       FlowForge Assistant
