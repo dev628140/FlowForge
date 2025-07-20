@@ -48,6 +48,7 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import TaskList from './task-list';
 
 const editTaskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
