@@ -79,47 +79,13 @@ export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
 // The main exported function that the UI will call
 export async function runAssistant(input: AssistantInput): Promise<AssistantOutput> {
-  // We need to construct the full input for the prompt, including media from history
-  const historyWithMedia = input.history.map(msg => {
-    const content: any[] = [{ text: msg.content }];
-    // This is where we re-integrate the media for the prompt, finding it from the full history passed from the client
-    const fullMessage = (input as any).historyWithMedia?.find((h: any, i: number) => i === input.history.indexOf(msg));
-    if (fullMessage?.mediaDataUri) {
-        content.push({ media: { url: fullMessage.mediaDataUri } });
-    }
-    return { role: msg.role, content };
-  });
-
-  const promptInput = {
-      ...input,
-      history: historyWithMedia,
-  };
-
-  return assistantFlow(promptInput);
+  return assistantFlow(input);
 }
-
-const FullMessageSchema = z.object({
-  role: z.enum(['user', 'model']),
-  content: z.array(z.union([
-      z.object({text: z.string()}),
-      z.object({media: z.object({url: z.string()})})
-  ])),
-});
-
-// Define the input schema for the assistant
-const AssistantPromptInputSchema = z.object({
-  history: z.array(FullMessageSchema).describe("The full conversation history between the user and the assistant, including any media."),
-  tasks: z.array(z.any()).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status."),
-  role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
-  date: z.string().describe("The current date in YYYY-MM-DD format."),
-  chatSessionId: z.string().optional().nullable().describe("The ID of the current chat session."),
-});
-
 
 // Define the AI prompt. This is where we instruct the AI on how to behave.
 const assistantPrompt = ai.definePrompt({
     name: 'assistantPrompt',
-    input: { schema: AssistantPromptInputSchema },
+    input: { schema: AssistantInputSchema },
     output: { schema: AssistantOutputSchema },
     tools: [
         breakdownTaskTool,
@@ -137,11 +103,7 @@ const assistantPrompt = ai.definePrompt({
     
     CONVERSATION HISTORY:
     {{#each history}}
-      **{{this.role}}**:
-      {{#each this.content}}
-        {{#if this.text}}{{this.text}}{{/if}}
-        {{#if this.media}}<media url="{{this.media.url}}"/>{{/if}}
-      {{/each}}
+      **{{this.role}}**: {{this.content}}
     {{/each}}
     
     Based on the latest user message and the entire conversation, determine the next step.
@@ -151,8 +113,7 @@ const assistantPrompt = ai.definePrompt({
     - If the user's request is unclear or you need more information to proceed, ask a clarifying question in your response and do not generate any actions.
     - If the command is simple small talk (e.g., "hello", "thank you"), just provide a friendly text response and do not generate any actions.
     - IMPORTANT: If this is the first turn of the conversation (i.e., the history only has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation based on the user's request. On all subsequent turns, you must leave the title field empty.
-    - IMPORTANT: If the user provides a file (image, document, etc.), you MUST use its content as the primary source of information to respond to their request. Do not ask for information that is likely contained within the file.
-
+    
     User's Task List (for context, IDs are for your internal use ONLY):
     {{#if tasks}}
       {{#each tasks}}
@@ -170,7 +131,7 @@ const assistantPrompt = ai.definePrompt({
 const assistantFlow = ai.defineFlow(
   {
     name: 'assistantFlow',
-    inputSchema: AssistantPromptInputSchema,
+    inputSchema: AssistantInputSchema,
     outputSchema: AssistantOutputSchema,
   },
   async (input) => {

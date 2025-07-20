@@ -2,8 +2,8 @@
 'use client';
 
 import * as React from 'react';
-import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff, Voicemail, Square } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
@@ -29,9 +29,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { textToSpeech } from '@/ai/flows/tts-flow';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
-import MediaUploader from './media-uploader';
-import Image from 'next/image';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -62,16 +59,11 @@ const MainContent = ({
     aiPlan,
     prompt,
     setPrompt,
-    mediaFile,
-    setMediaFile,
-    isMediaUploaderOpen,
-    setIsMediaUploaderOpen,
     formRef,
     scrollAreaRef,
     handleSubmit,
     handleDiscardPlan,
     handleApplyPlan,
-    handleMediaSelect,
     isListening,
     isPlaying,
     isVoiceMode,
@@ -88,16 +80,11 @@ const MainContent = ({
     aiPlan: AssistantOutput | null;
     prompt: string;
     setPrompt: (p: string) => void;
-    mediaFile: { dataUri: string; type: string; name: string } | null;
-    setMediaFile: (f: { dataUri: string; type: string; name: string } | null) => void;
-    isMediaUploaderOpen: boolean;
-    setIsMediaUploaderOpen: (o: boolean) => void;
     formRef: React.RefObject<HTMLFormElement>;
     scrollAreaRef: React.RefObject<HTMLDivElement>;
     handleSubmit: (e: React.FormEvent) => void;
     handleDiscardPlan: () => void;
     handleApplyPlan: () => void;
-    handleMediaSelect: (file: { dataUri: string; type: string; name: string }) => void;
     isListening: boolean;
     isPlaying: boolean;
     isVoiceMode: boolean;
@@ -150,15 +137,6 @@ const MainContent = ({
                                     msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
                                     msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
                                 )}>
-                                    {msg.mediaDataUri && msg.mediaType?.startsWith('image/') && (
-                                        <Image src={msg.mediaDataUri} alt="User upload" width={200} height={200} className="rounded-md mb-2" />
-                                    )}
-                                    {msg.mediaDataUri && !msg.mediaType?.startsWith('image/') && (
-                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
-                                            <Paperclip className="h-4 w-4" />
-                                            <span className="text-xs truncate">Attached: {msg.mediaType}</span>
-                                        </div>
-                                    )}
                                     {msg.content.replace(/^Error: /, '')}
                                 </div>
                                 {msg.role === 'user' && (
@@ -241,40 +219,7 @@ const MainContent = ({
                 )}
 
                 <form ref={formRef} onSubmit={handleSubmit} className="flex-shrink-0 pt-4">
-                    {mediaFile && (
-                        <div className="flex items-center gap-2 p-2 mb-2 border rounded-md bg-muted/50 text-sm">
-                            {mediaFile.type.startsWith('image/') ? (
-                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                                <Paperclip className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <span className="flex-1 truncate text-muted-foreground">{mediaFile.name}</span>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setMediaFile(null)}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    )}
                     <div className="flex items-center gap-2">
-                        <Dialog open={isMediaUploaderOpen} onOpenChange={setIsMediaUploaderOpen}>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <DialogTrigger asChild>
-                                            <Button type="button" variant="outline" size="icon" disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}>
-                                                <Paperclip className="h-5 w-5" />
-                                            </Button>
-                                        </DialogTrigger>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Attach File or Photo</p></TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Attach Media</DialogTitle>
-                                </DialogHeader>
-                                <MediaUploader onMediaSelect={handleMediaSelect} />
-                            </DialogContent>
-                        </Dialog>
                         <div className="relative flex items-center w-full">
                             <TextareaAutosize
                                 value={prompt}
@@ -348,7 +293,7 @@ const MainContent = ({
                                 </div>
                             )}
                         </div>
-                        <Button type="submit" disabled={loading || isOffline || (!prompt && !mediaFile) || !!aiPlan || isListening || isPlaying}>
+                        <Button type="submit" disabled={loading || isOffline || !prompt || !!aiPlan || isListening || isPlaying}>
                             {loading && !aiPlan ? <Loader2 className="animate-spin" /> : <CornerDownLeft />}
                             <span className="sr-only">Send</span>
                         </Button>
@@ -382,8 +327,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const [history, setHistory] = React.useState<AssistantMessage[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
   const [isVoiceMode, setIsVoiceMode] = React.useState(false);
-  const [mediaFile, setMediaFile] = React.useState<{ dataUri: string; type: string; name: string } | null>(null);
-  const [isMediaUploaderOpen, setIsMediaUploaderOpen] = React.useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
@@ -453,7 +396,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!prompt.trim() && !mediaFile) || isOffline) {
+    if (!prompt.trim() || isOffline) {
       if (isOffline) toast({ title: 'You are offline', description: 'AI features are unavailable.', variant: 'destructive' });
       return;
     }
@@ -468,22 +411,15 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     const newHistory: AssistantMessage[] = [...history, { 
         role: 'user', 
         content: prompt,
-        mediaDataUri: mediaFile?.dataUri || null,
-        mediaType: mediaFile?.type || null,
     }];
     setHistory(newHistory);
     setPrompt('');
-    setMediaFile(null);
 
     let currentChatId = activeChatId;
 
     try {
       const assistantInput = {
-        history: newHistory.map(h => ({
-            role: h.role,
-            content: h.content,
-        })),
-        historyWithMedia: newHistory, // Pass full history with media for prompt construction
+        history: newHistory,
         tasks: allTasks.map(t => ({
             id: t.id,
             title: t.title,
@@ -630,11 +566,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
       startListening();
     }
   };
-
-  const handleMediaSelect = (file: { dataUri: string; type: string; name: string }) => {
-    setMediaFile(file);
-    setIsMediaUploaderOpen(false);
-  }
   
   const sortedSessions = React.useMemo(() => {
     return [...chatSessions].sort((a, b) => {
@@ -722,16 +653,11 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     aiPlan,
     prompt,
     setPrompt,
-    mediaFile,
-    setMediaFile,
-    isMediaUploaderOpen,
-    setIsMediaUploaderOpen,
     formRef,
     scrollAreaRef,
     handleSubmit,
     handleDiscardPlan,
     handleApplyPlan,
-    handleMediaSelect,
     isListening,
     isPlaying,
     isVoiceMode,
@@ -840,7 +766,3 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </Card>
   );
 }
-
-    
-
-    

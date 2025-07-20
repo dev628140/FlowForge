@@ -5,7 +5,7 @@ import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon, X, RefreshCcw, Sparkles
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, RefreshCcw, Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -37,9 +37,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { textToSpeech } from '@/ai/flows/tts-flow';
-import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import MediaUploader from '@/components/dashboard/media-uploader';
 import { runAssistant, type AssistantOutput, type AssistantInput } from '@/ai/flows/assistant-flow';
 import { runPlanner, type PlannerOutput, type PlannerInput } from '@/ai/flows/planner-flow';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -84,8 +81,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [currentPlan, setCurrentPlan] = React.useState<AssistantOutput | PlannerOutput | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
     const [isVoiceMode, setIsVoiceMode] = React.useState(false);
-    const [mediaFile, setMediaFile] = React.useState<{ dataUri: string; type: string; name: string } | null>(null);
-    const [isMediaUploaderOpen, setIsMediaUploaderOpen] = React.useState(false);
 
     // State for inputs
     const [suggestionRole, setSuggestionRole] = React.useState<UserRole>(userRole);
@@ -191,7 +186,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     
     const canSubmit = () => {
         if (loading || isListening || isPlaying) return false;
-        return prompt.trim() !== '' || !!mediaFile;
+        return prompt.trim() !== '';
     }
 
     const handleSubmit = async (e?: React.FormEvent, customPrompt?: string) => {
@@ -199,13 +194,13 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
         
         const finalPrompt = customPrompt || prompt;
 
-        if ((!finalPrompt.trim() && !mediaFile)) return;
+        if (!finalPrompt.trim()) return;
 
         if (isListening) stopListening();
         if (isPlaying) stopAudio();
 
         setLoading(true);
-setCurrentPlan(null);
+        setCurrentPlan(null);
 
         const isFirstMessage = history.length === 0;
         const currentPrompt = isFirstMessage ? getInitialPrompt(finalPrompt) : finalPrompt;
@@ -213,12 +208,9 @@ setCurrentPlan(null);
         const newHistory: AssistantMessage[] = [...history, { 
             role: 'user', 
             content: currentPrompt,
-            mediaDataUri: mediaFile?.dataUri || null,
-            mediaType: mediaFile?.type || null,
         }];
         setHistory(newHistory);
         setPrompt('');
-        setMediaFile(null);
 
         let currentChatId = activeChatId;
 
@@ -229,7 +221,7 @@ setCurrentPlan(null);
             // Route to the correct flow based on the mode
             if (mode === 'breakdown' || mode === 'planner' || mode === 'suggester') {
                 const plannerInput: PlannerInput = {
-                    history: newHistory.map(h => ({ role: h.role, content: h.content })),
+                    history: newHistory,
                 };
                 result = await runPlanner(plannerInput);
                 if (isNewChat) {
@@ -237,16 +229,13 @@ setCurrentPlan(null);
                 }
             } else {
                  const assistantInput: AssistantInput = {
-                    history: newHistory.map(h => ({ role: h.role, content: h.content })),
+                    history: newHistory,
                     tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
                     role: userRole,
                     date: format(new Date(), 'yyyy-MM-dd'),
                     chatSessionId: currentChatId,
                 };
                 
-                if (newHistory.some(h => h.mediaDataUri)) {
-                    (assistantInput as any).historyWithMedia = newHistory;
-                }
                 result = await runAssistant(assistantInput);
                 if (result.title) {
                     title = result.title;
@@ -438,11 +427,6 @@ setCurrentPlan(null);
           startListening();
         }
     };
-
-    const handleMediaSelect = (file: { dataUri: string; type: string; name: string }) => {
-        setMediaFile(file);
-        setIsMediaUploaderOpen(false);
-    }
 
     const sortedSessions = React.useMemo(() => {
         return [...sessions].sort((a, b) => {
@@ -752,15 +736,6 @@ setCurrentPlan(null);
                                     msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
                                     msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
                                 )}>
-                                    {msg.mediaDataUri && msg.mediaType?.startsWith('image/') && (
-                                        <Image src={msg.mediaDataUri} alt="User upload" width={200} height={200} className="rounded-md mb-2" />
-                                    )}
-                                    {msg.mediaDataUri && !msg.mediaType?.startsWith('image/') && (
-                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
-                                            <Paperclip className="h-4 w-4" />
-                                            <span className="text-xs truncate">Attached: {msg.mediaType}</span>
-                                        </div>
-                                    )}
                                     {msg.content.replace(/^Error: /, '')}
                                 </div>
                                 {msg.role === 'user' && (
@@ -803,19 +778,6 @@ setCurrentPlan(null);
                 )}
                 
                 <form onSubmit={handleSubmit} ref={formRef} className="mt-auto space-y-4 flex-shrink-0">
-                     {mediaFile && (
-                        <div className="flex items-center gap-2 p-2 mb-2 border rounded-md bg-muted/50 text-sm">
-                            {mediaFile.type.startsWith('image/') ? (
-                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                            <Paperclip className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <span className="flex-1 truncate text-muted-foreground">{mediaFile.name}</span>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setMediaFile(null)}>
-                                <X className="h-4 w-4"/>
-                            </Button>
-                        </div>
-                    )}
                     <div className="relative w-full">
                         <TextareaAutosize
                             value={prompt}
@@ -836,26 +798,6 @@ setCurrentPlan(null);
                     </div>
                 
                     <div className="flex items-center gap-2">
-                         <Dialog open={isMediaUploaderOpen} onOpenChange={setIsMediaUploaderOpen}>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <DialogTrigger asChild>
-                                            <Button type="button" variant="outline" size="icon" disabled={loading || isListening || isPlaying}>
-                                                <Paperclip className="h-5 w-5"/>
-                                            </Button>
-                                        </DialogTrigger>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Attach File or Photo</p></TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Attach Media</DialogTitle>
-                                </DialogHeader>
-                                <MediaUploader onMediaSelect={handleMediaSelect} />
-                            </DialogContent>
-                        </Dialog>
                          {isAvailable && (
                             <TooltipProvider>
                                 <Tooltip>
