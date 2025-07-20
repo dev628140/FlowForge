@@ -199,286 +199,285 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
-            <div className="space-y-6">
-                <DailyProgressBar tasks={todaysTasks} />
-                <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
-
-                {overdueTasks.length > 0 && (
-                  <Card className="border-destructive/50">
-                  <CardHeader>
-                      <CardTitle className="flex items-center justify-between text-destructive">
-                      <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-6 h-6" />
-                          Pending Tasks
-                      </div>
-                      <Badge variant="destructive">{overdueTasks.length}</Badge>
-                      </CardTitle>
-                      <CardDescription>Tasks that are past their due date.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      <div className="space-y-2">
-                      {overdueTasks.map(task => {
-                          const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
-                          return (
-                          <div key={task.id} className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
-                              <div className="flex-1">
-                                  <span className={cn("font-medium text-card-foreground")}>
-                                  {task.title}
-                                  </span>
-                                  <p className="text-xs text-destructive">
-                                  {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
-                                  </p>
-                              </div>
-                              <div className={cn("flex items-center opacity-0 transition-opacity group-hover:opacity-100")}>
+        <div className="grid grid-cols-1 gap-6">
+            <DailyProgressBar tasks={todaysTasks} />
+            
+            {overdueTasks.length > 0 && (
+              <Card className="border-destructive/50">
+              <CardHeader>
+                  <CardTitle className="flex items-center justify-between text-destructive">
+                  <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-6 h-6" />
+                      Pending Tasks
+                  </div>
+                  <Badge variant="destructive">{overdueTasks.length}</Badge>
+                  </CardTitle>
+                  <CardDescription>Tasks that are past their due date.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <div className="space-y-2">
+                  {overdueTasks.map(task => {
+                      const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
+                      return (
+                      <div key={task.id} className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
+                          <div className="flex-1">
+                              <span className={cn("font-medium text-card-foreground")}>
+                              {task.title}
+                              </span>
+                              <p className="text-xs text-destructive">
+                              {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
+                              </p>
+                          </div>
+                          <div className={cn("flex items-center opacity-0 transition-opacity group-hover:opacity-100")}>
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="hover:bg-primary/10 hover:text-primary"
+                                  aria-label={`Reschedule task ${task.title}`}
+                                  onClick={() => onReschedule(task)}
+                              >
+                                  <CalendarPlus className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                  <AlertDialogTrigger asChild>
                                   <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="hover:bg-primary/10 hover:text-primary"
-                                      aria-label={`Reschedule task ${task.title}`}
-                                      onClick={() => onReschedule(task)}
+                                      className="hover:bg-destructive/10 hover:text-destructive"
+                                      aria-label={`Delete task ${task.title}`}
                                   >
-                                      <CalendarPlus className="h-4 w-4" />
+                                      <Trash2 className="h-4 w-4" />
                                   </Button>
-                                  <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                      <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="hover:bg-destructive/10 hover:text-destructive"
-                                          aria-label={`Delete task ${task.title}`}
-                                      >
-                                          <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                          This action cannot be undone. This will permanently delete the task "{task.title}".
-                                          </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                  </AlertDialog>
-                              </div>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                      This action cannot be undone. This will permanently delete the task "{task.title}".
+                                      </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                  </AlertDialogContent>
+                              </AlertDialog>
                           </div>
-                          )
-                      })}
                       </div>
-                  </CardContent>
-                  </Card>
-              )}
+                      )
+                  })}
+                  </div>
+              </CardContent>
+              </Card>
+            )}
 
-               <Card className="flex flex-col h-[600px]">
-                  <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 flex-shrink-0">
-                    <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <CalendarIcon className="w-6 h-6" />
-                          Today's Tasks
-                          <TooltipProvider>
-                              <Tooltip>
-                                  <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsGeneralFocusMode(true)}>
-                                          <Zap className="h-4 w-4" />
-                                          <span className="sr-only">Start General Focus Session</span>
-                                      </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                  <p>Start Focus Session</p>
-                                  </TooltipContent>
-                              </Tooltip>
-                          </TooltipProvider>
-                        </CardTitle>
-                        <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
-                    </div>
-                    <div className="flex items-stretch w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-2">
-                        <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Add for Today
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Add a task for today</DialogTitle>
-                                <DialogDescription>
-                                This task will be scheduled for today.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <Form {...todayForm}>
-                                <form
-                                onSubmit={todayForm.handleSubmit(handleAddTodayTaskSubmit)}
-                                className="space-y-4"
-                                >
-                                <FormField
-                                    control={todayForm.control}
-                                    name="title"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Title</FormLabel>
-                                        <FormControl>
-                                        <Input placeholder="e.g., Go for a run" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={todayForm.control}
-                                    name="description"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Description (optional)</FormLabel>
-                                        <FormControl>
-                                        <Textarea placeholder="Add any extra details..." {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <DialogFooter>
-                                    <DialogClose asChild>
-                                    <Button type="button" variant="ghost">Cancel</Button>
-                                    </DialogClose>
-                                    <Button type="submit">Add Task</Button>
-                                </DialogFooter>
-                                </form>
-                            </Form>
-                            </DialogContent>
-                        </Dialog>
-                        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Card className="flex flex-col h-[600px]">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 flex-shrink-0">
+                <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarIcon className="w-6 h-6" />
+                      Today's Tasks
+                      <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsGeneralFocusMode(true)}>
+                                      <Zap className="h-4 w-4" />
+                                      <span className="sr-only">Start General Focus Session</span>
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                              <p>Start Focus Session</p>
+                              </TooltipContent>
+                          </Tooltip>
+                      </TooltipProvider>
+                    </CardTitle>
+                    <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
+                </div>
+                <div className="flex items-stretch w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-2">
+                    <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button size="sm">
+                            <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
                             <PlusCircle className="mr-2 h-4 w-4" />
-                            Add New Task
+                            Add for Today
                             </Button>
                         </DialogTrigger>
                         <DialogContent>
-                            <DialogHeader>
-                            <DialogTitle>Add a new task</DialogTitle>
+                        <DialogHeader>
+                            <DialogTitle>Add a task for today</DialogTitle>
                             <DialogDescription>
-                                What do you want to accomplish? Add it to your schedule.
+                            This task will be scheduled for today.
                             </DialogDescription>
-                            </DialogHeader>
-                            <Form {...form}>
+                        </DialogHeader>
+                        <Form {...todayForm}>
                             <form
-                                onSubmit={form.handleSubmit(handleAddTaskSubmit)}
-                                className="space-y-4"
+                            onSubmit={todayForm.handleSubmit(handleAddTodayTaskSubmit)}
+                            className="space-y-4"
                             >
-                                <FormField
-                                control={form.control}
+                            <FormField
+                                control={todayForm.control}
                                 name="title"
                                 render={({ field }) => (
-                                    <FormItem>
+                                <FormItem>
                                     <FormLabel>Title</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="e.g., Read a chapter of a book" {...field} />
+                                    <Input placeholder="e.g., Go for a run" {...field} />
                                     </FormControl>
                                     <FormMessage />
-                                    </FormItem>
+                                </FormItem>
                                 )}
-                                />
-                                <FormField
-                                control={form.control}
+                            />
+                            <FormField
+                                control={todayForm.control}
                                 name="description"
                                 render={({ field }) => (
-                                    <FormItem>
+                                <FormItem>
                                     <FormLabel>Description (optional)</FormLabel>
                                     <FormControl>
-                                        <Textarea
-                                        placeholder="Add any extra details..."
-                                        {...field}
-                                        />
+                                    <Textarea placeholder="Add any extra details..." {...field} />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                <Button type="button" variant="ghost">Cancel</Button>
+                                </DialogClose>
+                                <Button type="submit">Add Task</Button>
+                            </DialogFooter>
+                            </form>
+                        </Form>
+                        </DialogContent>
+                    </Dialog>
+                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="sm">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add New Task
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                        <DialogTitle>Add a new task</DialogTitle>
+                        <DialogDescription>
+                            What do you want to accomplish? Add it to your schedule.
+                        </DialogDescription>
+                        </DialogHeader>
+                        <Form {...form}>
+                        <form
+                            onSubmit={form.handleSubmit(handleAddTaskSubmit)}
+                            className="space-y-4"
+                        >
+                            <FormField
+                            control={form.control}
+                            name="title"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Title</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., Read a chapter of a book" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <FormField
+                            control={form.control}
+                            name="description"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Description (optional)</FormLabel>
+                                <FormControl>
+                                    <Textarea
+                                    placeholder="Add any extra details..."
+                                    {...field}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <div className="flex flex-col sm:flex-row gap-4">
+                            <FormField
+                                control={form.control}
+                                name="scheduledDate"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-col flex-1">
+                                    <FormLabel>Date</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                            >
+                                            {field.value ? (
+                                                format(field.value, "PPP")
+                                            ) : (
+                                                <span>Pick a date</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                        <CalendarPicker
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            initialFocus
+                                        />
+                                        </PopoverContent>
+                                    </Popover>
                                     <FormMessage />
                                     </FormItem>
                                 )}
                                 />
-                                <div className="flex flex-col sm:flex-row gap-4">
                                 <FormField
                                     control={form.control}
-                                    name="scheduledDate"
+                                    name="scheduledTime"
                                     render={({ field }) => (
-                                        <FormItem className="flex flex-col flex-1">
-                                        <FormLabel>Date</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                            <FormControl>
-                                                <Button
-                                                variant={"outline"}
-                                                className={cn(
-                                                    "pl-3 text-left font-normal",
-                                                    !field.value && "text-muted-foreground"
-                                                )}
-                                                >
-                                                {field.value ? (
-                                                    format(field.value, "PPP")
-                                                ) : (
-                                                    <span>Pick a date</span>
-                                                )}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                            </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                            <CalendarPicker
-                                                mode="single"
-                                                selected={field.value}
-                                                onSelect={field.onChange}
-                                                initialFocus
-                                            />
-                                            </PopoverContent>
-                                        </Popover>
+                                    <FormItem className="flex-1">
+                                        <FormLabel>Time (optional)</FormLabel>
+                                        <FormControl>
+                                        <Input type="time" {...field} />
+                                        </FormControl>
                                         <FormMessage />
-                                        </FormItem>
+                                    </FormItem>
                                     )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="scheduledTime"
-                                        render={({ field }) => (
-                                        <FormItem className="flex-1">
-                                            <FormLabel>Time (optional)</FormLabel>
-                                            <FormControl>
-                                            <Input type="time" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                        )}
-                                    />
-                                </div>
-                                <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button type="button" variant="ghost">Cancel</Button>
-                                </DialogClose>
-                                <Button type="submit">Add Task</Button>
-                                </DialogFooter>
-                            </form>
-                            </Form>
-                        </DialogContent>
-                        </Dialog>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col p-0 flex-grow min-h-0">
-                      <div className="px-6 flex-grow overflow-y-auto">
-                          <TaskList
-                              tasks={todaysTasks}
-                              onToggle={handleToggleTask} 
-                              onStartFocus={handleStartFocus} 
-                              onUpdateTask={updateTask} 
-                              onMove={(taskId, direction) => handleMoveTask(taskId, direction, todaysTasks)}
-                              listId="today"
-                              emptyMessage="No tasks for today. Add one to get started!" 
-                          />
-                      </div>
-                  </CardContent>
-               </Card>
-            </div>
+                                />
+                            </div>
+                            <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="ghost">Cancel</Button>
+                            </DialogClose>
+                            <Button type="submit">Add Task</Button>
+                            </DialogFooter>
+                        </form>
+                        </Form>
+                    </DialogContent>
+                    </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col p-0 flex-grow min-h-0">
+                  <div className="px-6 flex-grow overflow-y-auto">
+                      <TaskList
+                          tasks={todaysTasks}
+                          onToggle={handleToggleTask} 
+                          onStartFocus={handleStartFocus} 
+                          onUpdateTask={updateTask} 
+                          onMove={(taskId, direction) => handleMoveTask(taskId, direction, todaysTasks)}
+                          listId="today"
+                          emptyMessage="No tasks for today. Add one to get started!" 
+                      />
+                  </div>
+              </CardContent>
+            </Card>
+
+            <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
             
             <div className="w-full h-[600px]">
                 <AIAssistant allTasks={tasks} role={userRole} />
