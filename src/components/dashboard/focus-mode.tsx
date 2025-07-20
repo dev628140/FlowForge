@@ -77,14 +77,6 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
     };
   }, []);
 
-
-  // Update timeLeft when duration settings are changed while paused
-  React.useEffect(() => {
-    if (!isActive) {
-      setTimeLeft(isBreak ? breakDuration : focusDuration);
-    }
-  }, [focusDuration, breakDuration, isBreak, isActive]);
-
   React.useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
@@ -177,7 +169,12 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
                 max={MAX_FOCUS}
                 step={5}
                 value={[focusDuration / 60]}
-                onValueChange={(value) => setFocusDuration(value[0] * 60)}
+                onValueChange={(value) => {
+                    setFocusDuration(value[0] * 60);
+                    if (!isActive && !isBreak) {
+                        setTimeLeft(value[0] * 60);
+                    }
+                }}
                 disabled={isActive}
               />
             </div>
@@ -189,7 +186,12 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
                 max={MAX_BREAK}
                 step={5}
                 value={[breakDuration / 60]}
-                onValueChange={(value) => setBreakDuration(value[0] * 60)}
+                onValueChange={(value) => {
+                    setBreakDuration(value[0] * 60);
+                     if (!isActive && isBreak) {
+                        setTimeLeft(value[0] * 60);
+                    }
+                }}
                 disabled={isActive}
               />
             </div>
