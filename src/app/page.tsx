@@ -191,7 +191,6 @@ export default function DashboardPage() {
         
         <div className="flex flex-col gap-6">
           <DailyProgressBar tasks={todaysTasks} />
-          <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
 
            {overdueTasks.length > 0 && (
               <Card className="border-destructive/50">
@@ -455,6 +454,8 @@ export default function DashboardPage() {
                   <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent pointer-events-none" />
               </CardContent>
            </Card>
+           
+          <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
 
            <div className="w-full h-[550px]">
               <AIAssistant allTasks={tasks} role={userRole} />
