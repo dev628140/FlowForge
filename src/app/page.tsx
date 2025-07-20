@@ -273,20 +273,16 @@ export default function DashboardPage() {
                   </Card>
               )}
 
-               <Card className="flex flex-col h-[500px]">
+               <Card className="flex flex-col h-[600px]">
                   <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 flex-shrink-0">
                   <div>
                       <CardTitle className="flex items-center gap-2">
-                      <CalendarIcon className="w-6 h-6" />
-                      Today's Tasks
-                      </CardTitle>
-                      <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
-                  </div>
-                  <div className="flex items-stretch w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-2">
+                        <CalendarIcon className="w-6 h-6" />
+                        Today's Tasks
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" onClick={() => setIsGeneralFocusMode(true)}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsGeneralFocusMode(true)}>
                                         <Zap className="h-4 w-4" />
                                         <span className="sr-only">Start General Focus Session</span>
                                     </Button>
@@ -296,7 +292,10 @@ export default function DashboardPage() {
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-
+                      </CardTitle>
+                      <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
+                  </div>
+                  <div className="flex items-stretch w-full sm:w-auto flex-col sm:flex-row sm:items-center gap-2">
                       <Dialog open={isTodayAddDialogOpen} onOpenChange={setIsTodayAddDialogOpen}>
                           <DialogTrigger asChild>
                               <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700 text-white">
