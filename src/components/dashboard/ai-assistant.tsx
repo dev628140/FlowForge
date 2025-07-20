@@ -4,7 +4,6 @@
 import * as React from 'react';
 import { Wand2, Loader2, Sparkles, Check, X, PlusCircle, RefreshCcw, Trash2, Bot, User, CornerDownLeft, MessageSquarePlus, Pin, PinOff, ChevronsLeft, ChevronsRight, Mic, MicOff, Voicemail, Square, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
@@ -35,6 +34,8 @@ import MediaUploader from './media-uploader';
 import Image from 'next/image';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
+import TextareaAutosize from 'react-textarea-autosize';
+
 
 interface AIAssistantProps {
   allTasks: Task[];
@@ -274,13 +275,24 @@ const MainContent = ({
                                 <MediaUploader onMediaSelect={handleMediaSelect} />
                             </DialogContent>
                         </Dialog>
-                        <div className="relative w-full">
-                            <Input
+                        <div className="relative flex items-center w-full">
+                            <TextareaAutosize
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSubmit(e);
+                                    }
+                                }}
                                 placeholder={isOffline ? 'Offline - AI disabled' : 'Your command...'}
                                 disabled={loading || isOffline || !!aiPlan || isListening || isPlaying}
-                                className={cn(isAvailable && "pr-20")}
+                                className={cn(
+                                    "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none",
+                                    isAvailable ? "pr-20" : "pr-3"
+                                )}
+                                minRows={1}
+                                maxRows={5}
                             />
                             {isAvailable && (
                                 <div className="absolute top-1/2 right-1.5 -translate-y-1/2 flex items-center">
@@ -674,7 +686,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </AlertDialogTrigger>

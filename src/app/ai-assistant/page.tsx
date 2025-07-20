@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
@@ -43,6 +42,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import MediaUploader from '@/components/dashboard/media-uploader';
 import { runAssistant, type AssistantOutput, type AssistantInput } from '@/ai/flows/assistant-flow';
 import { runPlanner, type PlannerOutput, type PlannerInput } from '@/ai/flows/planner-flow';
+import TextareaAutosize from 'react-textarea-autosize';
 
 
 export type AssistantMode = 'planner' | 'breakdown' | 'suggester';
@@ -817,20 +817,21 @@ setCurrentPlan(null);
                         </div>
                     )}
                     <div className="relative w-full">
-                        <Textarea
+                        <TextareaAutosize
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
-                                handleSubmit();
+                                handleSubmit(e);
                                 }
                             }}
                             placeholder={history.length > 0 ? "Need changes? Type or use the mic..." : "Describe your goal..."}
                             disabled={loading || isListening || isPlaying}
                             autoFocus
-                            className={cn("pr-10 min-h-[52px]")}
-                            rows={1}
+                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none pr-10"
+                            minRows={1}
+                            maxRows={5}
                         />
                     </div>
                 
@@ -924,7 +925,7 @@ export default function AIAssistantPage() {
     const isMobile = useIsMobile();
     return (
         <div className="h-full flex flex-col">
-            <header className="p-4 md:p-6 pb-2 md:pb-4 flex-shrink-0">
+            <header className="px-4 md:px-6 py-4 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <BrainCircuit className="w-8 h-8 text-primary" />
                     <h1 className="text-3xl font-bold font-headline">AI Assistant Hub</h1>
@@ -932,7 +933,7 @@ export default function AIAssistantPage() {
                 <p className="text-muted-foreground">Your command center for AI-powered productivity. Converse with the AI to plan, break down, and create tasks.</p>
             </header>
 
-            <Tabs defaultValue="planner" className="w-full flex-grow flex flex-col p-4 pt-0 md:p-6 md:pt-0">
+            <Tabs defaultValue="planner" className="w-full flex-grow flex flex-col px-4 md:px-6 pb-4">
                 <TabsList className={cn("grid w-full h-auto", isMobile ? "grid-cols-1" : "grid-cols-3")}>
                     <TabsTrigger value="planner" className="py-2 sm:py-1.5"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
                     <TabsTrigger value="breakdown" className="py-2 sm:py-1.5"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
