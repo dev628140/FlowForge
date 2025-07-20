@@ -118,7 +118,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   }, [isActive, timeLeft, isBreak, autoStartBreaks, autoStartFocus, breakDuration, focusDuration]);
 
   const toggleTimer = () => {
-    setIsActive(prev => !prev);
+    setIsActive(!isActive);
   };
   
   const resetTimer = () => {
