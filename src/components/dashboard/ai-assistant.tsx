@@ -52,8 +52,7 @@ const PlanSection: React.FC<{title: string; icon: React.ReactNode; className: st
   </div>
 );
 
-// Memoized MainContent to prevent re-renders causing input focus loss
-const MainContent = React.memo(function MainContent({
+const MainContent = ({
     isMobile,
     isOffline,
     isAvailable,
@@ -105,7 +104,7 @@ const MainContent = React.memo(function MainContent({
     handleVoiceMode: () => void;
     stopAudio: () => void;
     allTasks: Task[];
-}) {
+}) => {
   return (
     <div className="flex-1 flex flex-col p-4 overflow-hidden">
         <CardHeader className="p-0 pb-4 flex-shrink-0 flex flex-row items-center gap-2">
@@ -347,7 +346,7 @@ const MainContent = React.memo(function MainContent({
         </CardContent>
     </div>
   )
-});
+};
 
 export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const { 
@@ -634,6 +633,9 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
   const SidebarContent = () => (
     <div className='h-full flex flex-col'>
+      <SheetHeader className="p-2 border-b flex-shrink-0">
+          <SheetTitle className="sr-only">Chat History</SheetTitle>
+      </SheetHeader>
       <div className="p-2 border-b flex items-center justify-between flex-shrink-0">
         <Button variant="outline" size="sm" className="w-full mr-1" onClick={handleNewChat}>
           <MessageSquarePlus className="mr-2 h-4 w-4" /> New Chat
@@ -657,7 +659,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
               <div className="w-full">
                 <p className="font-medium text-xs break-words whitespace-normal pr-8">{session.title}</p>
               </div>
-              <div className="absolute top-1 right-1 flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-1 right-1 flex-shrink-0 flex items-center">
                 {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
                 <TooltipProvider>
                   <Tooltip>
@@ -734,9 +736,6 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
              <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <MainContent {...mainContentProps} />
                 <SheetContent side="left" className="p-0 w-[280px]">
-                    <SheetHeader>
-                        <SheetTitle className="sr-only">Chat History</SheetTitle>
-                    </SheetHeader>
                     <SidebarContent />
                 </SheetContent>
             </Sheet>
@@ -781,7 +780,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
                                   <div className="w-full">
                                       <p className="font-medium text-xs break-words whitespace-normal pr-8">{session.title}</p>
                                   </div>
-                                  <div className="absolute top-1 right-1 flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="absolute top-1 right-1 flex-shrink-0 flex items-center">
                                       {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
                                       <TooltipProvider>
                                           <Tooltip>
@@ -829,5 +828,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </Card>
   );
 }
+
+    
 
     

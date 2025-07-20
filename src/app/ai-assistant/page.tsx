@@ -693,7 +693,7 @@ setCurrentPlan(null);
                                 <div className="w-full">
                                     <p className="font-medium text-sm break-words whitespace-normal pr-8">{session.title}</p>
                                 </div>
-                                <div className="absolute top-1 right-1 flex-shrink-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute top-1 right-1 flex-shrink-0 flex items-center">
                                     {session.pinned && <Pin className="w-3 h-3 text-primary mr-1" />}
                                     <TooltipProvider>
                                         <Tooltip>
