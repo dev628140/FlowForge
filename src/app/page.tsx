@@ -261,7 +261,7 @@ export default function DashboardPage() {
               </Card>
           )}
 
-           <Card className="flex flex-col h-[550px]">
+           <Card className="flex flex-col h-[500px]">
               <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 flex-shrink-0">
               <div>
                   <CardTitle className="flex items-center gap-2">
