@@ -923,8 +923,8 @@ setCurrentPlan(null);
 export default function AIAssistantPage() {
     const isMobile = useIsMobile();
     return (
-        <div className="p-4 md:p-6 space-y-6 h-full flex flex-col">
-            <header>
+        <div className="h-full flex flex-col">
+            <header className="p-4 md:p-6 pb-2 md:pb-4 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <BrainCircuit className="w-8 h-8 text-primary" />
                     <h1 className="text-3xl font-bold font-headline">AI Assistant Hub</h1>
@@ -932,7 +932,7 @@ export default function AIAssistantPage() {
                 <p className="text-muted-foreground">Your command center for AI-powered productivity. Converse with the AI to plan, break down, and create tasks.</p>
             </header>
 
-            <Tabs defaultValue="planner" className="w-full flex-grow flex flex-col">
+            <Tabs defaultValue="planner" className="w-full flex-grow flex flex-col px-4 md:px-6 pb-4 md:pb-6">
                 <TabsList className={cn("grid w-full h-auto", isMobile ? "grid-cols-1" : "grid-cols-3")}>
                     <TabsTrigger value="planner" className="py-2 sm:py-1.5"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
                     <TabsTrigger value="breakdown" className="py-2 sm:py-1.5"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
