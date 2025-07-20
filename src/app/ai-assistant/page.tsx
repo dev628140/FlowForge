@@ -932,7 +932,7 @@ export default function AIAssistantPage() {
                 <p className="text-muted-foreground">Your command center for AI-powered productivity. Converse with the AI to plan, break down, and create tasks.</p>
             </header>
 
-            <Tabs defaultValue="planner" className="w-full flex-grow flex flex-col px-4 md:px-6 pb-4 md:pb-6">
+            <Tabs defaultValue="planner" className="w-full flex-grow flex flex-col p-4 pt-0 md:p-6 md:pt-0">
                 <TabsList className={cn("grid w-full h-auto", isMobile ? "grid-cols-1" : "grid-cols-3")}>
                     <TabsTrigger value="planner" className="py-2 sm:py-1.5"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
                     <TabsTrigger value="breakdown" className="py-2 sm:py-1.5"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
