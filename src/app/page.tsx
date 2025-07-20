@@ -456,7 +456,7 @@ export default function DashboardPage() {
 
            <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
            
-           <div className="w-full h-[550px]">
+           <div className="w-full h-[600px]">
               <AIAssistant allTasks={tasks} role={userRole} />
            </div>
         </div>
