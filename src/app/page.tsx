@@ -439,8 +439,8 @@ export default function DashboardPage() {
                   </Dialog>
               </div>
               </CardHeader>
-              <CardContent className="flex-grow p-0 overflow-y-auto">
-                  <div className="px-6">
+              <CardContent className="flex flex-col p-0 flex-grow min-h-0">
+                  <div className="px-6 flex-grow overflow-y-auto">
                       <TaskList
                           tasks={todaysTasks}
                           onToggle={handleToggleTask} 
