@@ -14,7 +14,6 @@ import { breakdownTask } from '@/ai/flows/breakdown-task-flow';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import TaskList from './task-list';
 import { useAppContext } from '@/context/app-context';
 import { Separator } from '../ui/separator';
 import {
@@ -239,7 +238,7 @@ export default function TaskItem({
         className="w-5 h-5 mr-4"
         aria-label={`Mark task ${task.title} as ${task.completed ? 'incomplete' : 'complete'}`}
       />
-      <div className="flex-1">
+      <div className="mr-auto">
         <label
           htmlFor={`task-${task.id}`}
           className={cn(
