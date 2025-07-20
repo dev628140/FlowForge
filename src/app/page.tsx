@@ -440,7 +440,7 @@ export default function DashboardPage() {
               </div>
               </CardHeader>
               <CardContent className="flex-grow p-0 overflow-hidden">
-                  <ScrollArea className="h-full px-6">
+                  <ScrollArea className="h-full px-6 [mask-image:linear-gradient(to_bottom,black_calc(100%-1.5rem),transparent)]">
                       <TaskList
                           tasks={todaysTasks}
                           onToggle={handleToggleTask} 
@@ -453,9 +453,9 @@ export default function DashboardPage() {
                   </ScrollArea>
               </CardContent>
            </Card>
-           
-          <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
 
+           <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
+           
            <div className="w-full h-[550px]">
               <AIAssistant allTasks={tasks} role={userRole} />
            </div>
