@@ -36,44 +36,38 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   
   const wakeLockRef = React.useRef<WakeLockSentinel | null>(null);
 
-  // Screen Wake Lock logic - activate when component mounts, release when it unmounts
+  // Screen Wake Lock logic
   React.useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator) {
         try {
           wakeLockRef.current = await navigator.wakeLock.request('screen');
           wakeLockRef.current.addEventListener('release', () => {
-             console.log('Screen Wake Lock was released');
+             // This happens if the lock is released by the system, e.g., tab backgrounded.
              wakeLockRef.current = null;
           });
-          console.log('Screen Wake Lock is active');
         } catch (err: any) {
-          if (err.name === 'NotAllowedError') {
-            console.warn('Screen Wake Lock permission denied. The screen may turn off during focus sessions.');
-          } else {
             console.error(`Wake Lock error: ${err.name}, ${err.message}`);
-          }
         }
       }
     };
 
-    const releaseWakeLock = async () => {
-      if (wakeLockRef.current) {
-        try {
-          await wakeLockRef.current.release();
-          wakeLockRef.current = null;
-          console.log('Screen Wake Lock released');
-        } catch (err: any) {
-           console.error(`Wake Lock release error: ${err.name}, ${err.message}`);
-        }
+    const handleVisibilityChange = () => {
+      if (wakeLockRef.current !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
       }
     };
 
     requestWakeLock();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Cleanup on component unmount
     return () => {
-      releaseWakeLock();
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
