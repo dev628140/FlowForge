@@ -36,46 +36,52 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   
   const wakeLockRef = React.useRef<WakeLockSentinel | null>(null);
   
-  // Screen Wake Lock logic
+  // Screen Wake Lock: Keep screen on as long as this component is mounted.
   React.useEffect(() => {
+    let isMounted = true;
+
     const acquireLock = async () => {
-      if ('wakeLock' in navigator) {
+      if ('wakeLock' in navigator && isMounted && document.visibilityState === 'visible') {
         try {
+          // If a lock already exists, release it before acquiring a new one.
+          if (wakeLockRef.current) {
+            await wakeLockRef.current.release();
+            wakeLockRef.current = null;
+          }
           wakeLockRef.current = await navigator.wakeLock.request('screen');
         } catch (err) {
-          console.error('Failed to acquire wake lock:', err);
+            // This can happen if the feature is disallowed by a permissions policy.
+            // We can safely ignore it.
+            console.error('Could not acquire wake lock:', err);
         }
       }
     };
 
     const releaseLock = async () => {
-      if (wakeLockRef.current) {
-        await wakeLockRef.current.release();
-        wakeLockRef.current = null;
-      }
-    };
-    
-    if (isActive) {
-      acquireLock();
-    } else {
-      releaseLock();
+        if (wakeLockRef.current) {
+            await wakeLockRef.current.release();
+            wakeLockRef.current = null;
+        }
     }
     
+    // Acquire lock immediately on mount
+    acquireLock();
+    
     const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible' && isActive) {
+        if (document.visibilityState === 'visible') {
             acquireLock();
         }
     }
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('fullscreenchange', handleVisibilityChange);
-
+    
+    // Cleanup on unmount
     return () => {
+      isMounted = false;
       releaseLock();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('fullscreenchange', handleVisibilityChange);
     };
-  }, [isActive]);
+  }, []); // Empty dependency array ensures this runs only on mount and unmount
 
 
   React.useEffect(() => {
