@@ -49,10 +49,14 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
             wakeLockRef.current = null;
           }
           wakeLockRef.current = await navigator.wakeLock.request('screen');
-        } catch (err) {
+        } catch (err: any) {
             // This can happen if the feature is disallowed by a permissions policy.
             // We can safely ignore it.
-            console.error('Could not acquire wake lock:', err);
+            if(err.name === 'NotAllowedError') {
+              console.log("Screen Wake Lock is not allowed by the current permissions policy.");
+            } else {
+              console.error('Could not acquire wake lock:', err);
+            }
         }
       }
     };
@@ -68,7 +72,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
     acquireLock();
     
     const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
+        if (isMounted && document.visibilityState === 'visible') {
             acquireLock();
         }
     }
