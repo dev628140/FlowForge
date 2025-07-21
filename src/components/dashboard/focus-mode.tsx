@@ -35,20 +35,31 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   const [cyclesCompleted, setCyclesCompleted] = React.useState(0);
   
   const wakeLockRef = React.useRef<WakeLockSentinel | null>(null);
+  const isWakeLockSupported = React.useRef(typeof window !== 'undefined' && 'wakeLock' in navigator);
+  const wakeLockErrorLogged = React.useRef(false);
 
   // Screen Wake Lock logic
   React.useEffect(() => {
     const requestWakeLock = async () => {
-      if ('wakeLock' in navigator) {
-        try {
-          wakeLockRef.current = await navigator.wakeLock.request('screen');
-          wakeLockRef.current.addEventListener('release', () => {
-             // This happens if the lock is released by the system, e.g., tab backgrounded.
-             wakeLockRef.current = null;
-          });
-        } catch (err: any) {
-            console.error(`Wake Lock error: ${err.name}, ${err.message}`);
-        }
+      if (!isWakeLockSupported.current) return;
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+        wakeLockRef.current.addEventListener('release', () => {
+           // This happens if the lock is released by the system, e.g., tab backgrounded.
+           wakeLockRef.current = null;
+        });
+      } catch (err: any) {
+          if (err.name === 'NotAllowedError') {
+            if (!wakeLockErrorLogged.current) {
+              console.warn("Screen Wake Lock is disabled by browser permissions policy.");
+              wakeLockErrorLogged.current = true;
+            }
+          } else {
+            if (!wakeLockErrorLogged.current) {
+              console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+              wakeLockErrorLogged.current = true;
+            }
+          }
       }
     };
 
@@ -58,10 +69,12 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
       }
     };
 
-    requestWakeLock();
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    if (isActive) {
+      requestWakeLock();
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
     
-    // Cleanup on component unmount
+    // Cleanup on component unmount or when timer is paused
     return () => {
       if (wakeLockRef.current) {
         wakeLockRef.current.release();
@@ -69,7 +82,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [isActive]);
 
   React.useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
