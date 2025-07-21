@@ -35,54 +35,48 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
   const [cyclesCompleted, setCyclesCompleted] = React.useState(0);
   
   const wakeLockRef = React.useRef<WakeLockSentinel | null>(null);
-  const isWakeLockSupported = React.useRef(typeof window !== 'undefined' && 'wakeLock' in navigator);
-  const wakeLockErrorLogged = React.useRef(false);
-
+  
   // Screen Wake Lock logic
   React.useEffect(() => {
-    const requestWakeLock = async () => {
-      if (!isWakeLockSupported.current) return;
-      try {
-        wakeLockRef.current = await navigator.wakeLock.request('screen');
-        wakeLockRef.current.addEventListener('release', () => {
-           // This happens if the lock is released by the system, e.g., tab backgrounded.
-           wakeLockRef.current = null;
-        });
-      } catch (err: any) {
-          if (err.name === 'NotAllowedError') {
-            if (!wakeLockErrorLogged.current) {
-              console.warn("Screen Wake Lock is disabled by browser permissions policy.");
-              wakeLockErrorLogged.current = true;
-            }
-          } else {
-            if (!wakeLockErrorLogged.current) {
-              console.error(`Wake Lock error: ${err.name}, ${err.message}`);
-              wakeLockErrorLogged.current = true;
-            }
-          }
+    const acquireLock = async () => {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.error('Failed to acquire wake lock:', err);
+        }
       }
     };
 
-    const handleVisibilityChange = () => {
-      if (wakeLockRef.current !== null && document.visibilityState === 'visible') {
-        requestWakeLock();
-      }
-    };
-
-    if (isActive) {
-      requestWakeLock();
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-    }
-    
-    // Cleanup on component unmount or when timer is paused
-    return () => {
+    const releaseLock = async () => {
       if (wakeLockRef.current) {
-        wakeLockRef.current.release();
+        await wakeLockRef.current.release();
         wakeLockRef.current = null;
       }
+    };
+    
+    if (isActive) {
+      acquireLock();
+    } else {
+      releaseLock();
+    }
+    
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible' && isActive) {
+            acquireLock();
+        }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('fullscreenchange', handleVisibilityChange);
+
+    return () => {
+      releaseLock();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('fullscreenchange', handleVisibilityChange);
     };
   }, [isActive]);
+
 
   React.useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
