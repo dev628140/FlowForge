@@ -732,7 +732,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                                     </div>
                                 )}
                                 <div className={cn(
-                                    "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap text-sm sm:text-base",
+                                    "p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap break-words text-sm sm:text-base",
                                     msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none',
                                     msg.content.startsWith('Error:') && 'bg-destructive/20 text-destructive'
                                 )}>
