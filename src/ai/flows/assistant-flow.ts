@@ -90,45 +90,6 @@ export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
 // The main exported function that the UI will call
 export async function runAssistant(input: AssistantInput): Promise<AssistantOutput> {
-  // Pre-process recurring tasks before sending to the AI
-  const userPrompt = input.history[input.history.length - 1]?.content || '';
-  const recurringMatch = userPrompt.match(/every day until (\w+\s+\d+)/i);
-
-  if (recurringMatch) {
-      const endDateStr = recurringMatch[1];
-      const currentYear = new Date().getFullYear();
-      try {
-          const endDate = parseISO(`${endDateStr} ${currentYear}`);
-          const startDate = new Date();
-          
-          if (endDate > startDate) {
-              const dates = eachDayOfInterval({ start: startDate, end: endDate });
-              const basePrompt = userPrompt.replace(recurringMatch[0], '').trim();
-              const tasksToAdd: z.infer<typeof TaskToAddSchema>[] = [];
-              
-              dates.forEach(date => {
-                  tasksToAdd.push({
-                      title: basePrompt,
-                      scheduledDate: format(date, 'yyyy-MM-dd'),
-                      timezone: input.timezone,
-                  });
-              });
-
-              return {
-                  response: `I've added "${basePrompt}" to your schedule for each day until ${format(endDate, 'MMMM d')}. Is there anything else?`,
-                  tasksToAdd,
-                  tasksToUpdate: [],
-                  tasksToDelete: [],
-                  subtasksToAdd: [],
-                  title: isNaN(new Date(input.history[0]?.content).getTime()) ? input.history[0]?.content.substring(0, 30) : "New Chat" // Basic title generation
-              };
-          }
-      } catch (e) {
-          console.error("Error parsing date for recurring task:", e);
-          // If parsing fails, fall back to the AI for handling.
-      }
-  }
-  
   return assistantFlow(input);
 }
 
@@ -154,7 +115,7 @@ const assistantPrompt = ai.definePrompt({
 
     **COMMAND INTERPRETATION RULES:**
     1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
-    2.  **Recurring Tasks / Date Ranges:** If a user says "every day until a date" or "for the next X days", you MUST create a separate task entry in \`tasksToAdd\` for each individual day in that range. For example, "add 'Go for a run' every day until October 27th" should result in multiple task objects, one for each day.
+    2.  **Recurring Tasks / Date Ranges:** If a user says "every day until a date" or "for the next X days", you MUST create a separate task entry in \`tasksToAdd\` for each individual day in that range. For example, "add 'Go for a run' every day until October 27th" should result in multiple task objects, one for each day. If they say "add X three times a day", you must create three separate tasks for that title for each day in the range.
     3.  **Ambiguity:** If a command is ambiguous (e.g., "delete the marketing task" when there are multiple), you MUST ask for clarification in your response and NOT generate a plan.
     4.  **No Action Needed:** For general conversation, questions, or requests that are best handled by a tool, provide a helpful response in the 'response' field. DO NOT generate an empty action plan.
     5.  **Tool Usage:** If a request is to "summarize", "analyze", "break down", "reflect", or "create a learning plan", you MUST use the appropriate tool. Provide the tool's output directly in your 'response' field.
@@ -200,5 +161,3 @@ const assistantFlow = ai.defineFlow(
     return output;
   }
 );
-
-    
