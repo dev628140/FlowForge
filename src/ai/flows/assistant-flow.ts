@@ -10,26 +10,36 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import {
-    breakdownTaskTool,
-    generateLearningPlanTool,
-    summarizeTaskTool,
-    analyzeProductivityTool,
-    reflectOnProgressTool,
-} from '@/ai/tools';
-import { format } from 'date-fns';
+import { format, eachDayOfInterval, parseISO } from 'date-fns';
+import { analyzeProductivityTool, breakdownTaskTool, generateLearningPlanTool, reflectOnProgressTool, summarizeTaskTool } from '../tools';
+
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
   content: z.string(),
 });
 
+const FullTaskSchema = z.object({
+    id: z.string(),
+    title: z.string(),
+    completed: z.boolean(),
+    description: z.string().optional().nullable(),
+    scheduledDate: z.string().optional().nullable(),
+    scheduledTime: z.string().optional().nullable(),
+    subtasks: z.array(z.object({
+        id: z.string(),
+        title: z.string(),
+        completed: z.boolean(),
+    })).optional().nullable(),
+});
+
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
   history: z.array(MessageSchema).describe("The full conversation history between the user and the assistant."),
-  tasks: z.array(z.any()).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status."),
+  tasks: z.array(FullTaskSchema).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status."),
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
   date: z.string().describe("The current date in YYYY-MM-DD format."),
+  timezone: z.string().describe("The user's current timezone (e.g., 'America/New_York')."),
   chatSessionId: z.string().optional().nullable().describe("The ID of the current chat session."),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
@@ -41,6 +51,7 @@ const TaskToAddSchema = z.object({
     description: z.string().optional().nullable().describe('A brief description of the task.'),
     scheduledDate: z.string().optional().nullable().describe('The scheduled date for the task in YYYY-MM-DD format.'),
     scheduledTime: z.string().optional().nullable().describe('The scheduled time for the task in HH:mm 24-hour format.'),
+    timezone: z.string().optional().nullable().describe("The user's timezone, taken from the input."),
 });
 
 const TaskToUpdateSchema = z.object({
@@ -68,7 +79,7 @@ const SubtasksToAddSchema = z.object({
 
 const AssistantOutputSchema = z.object({
   title: z.string().optional().nullable().describe("A short, concise title (4-5 words max) for this conversation. You should ONLY generate this on the very first turn of the conversation (when history has only one user message)."),
-  response: z.string().describe("A concise, friendly summary of the plan you have generated, or a conversational response if you are asking for clarification or providing information. For example, 'I can add 2 tasks and delete 1.' or 'I've scheduled that for you.' or 'Which task are you referring to?'. If no actions are taken, provide a helpful conversational response or the direct result from a tool (like a summary or analysis)."),
+  response: z.string().describe("A concise, friendly summary of the plan you have generated, or a conversational response if you are asking for clarification or providing information. For example, 'I've added 3 tasks for you.' or 'I've scheduled that for you.' or 'Which task are you referring to?'. If no actions are taken, provide a helpful conversational response or the direct result from a tool (like a summary or analysis)."),
   tasksToAdd: z.array(TaskToAddSchema).optional().nullable().describe("A list of new tasks to be added based on the user's command."),
   tasksToUpdate: z.array(TaskToUpdateSchema).optional().nullable().describe("A list of existing tasks to be updated."),
   tasksToDelete: z.array(TaskToDeleteSchema).optional().nullable().describe("A list of existing tasks to be deleted."),
@@ -79,6 +90,45 @@ export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
 // The main exported function that the UI will call
 export async function runAssistant(input: AssistantInput): Promise<AssistantOutput> {
+  // Pre-process recurring tasks before sending to the AI
+  const userPrompt = input.history[input.history.length - 1]?.content || '';
+  const recurringMatch = userPrompt.match(/every day until (\w+\s+\d+)/i);
+
+  if (recurringMatch) {
+      const endDateStr = recurringMatch[1];
+      const currentYear = new Date().getFullYear();
+      try {
+          const endDate = parseISO(`${endDateStr} ${currentYear}`);
+          const startDate = new Date();
+          
+          if (endDate > startDate) {
+              const dates = eachDayOfInterval({ start: startDate, end: endDate });
+              const basePrompt = userPrompt.replace(recurringMatch[0], '').trim();
+              const tasksToAdd: z.infer<typeof TaskToAddSchema>[] = [];
+              
+              dates.forEach(date => {
+                  tasksToAdd.push({
+                      title: basePrompt,
+                      scheduledDate: format(date, 'yyyy-MM-dd'),
+                      timezone: input.timezone,
+                  });
+              });
+
+              return {
+                  response: `I've added "${basePrompt}" to your schedule for each day until ${format(endDate, 'MMMM d')}. Is there anything else?`,
+                  tasksToAdd,
+                  tasksToUpdate: [],
+                  tasksToDelete: [],
+                  subtasksToAdd: [],
+                  title: isNaN(new Date(input.history[0]?.content).getTime()) ? input.history[0]?.content.substring(0, 30) : "New Chat" // Basic title generation
+              };
+          }
+      } catch (e) {
+          console.error("Error parsing date for recurring task:", e);
+          // If parsing fails, fall back to the AI for handling.
+      }
+  }
+  
   return assistantFlow(input);
 }
 
@@ -94,37 +144,43 @@ const assistantPrompt = ai.definePrompt({
         analyzeProductivityTool,
         reflectOnProgressTool,
     ],
-    prompt: `You are FlowForge, an expert AI productivity assistant. Your goal is to have a conversation with the user and help them with any request. You can manage their tasks, answer questions, and provide analysis using your available tools.
+    prompt: `You are FlowForge, an expert AI productivity assistant. Your goal is to have a conversation with the user and help them with any request. You MUST generate a plan of actions (tasksToAdd, tasksToUpdate, tasksToDelete, subtasksToAdd) for any user request that implies a modification of their tasks. Do not just say you've done it, create the action plan.
 
     Current Date: {{{date}}}
+    User's Timezone: {{{timezone}}}
     User's Role: {{{role}}}
 
-    You have the user's current task list and the conversation history for context. You MUST use the provided task IDs when a tool requires one, but you MUST NOT mention the IDs in your conversational responses to the user.
-    
-    CONVERSATION HISTORY:
-    {{#each history}}
-      **{{this.role}}**: {{this.content}}
-    {{/each}}
-    
-    Based on the latest user message and the entire conversation, determine the next step.
-    - If the user's request is a question, a request for an explanation (e.g., "explain Two Sum"), or a general conversational prompt (e.g. "recommend a movie"), you MUST provide a direct, helpful, and comprehensive answer in the 'response' field. Do NOT create a task plan unless explicitly asked to. After providing the answer, you SHOULD proactively ask if the user wants to take the next step, such as creating a learning plan for the topic, or adding a task to practice the concept or watch the movie. For example: "Would you like me to create a learning plan for this?"
-    - When providing code examples or solutions, you MUST provide them in the programming language the user requests. If no language is specified, choose a sensible default based on the question's context.
-    - If the user's command is explicitly to add, update, or delete tasks, generate the appropriate plan of actions and a summary response.
-    - If the user's request is best handled by one of your tools (like summarizing, analyzing, or generating a learning plan), use the tool and provide the result in your response.
-    - If the user's request is unclear or you need more information to proceed, ask a clarifying question in your response and do not generate any actions.
-    - If the command is simple small talk (e.g., "hello", "thank you"), just provide a friendly text response and do not generate any actions.
-    - IMPORTANT: If this is the first turn of the conversation (i.e., the history only has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation based on the user's request. On all subsequent turns, you must leave the title field empty.
-    
-    User's Task List (for context, IDs are for your internal use ONLY):
+    You have the user's current task list (including subtasks) and the conversation history for context. You MUST use the provided task IDs when a tool requires one or when updating/deleting a task, but you MUST NOT mention the IDs in your conversational responses to the user.
+
+    **COMMAND INTERPRETATION RULES:**
+    1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
+    2.  **Recurring Tasks / Date Ranges:** If a user says "every day until a date" or "for the next X days", you MUST create a separate task entry in \`tasksToAdd\` for each individual day in that range. For example, "add 'Go for a run' every day until October 27th" should result in multiple task objects, one for each day.
+    3.  **Ambiguity:** If a command is ambiguous (e.g., "delete the marketing task" when there are multiple), you MUST ask for clarification in your response and NOT generate a plan.
+    4.  **No Action Needed:** For general conversation, questions, or requests that are best handled by a tool, provide a helpful response in the 'response' field. DO NOT generate an empty action plan.
+    5.  **Tool Usage:** If a request is to "summarize", "analyze", "break down", "reflect", or "create a learning plan", you MUST use the appropriate tool. Provide the tool's output directly in your 'response' field.
+    6.  **Conversation Title:** If this is the first turn of the conversation (history has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation. On all subsequent turns, leave the title field empty.
+    7.  **Timezone:** When adding a task with a date, you MUST include the user's timezone from the input in the task object.
+
+    **USER'S TASK LIST (for context, IDs are for your internal use ONLY):**
     {{#if tasks}}
       {{#each tasks}}
-      - ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}{{#if this.scheduledDate}}, Scheduled: {{this.scheduledDate}}{{/if}}
+      - ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}{{#if this.scheduledDate}}, Scheduled: {{this.scheduledDate}}{{#if this.scheduledTime}} at {{this.scheduledTime}}{{/if}}{{/if}}{{#if this.subtasks}}, Subtasks: {{this.subtasks.length}}{{/if}}
+        {{#if this.subtasks}}
+            {{#each this.subtasks}}
+            - Subtask ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}
+            {{/each}}
+        {{/if}}
       {{/each}}
     {{else}}
       The user has no tasks.
     {{/if}}
 
-    Now, generate your response and/or plan based on the last message in the conversation history.
+    Now, analyze the last message in the conversation history and generate your response and/or plan.
+    
+    CONVERSATION HISTORY:
+    {{#each history}}
+      **{{this.role}}**: {{this.content}}
+    {{/each}}
     `,
 });
 
@@ -144,3 +200,5 @@ const assistantFlow = ai.defineFlow(
     return output;
   }
 );
+
+    

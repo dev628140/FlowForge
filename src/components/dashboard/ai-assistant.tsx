@@ -418,20 +418,24 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     let currentChatId = activeChatId;
 
     try {
-      const assistantInput = {
+      const assistantInput: AssistantInput = {
         history: newHistory,
         tasks: allTasks.map(t => ({
             id: t.id,
             title: t.title,
             completed: t.completed,
             scheduledDate: t.scheduledDate,
+            scheduledTime: t.scheduledTime,
+            description: t.description,
+            subtasks: t.subtasks?.map(st => ({ id: st.id, title: st.title, completed: st.completed }))
         })),
         role,
         date: format(new Date(), 'yyyy-MM-dd'),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         chatSessionId: currentChatId,
       };
       
-      const result = await runAssistant(assistantInput as any);
+      const result = await runAssistant(assistantInput);
 
       if (!result) {
         throw new Error("I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?");
@@ -540,9 +544,10 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
 
   const handleDiscardPlan = () => {
     setAiPlan(null);
-    setHistory(prev => [...prev, {role: 'model', content: "Okay, I've discarded that plan."}]);
+    const discardedHistory = [...history, { role: 'model', content: "Okay, I've discarded that plan." }];
+    setHistory(discardedHistory);
     if (activeChatId) {
-        updateChatSession(activeChatId, { history: history });
+        updateChatSession(activeChatId, { history: discardedHistory });
     }
   }
 
@@ -766,3 +771,5 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </Card>
   );
 }
+
+    
