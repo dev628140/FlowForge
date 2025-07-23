@@ -63,7 +63,7 @@ const TaskToUpdateSchema = z.object({
         completed: z.boolean().optional().nullable(),
         scheduledDate: z.string().optional().nullable(),
         scheduledTime: z.string().optional().nullable(),
-        order: z.number().optional().nullable(),
+        order: z.union([z.number(), z.string()]).optional().nullable().describe("The new order for the task. Can be a number, or a string like 'top', 'bottom', 'after:TASK_ID', 'before:TASK_ID'"),
     }).describe("The fields of the task to update."),
 });
 
@@ -113,12 +113,12 @@ const assistantPrompt = ai.definePrompt({
     User's Timezone: {{{timezone}}}
     User's Role: {{{role}}}
 
-    You have the user's current task list (including subtasks) and the conversation history for context. You MUST use the provided task IDs when a tool requires one or when updating/deleting a task, but you MUST NOT mention the IDs in your conversational responses to the user.
+    You have the user's current task list (including subtasks) and the conversation history for context. You MUST use the provided task IDs when a tool requires one or when updating/deleting/reordering a task, but you MUST NOT mention the IDs in your conversational responses to the user.
 
     **COMMAND INTERPRETATION RULES:**
-    1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
+    1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, reorder, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
     2.  **Recurring Tasks / Date Ranges:** If a user says "every day until a date" or "for the next X days", you MUST create a separate task entry in \`tasksToAdd\` for each individual day in that range. For example, "add 'Go for a run' every day until October 27th" should result in multiple task objects, one for each day. If they say "add X three times a day", you must create three separate tasks for that title for each day in the range. The \`eachDayOfInterval\` function can help with this. Today's date is {{{date}}}.
-    3.  **Task Reordering:** For reordering, you MUST state in your response that the user can drag-and-drop tasks on the 'All Tasks' page to reorder them for a specific day, and then use the 'Apply this order to all days' button to propagate that change. DO NOT attempt to create a reordering plan yourself.
+    3.  **Task Reordering:** For reordering commands like "move task X to the top" or "put task Y after task Z", you MUST create a \`tasksToUpdate\` entry. Set the \`taskId\` to the task being moved, and the \`updates.order\` field to a descriptive string: 'top', 'bottom', 'after:TASK_ID_OF_TARGET', or 'before:TASK_ID_OF_TARGET'.
     4.  **Ambiguity:** If a command is ambiguous (e.g., "delete the marketing task" when there are multiple), you MUST ask for clarification in your response and NOT generate a plan.
     5.  **No Action Needed:** For general conversation, questions, or requests that are best handled by a tool, provide a helpful response in the 'response' field. DO NOT generate an empty action plan.
     6.  **Tool Usage:** If a request is to "summarize", "analyze", "break down", "reflect", or "create a learning plan", you MUST use the appropriate tool. Provide the tool's output directly in your 'response' field.

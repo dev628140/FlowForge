@@ -408,7 +408,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ? (taskList[targetIndex - 1]?.order ?? targetTask.order! - 1000) / 2 + targetTask.order! / 2
           : (taskList[targetIndex + 1]?.order ?? targetTask.order! + 1000) / 2 + targetTask.order! / 2;
 
-      setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, order: newOrder } : t));
+      setTasks(prevTasks => {
+          const newTasks = prevTasks.map(t => t.id === taskId ? { ...t, order: newOrder } : t);
+          return newTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+      });
       setHasTaskOrderChanged(true);
 
       try {
