@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview An AI flow for reordering tasks across all days based on a template day.
+ * @fileOverview An AI flow for reordering tasks across a specified date range based on a template day.
  *
  * - `reorderAllTasks` - A function that calculates the new order for tasks.
  * - `ReorderAllTasksInput` - The input type for the function.
@@ -12,6 +12,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { Task } from '@/lib/types';
+import { eachDayOfInterval, parseISO } from 'date-fns';
 
 // We don't export the schemas anymore to comply with "use server" rules.
 const TaskSchema = z.object({
@@ -26,6 +27,8 @@ const ReorderAllTasksInputSchema = z.object({
   templateDate: z
     .string()
     .describe('The date to use as the ordering template, in YYYY-MM-DD format.'),
+  startDate: z.string().optional().describe('The start date of the range to apply the reordering to.'),
+  endDate: z.string().optional().describe('The end date of the range to apply the reordering to.'),
 });
 export type ReorderAllTasksInput = z.infer<typeof ReorderAllTasksInputSchema>;
 
@@ -55,7 +58,7 @@ const reorderAllTasksFlow = ai.defineFlow(
     inputSchema: ReorderAllTasksInputSchema,
     outputSchema: ReorderAllTasksOutputSchema,
   },
-  async ({ allTasks, templateDate }) => {
+  async ({ allTasks, templateDate, startDate, endDate }) => {
     // 1. Get the tasks for the template date and their order.
     const templateTasks = allTasks
       .filter((t) => t.scheduledDate === templateDate)
@@ -77,10 +80,23 @@ const reorderAllTasksFlow = ai.defineFlow(
 
     const updates: { taskId: string; updates: { order: number } }[] = [];
 
-    // 2. Group all other tasks by their scheduled date.
+    // 2. Group all other tasks by their scheduled date, but only for the specified range.
     const tasksByDate: Record<string, Task[]> = {};
-    allTasks.forEach((task) => {
-      if (!task.scheduledDate || task.scheduledDate === templateDate) return;
+    
+    // Determine the date range to iterate over
+    const range = (startDate && endDate) 
+      ? eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) }) 
+      : [];
+    
+    const relevantDateStrings = new Set(range.map(d => d.toISOString().split('T')[0]));
+    
+    // If no range, apply to all tasks that have a date.
+    const tasksToProcess = (startDate && endDate)
+        ? allTasks.filter(task => task.scheduledDate && relevantDateStrings.has(task.scheduledDate) && task.scheduledDate !== templateDate)
+        : allTasks.filter(task => task.scheduledDate && task.scheduledDate !== templateDate);
+
+    tasksToProcess.forEach((task) => {
+      if (!task.scheduledDate) return;
       if (!tasksByDate[task.scheduledDate]) {
         tasksByDate[task.scheduledDate] = [];
       }

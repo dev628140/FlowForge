@@ -2,13 +2,13 @@
 'use client';
 
 import * as React from 'react';
-import { ListTodo, Wand2, Loader2 } from 'lucide-react';
+import { ListTodo, Wand2, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { useAppContext } from '@/context/app-context';
 import type { Task } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import TaskList from '@/components/dashboard/task-list';
 import FocusMode from '@/components/dashboard/focus-mode';
-import { format, parseISO, isToday } from 'date-fns';
+import { format, parseISO, isToday, addDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { reorderAllTasks } from '@/ai/flows/reorder-all-tasks-flow';
@@ -23,6 +23,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { DateRange } from "react-day-picker";
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
 
 
 export default function AllTasksPage() {
@@ -32,6 +36,10 @@ export default function AllTasksPage() {
   const [reorderingLoading, setReorderingLoading] = React.useState(false);
   const [lastReorderedDate, setLastReorderedDate] = React.useState<string | null>(null);
   const { toast } = useToast();
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), 30),
+  });
 
   const handleStartFocus = (task: Task) => {
     setFocusTask(task);
@@ -92,7 +100,7 @@ export default function AllTasksPage() {
       return parseISO(a).getTime() - parseISO(b).getTime();
   });
 
-  const handleApplyOrderToAll = async () => {
+  const handleApplyOrderToRange = async () => {
     if (!lastReorderedDate) return;
     setReorderingLoading(true);
 
@@ -106,6 +114,8 @@ export default function AllTasksPage() {
           completed: t.completed,
         })),
         templateDate: lastReorderedDate,
+        startDate: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
+        endDate: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined,
       });
 
       const updatePromises = result.updates.map(u => updateTask(u.taskId, u.updates));
@@ -113,7 +123,7 @@ export default function AllTasksPage() {
       
       toast({
         title: "Reordering Complete",
-        description: "The task order has been applied to all other days.",
+        description: `The task order has been applied to the selected date range.`,
       });
 
     } catch (error) {
@@ -144,32 +154,71 @@ export default function AllTasksPage() {
               </div>
 
              {hasTaskOrderChanged && lastReorderedDate && (
-                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button disabled={reorderingLoading}>
-                        {reorderingLoading ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Wand2 className="mr-2 h-4 w-4" />
-                        )}
-                        Apply "{getGroupTitle(lastReorderedDate)}" Order to All Days
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Apply this order everywhere?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will reorder tasks on all other days to match the relative order of titles from
-                          <span className="font-bold"> {getGroupTitle(lastReorderedDate)}</span>. 
-                          Tasks not on this date will be appended to the end. This cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleApplyOrderToAll}>Apply to All</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                id="date"
+                                variant={"outline"}
+                                className={cn(
+                                "w-full sm:w-[300px] justify-start text-left font-normal",
+                                !dateRange && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (
+                                dateRange.to ? (
+                                    <>
+                                    {format(dateRange.from, "LLL dd, y")} -{" "}
+                                    {format(dateRange.to, "LLL dd, y")}
+                                    </>
+                                ) : (
+                                    format(dateRange.from, "LLL dd, y")
+                                )
+                                ) : (
+                                <span>Pick a date range</span>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateRange?.from}
+                                selected={dateRange}
+                                onSelect={setDateRange}
+                                numberOfMonths={2}
+                            />
+                        </PopoverContent>
+                    </Popover>
+
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                        <Button disabled={reorderingLoading} className="w-full sm:w-auto">
+                            {reorderingLoading ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Wand2 className="mr-2 h-4 w-4" />
+                            )}
+                            Apply Order to Range
+                        </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Apply order to selected range?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            This will reorder tasks on all days in the selected range to match the relative order of titles from
+                            <span className="font-bold"> {getGroupTitle(lastReorderedDate)}</span>. 
+                            Tasks not on this date will be appended to the end. This cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleApplyOrderToRange}>Apply to Range</AlertDialogAction>
+                        </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
              )}
             </div>
             
