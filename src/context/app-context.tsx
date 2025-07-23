@@ -243,7 +243,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (parentTask) {
-        const parentTaskRef = doc(db, 'tasks', parentId);
+        const parentTaskRef = doc(db, 'tasks', parentId!);
         const updatedSubtasks = parentTask.subtasks?.map(sub => 
             sub.id === id ? { ...sub, ...updateData } : sub
         );
@@ -283,17 +283,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           createdAt: new Date().toISOString(),
           title: task.title || 'Untitled Task',
           order: maxOrder + 1000 + index * 1000,
+          ...task
         };
-
-        if (task.description) {
-          newTaskData.description = task.description;
-        }
-        if (task.scheduledDate) {
-          newTaskData.scheduledDate = task.scheduledDate;
-        }
-        if (task.scheduledTime) {
-          newTaskData.scheduledTime = task.scheduledTime;
-        }
 
         batch.set(taskRef, newTaskData);
       });
@@ -412,8 +403,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const newTasks = prevTasks.map(t => t.id === taskId ? { ...t, order: newOrder } : t);
           return newTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
       });
-      setHasTaskOrderChanged(true);
-
+      
       try {
           const taskRef = doc(db, 'tasks', taskId);
           await updateDoc(taskRef, { order: newOrder });

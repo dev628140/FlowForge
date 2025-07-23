@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppContext } from '@/context/app-context';
-import { format, isToday, parseISO, isBefore, startOfToday, differenceInDays } from 'date-fns';
+import { format, isToday, parseISO, isBefore, startOfToday, differenceInDays, addDays } from 'date-fns';
 
 import TaskList from '@/components/dashboard/task-list';
 import type { Task, UserRole } from '@/lib/types';
@@ -60,6 +60,8 @@ import { Label } from '@/components/ui/label';
 import AIAssistant from '@/components/dashboard/ai-assistant';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { DateRange } from 'react-day-picker';
+import { reorderAllTasks } from '@/ai/flows/reorder-all-tasks-flow';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -94,6 +96,11 @@ export default function DashboardPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isTodayAddDialogOpen, setIsTodayAddDialogOpen] = React.useState(false);
   const [isGeneralFocusMode, setIsGeneralFocusMode] = React.useState(false);
+  const [reorderingLoading, setReorderingLoading] = React.useState(false);
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), 7),
+  });
   
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -166,6 +173,42 @@ export default function DashboardPage() {
   ).sort((a, b) => parseISO(a.scheduledDate!).getTime() - parseISO(b.scheduledDate!).getTime());
   
   const userRoles: UserRole[] = ['Student', 'Developer', 'Founder', 'Freelancer'];
+
+  const handleApplyOrderToRange = async () => {
+    setReorderingLoading(true);
+    try {
+      const result = await reorderAllTasks({
+        allTasks: tasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          order: t.order || 0,
+          scheduledDate: t.scheduledDate,
+        })),
+        templateDate: format(new Date(), 'yyyy-MM-dd'),
+        startDate: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
+        endDate: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined,
+      });
+
+      const updatePromises = result.updates.map(u => updateTask(u.taskId, u.updates));
+      await Promise.all(updatePromises);
+      
+      toast({
+        title: "Reordering Complete",
+        description: `The task order for today has been applied to the selected date range.`,
+      });
+
+    } catch (error) {
+      console.error("Failed to reorder tasks:", error);
+      toast({
+        title: "Reordering Failed",
+        description: "Could not apply the new order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setReorderingLoading(false);
+    }
+  };
+
 
   if (authLoading) {
      return (
@@ -289,6 +332,59 @@ export default function DashboardPage() {
                               <p>Start Focus Session</p>
                               </TooltipContent>
                           </Tooltip>
+
+                           <Popover>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={todaysTasks.length === 0}>
+                                                <Wand2 className="h-4 w-4" />
+                                                <span className="sr-only">Apply Order to Range</span>
+                                            </Button>
+                                        </PopoverTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Apply Today's Order to Range</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <CalendarPicker
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={dateRange?.from}
+                                        selected={dateRange}
+                                        onSelect={setDateRange}
+                                        numberOfMonths={2}
+                                    />
+                                    <div className="p-2 border-t">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                            <Button size="sm" className="w-full" disabled={reorderingLoading || !dateRange?.from}>
+                                                {reorderingLoading ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Wand2 className="mr-2 h-4 w-4" />
+                                                )}
+                                                Apply Order
+                                            </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Apply order to selected range?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                This will reorder tasks on all days in the selected range to match the relative order of titles from today. 
+                                                Tasks not on this date will be appended to the end. This cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleApplyOrderToRange}>Apply to Range</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                       </TooltipProvider>
                     </CardTitle>
                     <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>

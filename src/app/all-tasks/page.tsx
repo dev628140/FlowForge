@@ -84,6 +84,7 @@ export default function AllTasksPage() {
     handleMoveTask(taskId, direction, list);
     if(listId !== 'Unscheduled') {
       setLastReorderedDate(listId);
+      setHasTaskOrderChanged(true);
     }
   };
 
@@ -111,7 +112,6 @@ export default function AllTasksPage() {
           title: t.title,
           order: t.order || 0,
           scheduledDate: t.scheduledDate,
-          completed: t.completed,
         })),
         templateDate: lastReorderedDate,
         startDate: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
