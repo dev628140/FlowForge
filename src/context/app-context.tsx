@@ -23,6 +23,8 @@ interface AppContextType {
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   handleMoveTask: (taskId: string, direction: 'up' | 'down', list: Task[]) => Promise<void>;
+  hasTaskOrderChanged: boolean;
+  setHasTaskOrderChanged: React.Dispatch<React.SetStateAction<boolean>>;
   
   // Dashboard Chat Session Management
   chatSessions: ChatSession[];
@@ -124,6 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [showConfetti, setShowConfetti] = React.useState(false);
   const [userRole, setUserRole] = React.useState<UserRole>('Developer');
+  const [hasTaskOrderChanged, setHasTaskOrderChanged] = React.useState(false);
 
   // Session Management
   const [chatSessions, createChatSession, updateChatSession, deleteChatSession] = createSessionManager('chatSessions', user, toast);
@@ -406,6 +409,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           : (taskList[targetIndex + 1]?.order ?? targetTask.order! + 1000) / 2 + targetTask.order! / 2;
 
       setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, order: newOrder } : t));
+      setHasTaskOrderChanged(true);
 
       try {
           const taskRef = doc(db, 'tasks', taskId);
@@ -427,6 +431,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleDeleteTask,
       updateTask,
       handleMoveTask,
+      hasTaskOrderChanged,
+      setHasTaskOrderChanged,
       // Chat
       chatSessions,
       createChatSession,
