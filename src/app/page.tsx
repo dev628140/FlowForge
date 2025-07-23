@@ -148,11 +148,12 @@ export default function DashboardPage() {
     });
   }
   
-  const onReschedule = async (task: Task) => {
-    await updateTask(task.id, { scheduledDate: format(new Date(), 'yyyy-MM-dd') });
+  const onReschedule = async (task: Task, newDate?: Date) => {
+    const date = newDate || new Date();
+    await updateTask(task.id, { scheduledDate: format(date, 'yyyy-MM-dd') });
     toast({
       title: 'Task Rescheduled',
-      description: `"${task.title}" has been moved to today.`,
+      description: `"${task.title}" has been moved to ${newDate ? format(date, 'PPP') : 'today'}.`,
     });
   }
 
@@ -272,39 +273,77 @@ export default function DashboardPage() {
                               </p>
                           </div>
                           <div className={cn("flex items-center opacity-0 transition-opacity group-hover:opacity-100")}>
-                              <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="hover:bg-primary/10 hover:text-primary"
-                                  aria-label={`Reschedule task ${task.title}`}
-                                  onClick={() => onReschedule(task)}
-                              >
-                                  <CalendarPlus className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                  <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="hover:bg-destructive/10 hover:text-destructive"
-                                      aria-label={`Delete task ${task.title}`}
-                                  >
-                                      <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                      This action cannot be undone. This will permanently delete the task "{task.title}".
-                                      </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                  </AlertDialogContent>
-                              </AlertDialog>
+                              <TooltipProvider>
+                                  <Tooltip>
+                                      <TooltipTrigger asChild>
+                                          <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="hover:bg-primary/10 hover:text-primary"
+                                              aria-label={`Reschedule task ${task.title} to today`}
+                                              onClick={() => onReschedule(task)}
+                                          >
+                                              <CalendarPlus className="h-4 w-4" />
+                                          </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent><p>Reschedule to Today</p></TooltipContent>
+                                  </Tooltip>
+                                  <Popover>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="hover:bg-primary/10 hover:text-primary"
+                                                    aria-label={`Schedule task ${task.title}`}
+                                                >
+                                                    <CalendarIcon className="h-4 w-4" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Schedule to a specific date</p></TooltipContent>
+                                    </Tooltip>
+                                    <PopoverContent className="w-auto p-0">
+                                      <CalendarPicker
+                                        mode="single"
+                                        onSelect={(date) => {
+                                          if (date) onReschedule(task, date);
+                                        }}
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                  <AlertDialog>
+                                      <Tooltip>
+                                          <TooltipTrigger asChild>
+                                          <AlertDialogTrigger asChild>
+                                          <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="hover:bg-destructive/10 hover:text-destructive"
+                                              aria-label={`Delete task ${task.title}`}
+                                          >
+                                              <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                          </AlertDialogTrigger>
+                                          </TooltipTrigger>
+                                          <TooltipContent><p>Delete Task</p></TooltipContent>
+                                      </Tooltip>
+                                      <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                          This action cannot be undone. This will permanently delete the task "{task.title}".
+                                          </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                  </AlertDialog>
+                              </TooltipProvider>
                           </div>
                       </div>
                       )
@@ -320,72 +359,6 @@ export default function DashboardPage() {
                     <CardTitle className="flex items-center gap-2">
                       <CalendarIcon className="w-6 h-6" />
                       Today's Tasks
-                      <TooltipProvider>
-                          <Tooltip>
-                              <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsGeneralFocusMode(true)}>
-                                      <Zap className="h-4 w-4" />
-                                      <span className="sr-only">Start General Focus Session</span>
-                                  </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                              <p>Start Focus Session</p>
-                              </TooltipContent>
-                          </Tooltip>
-
-                           <Popover>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={todaysTasks.length === 0}>
-                                                <Wand2 className="h-4 w-4" />
-                                                <span className="sr-only">Apply Order to Range</span>
-                                            </Button>
-                                        </PopoverTrigger>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Apply Today's Order to Range</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <CalendarPicker
-                                        initialFocus
-                                        mode="range"
-                                        defaultMonth={dateRange?.from}
-                                        selected={dateRange}
-                                        onSelect={setDateRange}
-                                        numberOfMonths={2}
-                                    />
-                                    <div className="p-2 border-t">
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                            <Button size="sm" className="w-full" disabled={reorderingLoading || !dateRange?.from}>
-                                                {reorderingLoading ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Wand2 className="mr-2 h-4 w-4" />
-                                                )}
-                                                Apply Order
-                                            </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Apply order to selected range?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                This will reorder tasks on all days in the selected range to match the relative order of titles from today. 
-                                                Tasks not on this date will be appended to the end. This cannot be undone.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={handleApplyOrderToRange}>Apply to Range</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                      </TooltipProvider>
                     </CardTitle>
                     <CardDescription>Tasks scheduled for {format(new Date(), "MMMM d")}.</CardDescription>
                 </div>
@@ -559,7 +532,75 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col p-0 flex-grow min-h-0">
-                  <div className="px-6 flex-grow overflow-y-auto">
+                <div className="px-6 flex-shrink-0">
+                    <TooltipProvider>
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsGeneralFocusMode(true)}>
+                                  <Zap className="h-4 w-4" />
+                                  <span className="sr-only">Start General Focus Session</span>
+                              </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                          <p>Start Focus Session</p>
+                          </TooltipContent>
+                      </Tooltip>
+
+                       <Popover>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={todaysTasks.length === 0}>
+                                            <Wand2 className="h-4 w-4" />
+                                            <span className="sr-only">Apply Order to Range</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Apply Today's Order to Range</p>
+                                </TooltipContent>
+                            </Tooltip>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <CalendarPicker
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateRange?.from}
+                                    selected={dateRange}
+                                    onSelect={setDateRange}
+                                    numberOfMonths={2}
+                                />
+                                <div className="p-2 border-t">
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                        <Button size="sm" className="w-full" disabled={reorderingLoading || !dateRange?.from}>
+                                            {reorderingLoading ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Wand2 className="mr-2 h-4 w-4" />
+                                            )}
+                                            Apply Order
+                                        </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Apply order to selected range?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                            This will reorder tasks on all days in the selected range to match the relative order of titles from today. 
+                                            Tasks not on this date will be appended to the end. This cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleApplyOrderToRange}>Apply to Range</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    </TooltipProvider>
+                </div>
+                  <div className="px-6 flex-grow overflow-y-auto pt-2">
                       <TaskList
                           tasks={todaysTasks}
                           onToggle={handleToggleTask} 
