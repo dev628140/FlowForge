@@ -10,8 +10,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { format, eachDayOfInterval, parseISO } from 'date-fns';
-import { analyzeProductivityTool, breakdownTaskTool, generateLearningPlanTool, reflectOnProgressTool, summarizeTaskTool } from '../tools';
+import { format, eachDayOfInterval, parseISO, addDays, startOfDay } from 'date-fns';
+import { analyzeProductivityTool, breakdownTaskTool, generateLearningPlanTool, reflectOnProgressTool, reorderTasksTool, summarizeTaskTool } from '../tools';
 
 
 const MessageSchema = z.object({
@@ -26,6 +26,7 @@ const FullTaskSchema = z.object({
     description: z.string().optional().nullable(),
     scheduledDate: z.string().optional().nullable(),
     scheduledTime: z.string().optional().nullable(),
+    order: z.number().optional().nullable(),
     subtasks: z.array(z.object({
         id: z.string(),
         title: z.string(),
@@ -36,7 +37,7 @@ const FullTaskSchema = z.object({
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
   history: z.array(MessageSchema).describe("The full conversation history between the user and the assistant."),
-  tasks: z.array(FullTaskSchema).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status."),
+  tasks: z.array(FullTaskSchema).describe("The user's current list of tasks, including their IDs, titles, descriptions, completion status, and order."),
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
   date: z.string().describe("The current date in YYYY-MM-DD format."),
   timezone: z.string().describe("The user's current timezone (e.g., 'America/New_York')."),
@@ -62,6 +63,7 @@ const TaskToUpdateSchema = z.object({
         completed: z.boolean().optional().nullable(),
         scheduledDate: z.string().optional().nullable(),
         scheduledTime: z.string().optional().nullable(),
+        order: z.number().optional().nullable(),
     }).describe("The fields of the task to update."),
 });
 
@@ -104,6 +106,7 @@ const assistantPrompt = ai.definePrompt({
         summarizeTaskTool,
         analyzeProductivityTool,
         reflectOnProgressTool,
+        reorderTasksTool,
     ],
     prompt: `You are FlowForge, an expert AI productivity assistant. Your goal is to have a conversation with the user and help them with any request. You MUST generate a plan of actions (tasksToAdd, tasksToUpdate, tasksToDelete, subtasksToAdd) for any user request that implies a modification of their tasks. Do not just say you've done it, create the action plan.
 
@@ -115,17 +118,18 @@ const assistantPrompt = ai.definePrompt({
 
     **COMMAND INTERPRETATION RULES:**
     1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
-    2.  **Recurring Tasks / Date Ranges:** If a user says "every day until a date" or "for the next X days", you MUST create a separate task entry in \`tasksToAdd\` for each individual day in that range. For example, "add 'Go for a run' every day until October 27th" should result in multiple task objects, one for each day. If they say "add X three times a day", you must create three separate tasks for that title for each day in the range.
-    3.  **Ambiguity:** If a command is ambiguous (e.g., "delete the marketing task" when there are multiple), you MUST ask for clarification in your response and NOT generate a plan.
-    4.  **No Action Needed:** For general conversation, questions, or requests that are best handled by a tool, provide a helpful response in the 'response' field. DO NOT generate an empty action plan.
-    5.  **Tool Usage:** If a request is to "summarize", "analyze", "break down", "reflect", or "create a learning plan", you MUST use the appropriate tool. Provide the tool's output directly in your 'response' field.
-    6.  **Conversation Title:** If this is the first turn of the conversation (history has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation. On all subsequent turns, leave the title field empty.
-    7.  **Timezone:** When adding a task with a date, you MUST include the user's timezone from the input in the task object.
+    2.  **Task Reordering:** If the user asks to reorder, move, or change the sequence of tasks for one or more days, you MUST use the \`reorderTasksTool\`. Provide the tool with the list of tasks for the specific day and the user's reordering command. The tool will return the necessary updates, which you must then place into the \`tasksToUpdate\` field of your output. Handle date ranges by calling the tool for each day in the range.
+    3.  **Recurring Tasks / Date Ranges:** If a user says "every day until a date" or "for the next X days", you MUST create a separate task entry in \`tasksToAdd\` for each individual day in that range. For example, "add 'Go for a run' every day until October 27th" should result in multiple task objects, one for each day. If they say "add X three times a day", you must create three separate tasks for that title for each day in the range. The \`eachDayOfInterval\` function can help with this. Today's date is {{{date}}}.
+    4.  **Ambiguity:** If a command is ambiguous (e.g., "delete the marketing task" when there are multiple), you MUST ask for clarification in your response and NOT generate a plan.
+    5.  **No Action Needed:** For general conversation, questions, or requests that are best handled by a tool, provide a helpful response in the 'response' field. DO NOT generate an empty action plan.
+    6.  **Tool Usage:** If a request is to "summarize", "analyze", "break down", "reflect", or "create a learning plan", you MUST use the appropriate tool. Provide the tool's output directly in your 'response' field.
+    7.  **Conversation Title:** If this is the first turn of the conversation (history has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation. On all subsequent turns, leave the title field empty.
+    8.  **Timezone:** When adding a task with a date, you MUST include the user's timezone from the input in the task object.
 
     **USER'S TASK LIST (for context, IDs are for your internal use ONLY):**
     {{#if tasks}}
       {{#each tasks}}
-      - ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}{{#if this.scheduledDate}}, Scheduled: {{this.scheduledDate}}{{#if this.scheduledTime}} at {{this.scheduledTime}}{{/if}}{{/if}}{{#if this.subtasks}}, Subtasks: {{this.subtasks.length}}{{/if}}
+      - ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}{{#if this.scheduledDate}}, Scheduled: {{this.scheduledDate}}{{#if this.scheduledTime}} at {{this.scheduledTime}}{{/if}}{{/if}}, Order: {{this.order}}{{#if this.subtasks}}, Subtasks: {{this.subtasks.length}}{{/if}}
         {{#if this.subtasks}}
             {{#each this.subtasks}}
             - Subtask ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}
@@ -153,6 +157,42 @@ const assistantFlow = ai.defineFlow(
     outputSchema: AssistantOutputSchema,
   },
   async (input) => {
+
+    const recurringMatchDaily = input.history.at(-1)?.content.match(/every day until ([\w\s\d,]+)/i);
+    const recurringMatchNextDays = input.history.at(-1)?.content.match(/for the next (\d+) days/i);
+    const recurringTaskTitleMatch = input.history.at(-1)?.content.match(/add ['"](.+?)['"]/i);
+
+
+    // Handle recurring tasks separately to ensure accurate date range generation.
+    // This is a temporary workaround until the model can reliably generate date ranges itself.
+    if ((recurringMatchDaily || recurringMatchNextDays) && recurringTaskTitleMatch) {
+      const taskTitle = recurringTaskTitleMatch[1];
+      let endDate;
+
+      if (recurringMatchDaily) {
+        endDate = parseISO(recurringMatchDaily[1]);
+      } else if (recurringMatchNextDays) {
+        endDate = addDays(new Date(), parseInt(recurringMatchNextDays[1], 10));
+      }
+
+      if (endDate) {
+        const startDate = startOfDay(addDays(new Date(), 1)); // Start from tomorrow
+        const dates = eachDayOfInterval({ start: startDate, end: endDate });
+
+        const tasksToAdd = dates.map(date => ({
+          title: taskTitle,
+          scheduledDate: format(date, 'yyyy-MM-dd'),
+          timezone: input.timezone,
+        }));
+        
+        return {
+          response: `I've added "${taskTitle}" to your schedule every day until ${format(endDate, 'MMMM d, yyyy')}.`,
+          tasksToAdd,
+        };
+      }
+    }
+
+
     const { output } = await assistantPrompt(input);
     if (!output) {
       // This case handles content filtering or other generation errors.
