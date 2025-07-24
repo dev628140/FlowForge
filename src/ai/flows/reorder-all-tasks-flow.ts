@@ -18,7 +18,7 @@ import { eachDayOfInterval, parseISO } from 'date-fns';
 const TaskSchema = z.object({
   id: z.string(),
   title: z.string(),
-  order: z.number().optional(),
+  order: z.union([z.number(), z.string()]).optional().nullable(),
   scheduledDate: z.string().optional(),
 });
 
@@ -60,9 +60,10 @@ const reorderAllTasksFlow = ai.defineFlow(
   },
   async ({ allTasks, templateDate, startDate, endDate }) => {
     // 1. Get the tasks for the template date and their order.
+    // Filter out tasks with non-numeric order for the template
     const templateTasks = allTasks
-      .filter((t) => t.scheduledDate === templateDate)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
+      .filter((t) => t.scheduledDate === templateDate && typeof t.order === 'number')
+      .sort((a, b) => (a.order as number || 0) - (b.order as number || 0));
 
     if (templateTasks.length === 0) {
       return { updates: [] }; // No template to work from
@@ -121,13 +122,19 @@ const reorderAllTasksFlow = ai.defineFlow(
           return orderA - orderB;
         }
 
-        // If titles have same template order or are not in template, maintain original relative order
-        return (a.order || 0) - (b.order || 0);
+        // If titles have same template order or are not in template, maintain original relative order if numeric
+        const numericOrderA = typeof a.order === 'number' ? a.order : Infinity;
+        const numericOrderB = typeof b.order === 'number' ? b.order : Infinity;
+        if (numericOrderA !== Infinity && numericOrderB !== Infinity) {
+          return numericOrderA - numericOrderB;
+        }
+        return 0; // Fallback for non-numeric original orders
       });
 
       // 4. Generate the update objects with new order values.
       reorderedDailyTasks.forEach((task, index) => {
         const newOrder = index;
+        // Only update if the order is actually different. Also handles cases where original order was a string.
         if (task.order !== newOrder) {
           updates.push({
             taskId: task.id,
