@@ -282,35 +282,6 @@ export default function TaskItem({
         </div>
       </div>
       <div className="grid grid-cols-3 gap-0.5 lg:flex">
-        {isDraggable && !task.completed && (
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="w-10 h-10" onClick={() => onMove?.(task.id, 'up')} aria-label="Move up">
-                        <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Move Up</p>
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
-        )}
-        {isDraggable && !task.completed && (
-             <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="w-10 h-10" onClick={() => onMove?.(task.id, 'down')} aria-label="Move down">
-                        <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Move Down</p>
-                    </TooltipContent>
-                </Tooltip>
-             </TooltipProvider>
-        )}
-
         <TooltipProvider>
         <Tooltip>
             <TooltipTrigger asChild>
@@ -437,98 +408,6 @@ export default function TaskItem({
             </Form>
         </DialogContent>
         </Dialog>
-
-
-        <Popover onOpenChange={() => setSummary(null)}>
-        <TooltipProvider>
-            <Tooltip>
-            <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-10 h-10"
-                    aria-label={`AI actions for ${task.title}`}
-                    disabled={task.completed || isSubtask}
-                >
-                    <MessageSquarePlus className="h-4 w-4" />
-                </Button>
-                </PopoverTrigger>
-            </TooltipTrigger>
-            <TooltipContent>
-                <p>AI Assistant</p>
-            </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-        <PopoverContent className="w-80">
-            <div className="grid gap-4">
-            <div className="space-y-2">
-                <h4 className="font-medium leading-none">AI Assistant</h4>
-                <p className="text-sm text-muted-foreground">
-                What would you like to do with this task?
-                </p>
-            </div>
-            <div className="grid gap-2">
-                {!task.scheduledDate && !isSubtask && (
-                <Popover open={isSchedulePopoverOpen} onOpenChange={setIsSchedulePopoverOpen}>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            <CalendarPlus className="mr-2 h-4 w-4" /> Schedule Task
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={newDate} onSelect={setNewDate} initialFocus />
-                        <div className="p-2 border-t space-y-2">
-                            <div className="space-y-1">
-                            <Label htmlFor="time" className="text-xs font-medium">Time (optional)</Label>
-                            <Input id="time" type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
-                            </div>
-                            <Button onClick={handleScheduleSave} size="sm" className="w-full">Save</Button>
-                        </div>
-                    </PopoverContent>
-                </Popover>
-                )}
-                <Button 
-                onClick={handleBreakdown}
-                disabled={isBreakingDown}
-                size="sm"
-                variant="outline"
-                >
-                {isBreakingDown ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
-                Break Down Task
-                </Button>
-                <Button 
-                onClick={handleSummarize}
-                disabled={isSummarizing}
-                size="sm"
-                variant="outline"
-                >
-                {isSummarizing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Summarize Task
-                </Button>
-
-                {(isSummarizing || isBreakingDown) && <Separator className="my-2"/>}
-
-                {isSummarizing && (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                        Generating summary...
-                    </div>
-                )}
-
-                {summary && (
-                <Card className="mt-2 bg-muted/50">
-                    <CardHeader className="p-4">
-                    <CardTitle className="text-sm font-semibold">Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0 text-sm text-muted-foreground">
-                    {summary}
-                    </CardContent>
-                </Card>
-                )}
-            </div>
-            </div>
-        </PopoverContent>
-        </Popover>
 
         <AlertDialog>
         <TooltipProvider>
