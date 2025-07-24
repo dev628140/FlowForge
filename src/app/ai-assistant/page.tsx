@@ -1,11 +1,10 @@
-
 'use client';
 
 import * as React from 'react';
 import {
     BrainCircuit, Bot, User, Wand2, Loader2, PlusCircle, ListChecks,
     Lightbulb, CornerDownLeft, Calendar as CalendarIcon, Pin, PinOff,
-    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, RefreshCcw, Sparkles
+    Trash2, ChevronsLeft, ChevronsRight, MessageSquarePlus, Mic, MicOff, Voicemail, Square, RefreshCcw, Sparkles, X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -233,6 +232,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
                     role: userRole,
                     date: format(new Date(), 'yyyy-MM-dd'),
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     chatSessionId: currentChatId,
                 };
                 
@@ -321,24 +321,24 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
         setLoading(true);
         try {
-            const promises = [];
             // Handle AssistantOutput
-            if ('tasksToAdd' in currentPlan && currentPlan.tasksToAdd && currentPlan.tasksToAdd.length > 0) {
-                promises.push(handleAddTasks(currentPlan.tasksToAdd));
+            if ('tasksToAdd' in currentPlan && currentPlan.tasksToAdd) {
+                await handleAddTasks(currentPlan.tasksToAdd);
             }
-             if ('tasksToUpdate' in currentPlan && currentPlan.tasksToUpdate && currentPlan.tasksToUpdate.length > 0) {
+             if ('tasksToUpdate' in currentPlan && currentPlan.tasksToUpdate) {
+                // Process updates sequentially to avoid race conditions
                 for (const task of currentPlan.tasksToUpdate) {
-                promises.push(updateTask(task.taskId, task.updates));
+                    await updateTask(task.taskId, task.updates);
                 }
             }
-            if ('tasksToDelete' in currentPlan && currentPlan.tasksToDelete && currentPlan.tasksToDelete.length > 0) {
+            if ('tasksToDelete' in currentPlan && currentPlan.tasksToDelete) {
                 for (const task of currentPlan.tasksToDelete) {
-                promises.push(handleDeleteTask(task.taskId));
+                    await handleDeleteTask(task.taskId);
                 }
             }
-             if ('subtasksToAdd' in currentPlan && currentPlan.subtasksToAdd && currentPlan.subtasksToAdd.length > 0) {
+             if ('subtasksToAdd' in currentPlan && currentPlan.subtasksToAdd) {
                 for (const parent of currentPlan.subtasksToAdd) {
-                    promises.push(handleAddSubtasks(parent.parentId, parent.subtasks));
+                    await handleAddSubtasks(parent.parentId, parent.subtasks);
                 }
             }
 
@@ -346,13 +346,11 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
              if ('tasks' in currentPlan && currentPlan.tasks && currentPlan.tasks.length > 0) {
                  if (mode === 'breakdown' && selectedTaskToBreakdown) {
                     const subtasks = currentPlan.tasks.map(t => ({ title: t.title, description: t.description }));
-                    promises.push(handleAddSubtasks(selectedTaskToBreakdown, subtasks));
+                    await handleAddSubtasks(selectedTaskToBreakdown, subtasks);
                 } else {
-                    promises.push(handleAddTasks(currentPlan.tasks));
+                    await handleAddTasks(currentPlan.tasks);
                 }
             }
-            
-            await Promise.all(promises);
             
             const planAppliedHistory = [...history, { role: 'model', content: "Okay, I've applied that plan." }];
             setHistory(planAppliedHistory);

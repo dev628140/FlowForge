@@ -37,7 +37,7 @@ const FullTaskSchema = z.object({
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
   history: z.array(MessageSchema).describe("The full conversation history between the user and the assistant."),
-  tasks: z.array(FullTaskSchema).describe("The user's current list of tasks, including their IDs, titles, descriptions, completion status, and order."),
+  tasks: z.array(FullTaskSchema).describe("The user's current list of tasks, including their IDs, titles, descriptions, completion status, and order. This is the absolute source of truth for the current state."),
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
   date: z.string().describe("The current date in YYYY-MM-DD format."),
   timezone: z.string().describe("The user's current timezone (e.g., 'America/New_York')."),
@@ -118,7 +118,7 @@ const assistantPrompt = ai.definePrompt({
     **COMMAND INTERPRETATION RULES:**
     1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, reorder, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
     2.  **Recurring Tasks / Date Ranges:** If a user says "every day until a date" or "for the next X days", you MUST create a separate task entry in \`tasksToAdd\` for each individual day in that range. For example, "add 'Go for a run' every day until October 27th" should result in multiple task objects, one for each day. If they say "add X three times a day", you must create three separate tasks for that title for each day in the range. The \`eachDayOfInterval\` function can help with this. Today's date is {{{date}}}.
-    3.  **Task Reordering:** For reordering commands like "move task X to the top" or "put task Y after task Z", you MUST create a \`tasksToUpdate\` entry. Set the \`taskId\` to the task being moved, and the \`updates.order\` field to a descriptive string: 'top', 'bottom', 'after:TASK_ID_OF_TARGET', or 'before:TASK_ID_OF_TARGET'.
+    3.  **Task Reordering:** For reordering commands like "move task X to the top" or "put task Y after task Z", you MUST create a \`tasksToUpdate\` entry. Set the \`taskId\` to the task being moved, and the \`updates.order\` field to a descriptive string: 'top', 'bottom', 'after:TASK_ID_OF_TARGET', or 'before:TASK_ID_OF_TARGET'. When identifying a task by position (e.g. "the bottom task"), you MUST refer to the provided task list, as it is the absolute source of truth for the current ordering.
     4.  **Ambiguity:** If a command is ambiguous (e.g., "delete the marketing task" when there are multiple), you MUST ask for clarification in your response and NOT generate a plan.
     5.  **No Action Needed:** For general conversation, questions, or requests that are best handled by a tool, provide a helpful response in the 'response' field. DO NOT generate an empty action plan.
     6.  **Tool Usage:** If a request is to "summarize", "analyze", "break down", "reflect", or "create a learning plan", you MUST use the appropriate tool. Provide the tool's output directly in your 'response' field.
