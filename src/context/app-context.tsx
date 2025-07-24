@@ -297,6 +297,57 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     if (!user || !db) return;
+
+    // Handle AI-based reordering
+    if (typeof updates.order === 'string') {
+        const taskToMove = tasks.find(t => t.id === taskId);
+        if (!taskToMove) return;
+
+        // Determine the list of tasks to reorder (e.g., today's tasks)
+        const taskList = tasks
+            .filter(t => t.scheduledDate === taskToMove.scheduledDate)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        const batch = writeBatch(db);
+        let newOrder: number;
+
+        const command = updates.order;
+
+        if (command === 'top') {
+            const firstTask = taskList[0];
+            newOrder = (firstTask?.order || 0) - 1000;
+        } else if (command === 'bottom') {
+            const lastTask = taskList[taskList.length - 1];
+            newOrder = (lastTask?.order || 0) + 1000;
+        } else if (command.startsWith('before:')) {
+            const targetId = command.split(':')[1];
+            const targetTask = taskList.find(t => t.id === targetId);
+            const targetIndex = taskList.findIndex(t => t.id === targetId);
+            if (!targetTask) return;
+            const prevTask = taskList[targetIndex - 1];
+            newOrder = ((prevTask?.order || (targetTask.order || 0) - 2000) + (targetTask.order || 0)) / 2;
+        } else if (command.startsWith('after:')) {
+            const targetId = command.split(':')[1];
+            const targetTask = taskList.find(t => t.id === targetId);
+            const targetIndex = taskList.findIndex(t => t.id === targetId);
+            if (!targetTask) return;
+            const nextTask = taskList[targetIndex + 1];
+            newOrder = ((nextTask?.order || (targetTask.order || 0) + 2000) + (targetTask.order || 0)) / 2;
+        } else {
+            // If it's not a special command, treat it as a normal update
+            const taskRef = doc(db, 'tasks', taskId);
+            await updateDoc(taskRef, updates);
+            return;
+        }
+
+        const taskRef = doc(db, 'tasks', taskId);
+        batch.update(taskRef, { order: newOrder });
+        await batch.commit();
+        return;
+    }
+
+
+    // Handle standard updates
     try {
         let parentTask: Task | null = null;
         let isSubtask = false;
