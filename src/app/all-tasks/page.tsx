@@ -67,9 +67,8 @@ export default function AllTasksPage() {
       return parseISO(a).getTime() - parseISO(b).getTime();
   });
 
-  const onMove = (groupKey: string) => (taskId: string, direction: 'up' | 'down') => {
-    const list = groupedTasks[groupKey].filter(t => !t.completed);
-    handleMoveTask(taskId, direction, list);
+  const onMove = (taskId: string, direction: 'up' | 'down') => {
+    handleMoveTask(taskId, direction);
   };
 
 
@@ -99,7 +98,7 @@ export default function AllTasksPage() {
                           onToggle={handleToggleTask} 
                           onStartFocus={handleStartFocus} 
                           onUpdateTask={updateTask} 
-                          onMove={onMove(groupKey)}
+                          onMove={onMove}
                           listId={groupKey}
                           emptyMessage="No tasks for this day." 
                         />

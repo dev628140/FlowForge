@@ -159,8 +159,7 @@ export default function DashboardPage() {
   };
   
   const onMove = (taskId: string, direction: 'up' | 'down') => {
-    const list = todaysTasks.filter(t => !t.completed);
-    handleMoveTask(taskId, direction, list);
+    handleMoveTask(taskId, direction);
   };
 
   const todaysTasks = React.useMemo(() => tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate))).sort((a,b) => (a.order || 0) - (b.order || 0)), [tasks]);
