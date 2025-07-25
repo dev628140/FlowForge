@@ -60,11 +60,11 @@ interface TaskItemProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onMove: (taskId: string, direction: 'up' | 'down') => void;
-  isFirst: boolean;
-  isLast: boolean;
+  onSwap: (taskA: { id: string, order: number }, taskB: { id: string, order: number }) => Promise<void>;
   isSubtask?: boolean;
   parentId?: string;
+  neighborUp?: Task;
+  neighborDown?: Task;
 }
 
 export default function TaskItem({ 
@@ -72,11 +72,11 @@ export default function TaskItem({
   onToggle, 
   onStartFocus, 
   onUpdateTask,
-  onMove,
-  isFirst,
-  isLast,
+  onSwap,
   isSubtask = false, 
   parentId,
+  neighborUp,
+  neighborDown,
 }: TaskItemProps) {
   const { handleDeleteTask } = useAppContext();
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -139,6 +139,16 @@ export default function TaskItem({
       description: `"${task.title}" has been removed.`,
     });
   }
+
+  const handleMove = (direction: 'up' | 'down') => {
+    const neighbor = direction === 'up' ? neighborUp : neighborDown;
+    if (neighbor && task.order !== undefined) {
+      onSwap(
+        { id: task.id, order: task.order },
+        { id: neighbor.id, order: neighbor.order! }
+      );
+    }
+  };
   
   const itemContent = (
     <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
@@ -186,13 +196,13 @@ export default function TaskItem({
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => onMove(task.id, 'up')} disabled={isFirst || task.completed}><ArrowUp className="h-4 w-4"/></Button>
+                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => handleMove('up')} disabled={!neighborUp}><ArrowUp className="h-4 w-4"/></Button>
                 </TooltipTrigger>
                 <TooltipContent><p>Move Up</p></TooltipContent>
             </Tooltip>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => onMove(task.id, 'down')} disabled={isLast || task.completed}><ArrowDown className="h-4 w-4"/></Button>
+                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => handleMove('down')} disabled={!neighborDown}><ArrowDown className="h-4 w-4"/></Button>
                 </TooltipTrigger>
                 <TooltipContent><p>Move Down</p></TooltipContent>
             </Tooltip>
@@ -375,7 +385,7 @@ export default function TaskItem({
               onToggle={handleToggleSubtask}
               onStartFocus={handleStartFocusSubtask}
               onUpdateTask={onUpdateTask}
-              onMove={(taskId, direction) => onMove(taskId, direction)}
+              onSwap={onSwap}
               isSubtaskList={true}
               parentId={task.id}
               listId={`subtasks-${task.id}`}

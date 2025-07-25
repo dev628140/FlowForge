@@ -8,7 +8,6 @@ import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { reorderTasks } from '@/lib/reorder-tasks';
 
 const USER_ROLE_STORAGE_KEY = 'flowforge_user_role';
 
@@ -22,7 +21,7 @@ interface AppContextType {
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  handleMoveTask: (taskId: string, direction: 'up' | 'down') => Promise<void>;
+  handleSwapTasks: (taskA: { id: string, order: number }, taskB: { id: string, order: number }) => Promise<void>;
   
   // Dashboard Chat Session Management
   chatSessions: ChatSession[];
@@ -372,64 +371,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
     }
   };
-  
-  const handleMoveTask = async (taskId: string, direction: 'up' | 'down') => {
+
+  const handleSwapTasks = async (
+    taskA: { id: string; order: number },
+    taskB: { id: string; order: number }
+  ) => {
     if (!user || !db) return;
 
-    let parentTask: Task | undefined;
-    let isSubtask = false;
+    try {
+      const batch = writeBatch(db);
+      const taskARef = doc(db, 'tasks', taskA.id);
+      batch.update(taskARef, { order: taskB.order });
 
-    // Find the task and determine if it's a subtask
-    let taskToMove = tasks.find(t => t.id === taskId);
-    if (!taskToMove) {
-        parentTask = tasks.find(p => p.subtasks?.some(sub => sub.id === taskId));
-        if (parentTask) {
-            isSubtask = true;
-            taskToMove = parentTask.subtasks?.find(sub => sub.id === taskId);
-        }
-    }
+      const taskBRef = doc(db, 'tasks', taskB.id);
+      batch.update(taskBRef, { order: taskA.order });
 
-    if (!taskToMove) {
-        console.error("Task to move not found:", taskId);
-        return;
-    }
-
-    let taskList: Task[];
-    if (isSubtask && parentTask) {
-        // Reorder within a subtask list
-        taskList = [...(parentTask.subtasks || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
-    } else {
-        // Reorder within a list of main tasks for a specific day
-        taskList = tasks
-            .filter(t => t.scheduledDate === taskToMove?.scheduledDate)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
-    }
-    
-    const updates = reorderTasks(taskId, direction, taskList);
-
-    if (updates.length > 0) {
-        try {
-            const batch = writeBatch(db);
-            if (isSubtask && parentTask) {
-                const parentRef = doc(db, 'tasks', parentTask.id);
-                // Create a map for quick lookups
-                const updateMap = new Map(updates.map(u => [u.id, u.order]));
-                const newSubtasks = parentTask.subtasks?.map(st => 
-                    updateMap.has(st.id) ? { ...st, order: updateMap.get(st.id)! } : st
-                ) || [];
-                batch.update(parentRef, { subtasks: newSubtasks });
-            } else {
-                 updates.forEach(update => {
-                    const taskRef = doc(db, 'tasks', update.id);
-                    batch.update(taskRef, { order: update.order });
-                });
-            }
-           
-            await batch.commit();
-        } catch (error) {
-            console.error("Error moving task:", error);
-            toast({ title: "Error", description: "Could not move task.", variant: "destructive" });
-        }
+      await batch.commit();
+    } catch (error) {
+      console.error("Error swapping tasks:", error);
+      toast({
+        title: "Error Reordering",
+        description: "Could not reorder the tasks. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -443,7 +407,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleAddSubtasks,
       handleDeleteTask,
       updateTask,
-      handleMoveTask,
+      handleSwapTasks,
       // Chat
       chatSessions,
       createChatSession,

@@ -83,7 +83,7 @@ export default function DashboardPage() {
     handleAddTasks,
     handleDeleteTask,
     updateTask,
-    handleMoveTask,
+    handleSwapTasks,
     userRole,
     setUserRole,
   } = useAppContext();
@@ -156,10 +156,6 @@ export default function DashboardPage() {
     }
     setFocusTask(null);
     setIsGeneralFocusMode(false);
-  };
-  
-  const onMove = (taskId: string, direction: 'up' | 'down') => {
-    handleMoveTask(taskId, direction);
   };
 
   const todaysTasks = React.useMemo(() => tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate))).sort((a,b) => (a.order || 0) - (b.order || 0)), [tasks]);
@@ -516,7 +512,7 @@ export default function DashboardPage() {
                           onToggle={handleToggleTask} 
                           onStartFocus={handleStartFocus} 
                           onUpdateTask={updateTask}
-                          onMove={onMove}
+                          onSwap={handleSwapTasks}
                           listId="today"
                           emptyMessage="No tasks for today. Add one to get started!" 
                       />
