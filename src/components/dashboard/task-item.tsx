@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, Trash2, Pencil } from 'lucide-react';
+import { Check, Zap, Trash2, Pencil, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -60,6 +60,9 @@ interface TaskItemProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onMove: (taskId: string, direction: 'up' | 'down') => void;
+  isFirst: boolean;
+  isLast: boolean;
   isSubtask?: boolean;
   parentId?: string;
 }
@@ -68,7 +71,10 @@ export default function TaskItem({
   task, 
   onToggle, 
   onStartFocus, 
-  onUpdateTask, 
+  onUpdateTask,
+  onMove,
+  isFirst,
+  isLast,
   isSubtask = false, 
   parentId,
 }: TaskItemProps) {
@@ -178,6 +184,18 @@ export default function TaskItem({
       </div>
       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
         <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => onMove(task.id, 'up')} disabled={isFirst || task.completed}><ArrowUp className="h-4 w-4"/></Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Move Up</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => onMove(task.id, 'down')} disabled={isLast || task.completed}><ArrowDown className="h-4 w-4"/></Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Move Down</p></TooltipContent>
+            </Tooltip>
         <Tooltip>
             <TooltipTrigger asChild>
             <Button
@@ -357,6 +375,7 @@ export default function TaskItem({
               onToggle={handleToggleSubtask}
               onStartFocus={handleStartFocusSubtask}
               onUpdateTask={onUpdateTask}
+              onMove={(taskId, direction) => onMove(taskId, direction)}
               isSubtaskList={true}
               parentId={task.id}
               listId={`subtasks-${task.id}`}

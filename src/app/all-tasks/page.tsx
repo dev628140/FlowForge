@@ -11,7 +11,7 @@ import FocusMode from '@/components/dashboard/focus-mode';
 import { format, parseISO, isToday } from 'date-fns';
 
 export default function AllTasksPage() {
-  const { tasks, handleToggleTask, updateTask } = useAppContext();
+  const { tasks, handleToggleTask, updateTask, handleMoveTask } = useAppContext();
   
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
 
@@ -67,6 +67,11 @@ export default function AllTasksPage() {
       return parseISO(a).getTime() - parseISO(b).getTime();
   });
 
+  const onMove = (groupKey: string) => (taskId: string, direction: 'up' | 'down') => {
+    const list = groupedTasks[groupKey].filter(t => !t.completed);
+    handleMoveTask(taskId, direction, list);
+  };
+
 
   return (
      <div className="relative min-h-screen w-full">
@@ -94,6 +99,7 @@ export default function AllTasksPage() {
                           onToggle={handleToggleTask} 
                           onStartFocus={handleStartFocus} 
                           onUpdateTask={updateTask} 
+                          onMove={onMove(groupKey)}
                           listId={groupKey}
                           emptyMessage="No tasks for this day." 
                         />

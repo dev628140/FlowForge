@@ -11,6 +11,7 @@ export interface Task {
   userId: string;
   createdAt?: string;
   order?: number;
+  parentId?: string; // Add this to identify subtasks easily
 }
 
 export type UserRole = 'Student' | 'Developer' | 'Founder' | 'Freelancer';

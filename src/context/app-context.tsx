@@ -21,6 +21,7 @@ interface AppContextType {
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  handleMoveTask: (taskId: string, direction: 'up' | 'down', taskList: Task[]) => Promise<void>;
   
   // Dashboard Chat Session Management
   chatSessions: ChatSession[];
@@ -292,29 +293,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     if (!user || !db) return;
-    const taskRef = doc(db, 'tasks', taskId);
-
     try {
-        let parentTask: Task | null = null;
-        let isSubtask = false;
-
-        for (const task of tasks) {
-            if (task.subtasks?.some(st => st.id === taskId)) {
-                parentTask = task;
-                isSubtask = true;
-                break;
+        const taskToUpdate = tasks.find(t => t.id === taskId);
+        if (!taskToUpdate) {
+             // Check subtasks
+            for (const parent of tasks) {
+                if (parent.subtasks?.some(st => st.id === taskId)) {
+                    const parentTaskRef = doc(db, 'tasks', parent.id);
+                    const updatedSubtasks = parent.subtasks!.map(st => 
+                        st.id === taskId ? { ...st, ...updates } : st
+                    );
+                    await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
+                    return;
+                }
             }
+            throw new Error("Task not found");
         }
 
-        if (isSubtask && parentTask) {
-            const parentTaskRef = doc(db, 'tasks', parentTask.id);
-            const updatedSubtasks = parentTask.subtasks!.map(st => 
-                st.id === taskId ? { ...st, ...updates } : st
-            );
-            await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
-        } else {
-            await updateDoc(taskRef, updates);
-        }
+        const taskRef = doc(db, 'tasks', taskId);
+        await updateDoc(taskRef, updates);
     } catch (error) {
         console.error("Error updating task:", error);
         toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
@@ -374,6 +371,63 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
     }
   };
+  
+  const handleMoveTask = async (taskId: string, direction: 'up' | 'down', taskList: Task[]) => {
+    if (!user || !db) return;
+
+    const taskIndex = taskList.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
+
+    const isSubtask = !!taskList.find(t => t.id === taskId)?.parentId;
+
+    const getAdjacentTask = () => {
+      if (direction === 'up' && taskIndex > 0) return taskList[taskIndex - 1];
+      if (direction === 'down' && taskIndex < taskList.length - 1) return taskList[taskIndex + 1];
+      return null;
+    }
+
+    const adjacentTask = getAdjacentTask();
+    if (!adjacentTask) return;
+
+    const taskToMove = taskList[taskIndex];
+    
+    try {
+        const batch = writeBatch(db);
+
+        if (isSubtask) {
+            const parentId = taskList[0].parentId!;
+            const parentTask = tasks.find(t => t.id === parentId);
+            if (!parentTask) throw new Error("Parent task not found");
+
+            const parentRef = doc(db, 'tasks', parentId);
+            const newSubtasks = [...parentTask.subtasks!];
+            
+            const subtaskIndex = newSubtasks.findIndex(st => st.id === taskId);
+            const adjacentSubtaskIndex = newSubtasks.findIndex(st => st.id === adjacentTask.id);
+            
+            const originalOrder = newSubtasks[subtaskIndex].order;
+            newSubtasks[subtaskIndex].order = newSubtasks[adjacentSubtaskIndex].order;
+            newSubtasks[adjacentSubtaskIndex].order = originalOrder;
+
+            batch.update(parentRef, { subtasks: newSubtasks });
+
+        } else {
+            const taskRef = doc(db, 'tasks', taskToMove.id);
+            const adjacentTaskRef = doc(db, 'tasks', adjacentTask.id);
+            
+            const originalOrder = taskToMove.order;
+            batch.update(taskRef, { order: adjacentTask.order });
+            batch.update(adjacentTaskRef, { order: originalOrder });
+        }
+        
+        await batch.commit();
+
+    } catch (error) {
+        console.error("Error moving task:", error);
+        toast({ title: "Error", description: "Could not move task.", variant: "destructive" });
+    }
+  };
+
 
   return (
     <AppContext.Provider value={{
@@ -384,6 +438,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleAddSubtasks,
       handleDeleteTask,
       updateTask,
+      handleMoveTask,
       // Chat
       chatSessions,
       createChatSession,
