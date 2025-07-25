@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -887,7 +888,7 @@ export default function AIAssistantPage() {
                         <TabsContent value="breakdown" className="h-full m-0">
                            <ChatPane mode="breakdown" />
                         </TabsContent>
-                        <TabsContent value="suggester" className="h-full m-0">
+                        <TabsContent value="suggester" className="h-full m-t-0">
                             <ChatPane mode="suggester" />
                         </TabsContent>
                     </CardContent>

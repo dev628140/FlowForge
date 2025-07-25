@@ -113,7 +113,7 @@ const assistantPrompt = ai.definePrompt({
     User's Timezone: {{{timezone}}}
     User's Role: {{{role}}}
 
-    You have the user's current task list (including subtasks) and the conversation history for context. You MUST use the provided task IDs when a tool requires one or when updating/deleting/reordering a task, but you MUST NOT mention the IDs in your conversational responses to the user.
+    You have the user's current task list (including subtasks) and the conversation history for context. You MUST use the provided task list as the absolute source of truth for the current ordering and task IDs when a tool requires one or when updating/deleting/reordering a task. Do not mention the IDs in your conversational responses to the user.
 
     **COMMAND INTERPRETATION RULES:**
     1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, reorder, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
