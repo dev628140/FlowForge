@@ -376,34 +376,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleMoveTask = async (taskId: string, direction: 'up' | 'down') => {
     if (!user || !db) return;
 
-    const taskToMove = tasks.find(t => t.id === taskId);
-    if (!taskToMove) return; // Main task not found
-
-    let isSubtask = false;
     let parentTask: Task | undefined;
+    let isSubtask = false;
 
-    // Check if it's a subtask
+    // Find the task and determine if it's a subtask
+    let taskToMove = tasks.find(t => t.id === taskId);
     if (!taskToMove) {
-        for(const p of tasks) {
-            const subtask = p.subtasks?.find(st => st.id === taskId);
-            if (subtask) {
-                isSubtask = true;
-                parentTask = p;
-                break;
-            }
+        parentTask = tasks.find(p => p.subtasks?.some(sub => sub.id === taskId));
+        if (parentTask) {
+            isSubtask = true;
+            taskToMove = parentTask.subtasks?.find(sub => sub.id === taskId);
         }
     }
-    
-    let taskList;
-    if (isSubtask && parentTask) {
-        taskList = parentTask.subtasks?.filter(st => !st.completed).sort((a,b) => (a.order || 0) - (b.order || 0)) || [];
-    } else {
-        taskList = tasks
-            .filter(t => !t.completed && t.scheduledDate === taskToMove.scheduledDate)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    if (!taskToMove) {
+        console.error("Task to move not found:", taskId);
+        return;
     }
 
-
+    let taskList: Task[];
+    if (isSubtask && parentTask) {
+        // Reorder within a subtask list
+        taskList = [...(parentTask.subtasks || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+    } else {
+        // Reorder within a list of main tasks for a specific day
+        taskList = tasks
+            .filter(t => t.scheduledDate === taskToMove?.scheduledDate)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+    
     const updates = reorderTasks(taskId, direction, taskList);
 
     if (updates.length > 0) {
@@ -411,12 +412,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const batch = writeBatch(db);
             if (isSubtask && parentTask) {
                 const parentRef = doc(db, 'tasks', parentTask.id);
-                const newSubtasks = parentTask.subtasks?.map(st => {
-                    const update = updates.find(u => u.id === st.id);
-                    return update ? {...st, order: update.order} : st;
-                }) || [];
-                 batch.update(parentRef, { subtasks: newSubtasks });
-
+                // Create a map for quick lookups
+                const updateMap = new Map(updates.map(u => [u.id, u.order]));
+                const newSubtasks = parentTask.subtasks?.map(st => 
+                    updateMap.has(st.id) ? { ...st, order: updateMap.get(st.id)! } : st
+                ) || [];
+                batch.update(parentRef, { subtasks: newSubtasks });
             } else {
                  updates.forEach(update => {
                     const taskRef = doc(db, 'tasks', update.id);
