@@ -8,7 +8,6 @@ import { useAuth } from './auth-context';
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, writeBatch, query, where, onSnapshot, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { isToday, parseISO } from 'date-fns';
 
 const USER_ROLE_STORAGE_KEY = 'flowforge_user_role';
 
@@ -22,9 +21,6 @@ interface AppContextType {
   handleAddSubtasks: (parentId: string, subtasks: { title: string; description?: string }[]) => Promise<void>;
   handleDeleteTask: (id: string, parentId?: string) => Promise<void>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  handleMoveTask: (taskId: string, direction: 'up' | 'down', list: Task[]) => Promise<void>;
-  hasTaskOrderChanged: boolean;
-  setHasTaskOrderChanged: React.Dispatch<React.SetStateAction<boolean>>;
   
   // Dashboard Chat Session Management
   chatSessions: ChatSession[];
@@ -126,7 +122,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [showConfetti, setShowConfetti] = React.useState(false);
   const [userRole, setUserRole] = React.useState<UserRole>('Developer');
-  const [hasTaskOrderChanged, setHasTaskOrderChanged] = React.useState(false);
 
   // Session Management
   const [chatSessions, createChatSession, updateChatSession, deleteChatSession] = createSessionManager('chatSessions', user, toast);
@@ -299,51 +294,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user || !db) return;
     const taskRef = doc(db, 'tasks', taskId);
 
-    // AI Reordering Logic
-    if (typeof updates.order === 'string') {
-        const command = updates.order;
-        const taskToMove = tasks.find(t => t.id === taskId);
-        if (!taskToMove) return;
-
-        // The list is all tasks with the same scheduled date as the task being moved
-        const taskList = tasks
-            .filter(t => t.scheduledDate === taskToMove.scheduledDate)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        let newOrder: number;
-
-        if (command === 'top') {
-            const firstTaskOrder = taskList[0]?.order || 0;
-            newOrder = firstTaskOrder - 1000;
-        } else if (command === 'bottom') {
-            const lastTaskOrder = taskList[taskList.length - 1]?.order || 0;
-            newOrder = lastTaskOrder + 1000;
-        } else if (command.startsWith('before:')) {
-            const targetId = command.split(':')[1];
-            const targetIndex = taskList.findIndex(t => t.id === targetId);
-            if (targetIndex === -1) return; // Target not found
-            
-            const targetTaskOrder = taskList[targetIndex].order || 0;
-            const prevTaskOrder = taskList[targetIndex - 1]?.order || targetTaskOrder - 2000;
-            newOrder = (targetTaskOrder + prevTaskOrder) / 2;
-        } else if (command.startsWith('after:')) {
-            const targetId = command.split(':')[1];
-            const targetIndex = taskList.findIndex(t => t.id === targetId);
-            if (targetIndex === -1) return; // Target not found
-
-            const targetTaskOrder = taskList[targetIndex].order || 0;
-            const nextTaskOrder = taskList[targetIndex + 1]?.order || targetTaskOrder + 2000;
-            newOrder = (targetTaskOrder + nextTaskOrder) / 2;
-        } else {
-            await updateDoc(taskRef, updates); // Fallback for non-string order
-            return;
-        }
-        await updateDoc(taskRef, { order: newOrder });
-        return;
-    }
-
-
-    // Handle standard updates (including subtasks)
     try {
         let parentTask: Task | null = null;
         let isSubtask = false;
@@ -425,41 +375,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleMoveTask = async (taskId: string, direction: 'up' | 'down', list: Task[]) => {
-      if (!user || !db) return;
-      
-      const taskList = list.filter(t => !t.completed).sort((a, b) => (a.order || 0) - (b.order || 0));
-      const currentIndex = taskList.findIndex(t => t.id === taskId);
-
-      if (currentIndex === -1) return; 
-
-      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-      if (targetIndex < 0 || targetIndex >= taskList.length) return;
-
-      const currentTask = taskList[currentIndex];
-      const targetTask = taskList[targetIndex];
-      
-      const newOrder =
-        direction === 'up'
-          ? (taskList[targetIndex - 1]?.order ?? targetTask.order! - 1000) / 2 + targetTask.order! / 2
-          : (taskList[targetIndex + 1]?.order ?? targetTask.order! + 1000) / 2 + targetTask.order! / 2;
-
-      setTasks(prevTasks => {
-          const newTasks = prevTasks.map(t => t.id === taskId ? { ...t, order: newOrder } : t);
-          return newTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
-      });
-      
-      try {
-          const taskRef = doc(db, 'tasks', taskId);
-          await updateDoc(taskRef, { order: newOrder });
-      } catch (error) {
-          console.error("Error reordering task:", error);
-          toast({ title: "Error", description: "Could not save new order.", variant: "destructive" });
-          setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, order: currentTask.order } : t));
-      }
-  };
-
   return (
     <AppContext.Provider value={{
       tasks, setTasks,
@@ -469,9 +384,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       handleAddSubtasks,
       handleDeleteTask,
       updateTask,
-      handleMoveTask,
-      hasTaskOrderChanged,
-      setHasTaskOrderChanged,
       // Chat
       chatSessions,
       createChatSession,
@@ -508,5 +420,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    

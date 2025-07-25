@@ -10,7 +10,6 @@ interface TaskListProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onMove?: (taskId: string, direction: 'up' | 'down') => void;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;
@@ -22,7 +21,6 @@ export default function TaskList({
   onToggle, 
   onStartFocus, 
   onUpdateTask, 
-  onMove, 
   isSubtaskList = false, 
   emptyMessage, 
   parentId,
@@ -49,8 +47,6 @@ export default function TaskList({
           onToggle={onToggle} 
           onStartFocus={onStartFocus}
           onUpdateTask={onUpdateTask}
-          onMove={!isSubtaskList ? onMove : undefined}
-          isDraggable={!isSubtaskList && !!onMove}
           isSubtask={isSubtaskList}
           parentId={parentId}
         />
@@ -67,7 +63,6 @@ export default function TaskList({
           onToggle={onToggle} 
           onStartFocus={onStartFocus}
           onUpdateTask={onUpdateTask}
-          isDraggable={false} // Cannot reorder completed tasks
           isSubtask={isSubtaskList}
           parentId={parentId}
         />

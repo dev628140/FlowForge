@@ -37,7 +37,7 @@ const FullTaskSchema = z.object({
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
   history: z.array(MessageSchema).describe("The full conversation history between the user and the assistant."),
-  tasks: z.array(FullTaskSchema).describe("The user's current list of tasks, including their IDs, titles, descriptions, completion status, and order. This is the absolute source of truth for the current state."),
+  tasks: z.array(FullTaskSchema).describe("The user's current list of tasks, including their IDs, titles, descriptions, and completion status. This is the absolute source of truth for the current state."),
   role: z.string().describe("The user's self-selected role (e.g., 'Developer')."),
   date: z.string().describe("The current date in YYYY-MM-DD format."),
   timezone: z.string().describe("The user's current timezone (e.g., 'America/New_York')."),
@@ -63,7 +63,7 @@ const TaskToUpdateSchema = z.object({
         completed: z.boolean().optional().nullable(),
         scheduledDate: z.string().optional().nullable(),
         scheduledTime: z.string().optional().nullable(),
-        order: z.union([z.number(), z.string()]).optional().nullable().describe("The new order for the task. Can be a number, or a string like 'top', 'bottom', 'after:TASK_ID', 'before:TASK_ID'"),
+        order: z.number().optional().nullable().describe("The new order for the task. This field is for internal use and should not typically be set by the assistant."),
     }).describe("The fields of the task to update."),
 });
 
@@ -113,22 +113,21 @@ const assistantPrompt = ai.definePrompt({
     User's Timezone: {{{timezone}}}
     User's Role: {{{role}}}
 
-    You have the user's current task list (including subtasks) and the conversation history for context. You MUST use the provided task list as the absolute source of truth for the current ordering and task IDs when a tool requires one or when updating/deleting/reordering a task. Do not mention the IDs in your conversational responses to the user.
+    You have the user's current task list (including subtasks) and the conversation history for context. You MUST use the provided task list as the absolute source of truth for task IDs when a tool requires one or when updating/deleting a task. Do not mention the IDs in your conversational responses to the user.
 
     **COMMAND INTERPRETATION RULES:**
-    1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, reorder, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
+    1.  **Action is Required:** If the user asks to add, create, schedule, update, modify, complete, or delete a task, you MUST populate the corresponding action arrays in your output (tasksToAdd, tasksToUpdate, tasksToDelete).
     2.  **Recurring Tasks / Date Ranges:** If a user says "every day until a date" or "for the next X days", you MUST create a separate task entry in \`tasksToAdd\` for each individual day in that range. For example, "add 'Go for a run' every day until October 27th" should result in multiple task objects, one for each day. If they say "add X three times a day", you must create three separate tasks for that title for each day in the range. The \`eachDayOfInterval\` function can help with this. Today's date is {{{date}}}.
-    3.  **Task Reordering:** For reordering commands like "move task X to the top" or "put task Y after task Z", you MUST create a \`tasksToUpdate\` entry. Set the \`taskId\` to the task being moved, and the \`updates.order\` field to a descriptive string: 'top', 'bottom', 'after:TASK_ID_OF_TARGET', or 'before:TASK_ID_OF_TARGET'. When identifying a task by position (e.g. "the bottom task"), you MUST refer to the provided task list, as it is the absolute source of truth for the current ordering.
-    4.  **Ambiguity:** If a command is ambiguous (e.g., "delete the marketing task" when there are multiple), you MUST ask for clarification in your response and NOT generate a plan.
-    5.  **No Action Needed:** For general conversation, questions, or requests that are best handled by a tool, provide a helpful response in the 'response' field. DO NOT generate an empty action plan.
-    6.  **Tool Usage:** If a request is to "summarize", "analyze", "break down", "reflect", or "create a learning plan", you MUST use the appropriate tool. Provide the tool's output directly in your 'response' field.
-    7.  **Conversation Title:** If this is the first turn of the conversation (history has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation. On all subsequent turns, leave the title field empty.
-    8.  **Timezone:** When adding a task with a date, you MUST include the user's timezone from the input in the task object.
+    3.  **Ambiguity:** If a command is ambiguous (e.g., "delete the marketing task" when there are multiple), you MUST ask for clarification in your response and NOT generate a plan.
+    4.  **No Action Needed:** For general conversation, questions, or requests that are best handled by a tool, provide a helpful response in the 'response' field. DO NOT generate an empty action plan.
+    5.  **Tool Usage:** If a request is to "summarize", "analyze", "break down", "reflect", or "create a learning plan", you MUST use the appropriate tool. Provide the tool's output directly in your 'response' field.
+    6.  **Conversation Title:** If this is the first turn of the conversation (history has one user message), you MUST generate a short, concise title (4-5 words max) for the conversation. On all subsequent turns, leave the title field empty.
+    7.  **Timezone:** When adding a task with a date, you MUST include the user's timezone from the input in the task object.
 
     **USER'S TASK LIST (for context, IDs are for your internal use ONLY):**
     {{#if tasks}}
       {{#each tasks}}
-      - ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}{{#if this.scheduledDate}}, Scheduled: {{this.scheduledDate}}{{#if this.scheduledTime}} at {{this.scheduledTime}}{{/if}}{{/if}}, Order: {{this.order}}{{#if this.subtasks}}, Subtasks: {{this.subtasks.length}}{{/if}}
+      - ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}{{#if this.scheduledDate}}, Scheduled: {{this.scheduledDate}}{{#if this.scheduledTime}} at {{this.scheduledTime}}{{/if}}{{/if}}{{#if this.subtasks}}, Subtasks: {{this.subtasks.length}}{{/if}}
         {{#if this.subtasks}}
             {{#each this.subtasks}}
             - Subtask ID: {{this.id}}, Title: "{{this.title}}", Completed: {{this.completed}}

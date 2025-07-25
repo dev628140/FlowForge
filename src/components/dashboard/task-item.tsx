@@ -2,20 +2,13 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, MessageSquarePlus, Loader2, ChevronDown, CornerDownRight, Bot, Trash2, CalendarPlus, Pencil, ArrowUp, ArrowDown } from 'lucide-react';
+import { Check, Zap, Trash2, Pencil } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { summarizeTask } from '@/ai/flows/summarize-task';
-import { breakdownTask } from '@/ai/flows/breakdown-task-flow';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useAppContext } from '@/context/app-context';
-import { Separator } from '../ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,9 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
 import { Badge } from '../ui/badge';
-import { Calendar } from '../ui/calendar';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +39,11 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
+import { ChevronDown, CornerDownRight } from 'lucide-react';
+import { useAppContext } from '@/context/app-context';
 import TaskList from './task-list';
 
 const editTaskFormSchema = z.object({
@@ -64,10 +60,8 @@ interface TaskItemProps {
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onMove?: (taskId: string, direction: 'up' | 'down') => void;
   isSubtask?: boolean;
   parentId?: string;
-  isDraggable?: boolean;
 }
 
 export default function TaskItem({ 
@@ -75,24 +69,14 @@ export default function TaskItem({
   onToggle, 
   onStartFocus, 
   onUpdateTask, 
-  onMove,
   isSubtask = false, 
   parentId,
-  isDraggable = false,
 }: TaskItemProps) {
-  const { handleAddSubtasks, handleDeleteTask } = useAppContext();
-  const [summary, setSummary] = React.useState<string | null>(null);
-  const [isSummarizing, setIsSummarizing] = React.useState(false);
-  const [isBreakingDown, setIsBreakingDown] = React.useState(false);
-  const [isSchedulePopoverOpen, setIsSchedulePopoverOpen] = React.useState(false);
+  const { handleDeleteTask } = useAppContext();
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
-
-  const [newDate, setNewDate] = React.useState<Date | undefined>(task.scheduledDate ? parseISO(task.scheduledDate) : undefined);
-  const [newTime, setNewTime] = React.useState(task.scheduledTime || '');
-
   const { toast } = useToast();
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
   
+  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0;
   const totalSubtasks = task.subtasks?.length || 0;
 
@@ -116,22 +100,12 @@ export default function TaskItem({
   }, [task, form, isEditDialogOpen]);
 
   const handleEditSubmit = async (values: EditTaskFormValues) => {
-    const updates: Partial<Task> = {
+    const updates: Partial<Omit<Task, 'id'>> = {
         title: values.title,
+        description: values.description || '',
+        scheduledDate: values.scheduledDate ? format(values.scheduledDate, 'yyyy-MM-dd') : undefined,
+        scheduledTime: values.scheduledTime || undefined,
     };
-
-    if (values.description) {
-        updates.description = values.description;
-    }
-    if (values.scheduledDate) {
-        updates.scheduledDate = format(values.scheduledDate, 'yyyy-MM-dd');
-    }
-
-    if (values.scheduledTime) {
-      updates.scheduledTime = values.scheduledTime;
-    } else {
-      delete (updates as Partial<Task>).scheduledTime;
-    }
 
     await onUpdateTask(task.id, updates);
     setIsEditDialogOpen(false);
@@ -145,91 +119,12 @@ export default function TaskItem({
     onToggle(subtaskId, task.id);
   };
   
-  const handleStartFocusSubtask = (subtask: Task) => {
+  const handleStartFocusSubtask = () => {
      toast({
       title: "Focus Mode",
       description: "Focus mode can only be started on main tasks.",
     });
   }
-
-  const handleSummarize = async () => {
-    setIsSummarizing(true);
-    setSummary(null);
-    try {
-      const result = await summarizeTask({ 
-        taskTitle: task.title,
-        taskDescription: task.description 
-      });
-      setSummary(result.summary);
-    } catch (error) {
-      console.error('Error summarizing task:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to summarize the task. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
-
-  const handleBreakdown = async () => {
-    setIsBreakingDown(true);
-    try {
-      const result = await breakdownTask({ taskTitle: task.title });
-      if (result.subtasks && result.subtasks.length > 0) {
-        await handleAddSubtasks(task.id, result.subtasks.map(title => ({ title })));
-        toast({
-          title: 'Task broken down!',
-          description: 'Subtasks have been added.',
-        });
-      } else {
-        toast({
-          title: 'Could not break down task',
-          description: 'The AI could not generate subtasks for this item.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-       console.error('Error breaking down task:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to break down the task. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsBreakingDown(false);
-    }
-  }
-  
-  const handleScheduleSave = async () => {
-      if (!newDate) {
-          toast({
-              title: "No Date Selected",
-              description: "Please select a date to schedule the task.",
-              variant: 'destructive'
-          });
-          return;
-      }
-
-      const updates: Partial<Task> = {
-          scheduledDate: format(newDate, 'yyyy-MM-dd'),
-      };
-
-      if (newTime) {
-        updates.scheduledTime = newTime;
-      } else {
-        delete (updates as Partial<Task>).scheduledTime;
-      }
-
-      await onUpdateTask(task.id, updates);
-      setIsSchedulePopoverOpen(false);
-      toast({
-          title: 'Task Scheduled',
-          description: `"${task.title}" has been scheduled.`,
-      });
-  };
-
 
   const onDelete = async () => {
     await handleDeleteTask(task.id, parentId);
@@ -281,14 +176,14 @@ export default function TaskItem({
             )}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-0.5 lg:flex">
+      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
         <TooltipProvider>
         <Tooltip>
             <TooltipTrigger asChild>
             <Button
                 variant="ghost"
                 size="icon"
-                className="w-10 h-10"
+                className="w-8 h-8"
                 onClick={() => onStartFocus(task)}
                 aria-label={`Start focus session for ${task.title}`}
                 disabled={task.completed || isSubtask}
@@ -300,21 +195,27 @@ export default function TaskItem({
             <p>Start Focus Session</p>
             </TooltipContent>
         </Tooltip>
-        </TooltipProvider>
-
+        
         {hasSubtasks && (
         <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="icon" className="w-10 h-10" aria-label="Toggle subtasks" disabled={task.completed}>
-            <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:-rotate-180" />
-            </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="w-8 h-8" aria-label="Toggle subtasks" disabled={task.completed}>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:-rotate-180" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View Subtasks</p>
+            </TooltipContent>
+          </Tooltip>
         </CollapsibleTrigger>
         )}
+
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <TooltipProvider>
             <Tooltip>
             <TooltipTrigger asChild>
                 <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-10 h-10" aria-label={`Edit task ${task.title}`} disabled={isSubtask || task.completed}>
+                <Button variant="ghost" size="icon" className="w-8 h-8" aria-label={`Edit task ${task.title}`} disabled={task.completed}>
                     <Pencil className="h-4 w-4" />
                 </Button>
                 </DialogTrigger>
@@ -323,7 +224,6 @@ export default function TaskItem({
                 <p>Edit Task</p>
             </TooltipContent>
             </Tooltip>
-        </TooltipProvider>
         <DialogContent>
             <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
@@ -410,14 +310,13 @@ export default function TaskItem({
         </Dialog>
 
         <AlertDialog>
-        <TooltipProvider>
             <Tooltip>
             <TooltipTrigger asChild>
                 <AlertDialogTrigger asChild>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="w-10 h-10 hover:bg-destructive/10 hover:text-destructive"
+                    className="w-8 h-8 hover:bg-destructive/10 hover:text-destructive"
                     aria-label={`Delete task ${task.title}`}
                 >
                     <Trash2 className="h-4 w-4" />
@@ -428,7 +327,6 @@ export default function TaskItem({
                 <p>Delete Task</p>
             </TooltipContent>
             </Tooltip>
-        </TooltipProvider>
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -443,6 +341,7 @@ export default function TaskItem({
             </AlertDialogFooter>
         </AlertDialogContent>
         </AlertDialog>
+        </TooltipProvider>
       </div>
     </div>
   );
