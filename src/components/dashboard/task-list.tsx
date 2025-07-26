@@ -4,14 +4,13 @@
 import * as React from 'react';
 import type { Task } from '@/lib/types';
 import TaskItem from './task-item';
-import { useAppContext } from '@/context/app-context';
 
 interface TaskListProps {
   tasks: Task[];
   onToggle: (id: string, parentId?: string) => void;
   onStartFocus: (task: Task) => void;
   onUpdateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
-  onSwap: (taskA: { id: string, order: number }, taskB: { id: string, order: number }) => Promise<void>;
+  onSwap: (taskA: Task, taskB: Task) => Promise<void>;
   isSubtaskList?: boolean;
   emptyMessage?: string;
   parentId?: string;
@@ -30,8 +29,6 @@ export default function TaskList({
   listId
 }: TaskListProps) {
   
-  const sortedTasks = [...tasks].sort((a,b) => (a.order || 0) - (b.order || 0));
-
   if (tasks.length === 0 && !isSubtaskList) {
     return (
       <div className="text-center py-10 text-muted-foreground">
@@ -41,8 +38,8 @@ export default function TaskList({
   }
 
   const renderTask = (task: Task, index: number) => {
-    const neighborUp = index > 0 ? sortedTasks[index - 1] : undefined;
-    const neighborDown = index < sortedTasks.length - 1 ? sortedTasks[index + 1] : undefined;
+    const neighborUp = index > 0 ? tasks[index - 1] : undefined;
+    const neighborDown = index < tasks.length - 1 ? tasks[index + 1] : undefined;
 
     return (
       <TaskItem 
@@ -62,7 +59,7 @@ export default function TaskList({
 
   return (
     <div className="space-y-1">
-      {sortedTasks.map((task, index) => renderTask(task, index))}
+      {tasks.map((task, index) => renderTask(task, index))}
     </div>
   );
 }

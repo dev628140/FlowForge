@@ -12,10 +12,12 @@ import '@/ai/flows/progress-reflection-journal.ts';
 import '@/ai/flows/role-based-task-suggestions.ts';
 import '@/ai/flows/summarize-task.ts';
 import '@/ai/flows/assistant-flow.ts';
+import '@/ai/flows/interactive-breakdown-flow.ts';
 
 import '@/ai/tools.ts';
 import '@/ai/flows/planner-flow.ts';
 import '@/ai/flows/tts-flow.ts';
+
 
 
 
