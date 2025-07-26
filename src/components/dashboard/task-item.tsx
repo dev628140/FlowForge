@@ -46,6 +46,7 @@ import TaskList from './task-list';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { SummarizeTaskDialog } from './SummarizeTaskDialog';
 import { BreakdownTaskDialog } from './BreakdownTaskDialog';
+import { Label } from '../ui/label';
 
 const editTaskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -81,7 +82,7 @@ export default function TaskItem({
 }: TaskItemProps) {
   const { handleDeleteTask } = useAppContext();
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
-  const [isSubtasksOpen, setIsSubtasksOpen] = React.useState(false); // New state for toggling
+  const [isSubtasksOpen, setIsSubtasksOpen] = React.useState(false);
   const { toast } = useToast();
   
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
@@ -112,7 +113,7 @@ export default function TaskItem({
         title: values.title,
         description: values.description || '',
         scheduledDate: values.scheduledDate ? format(values.scheduledDate, 'yyyy-MM-dd') : undefined,
-        scheduledTime: values.scheduledTime || undefined,
+        scheduledTime: values.scheduledTime || null, // Fix: Use null instead of undefined for empty time
     };
 
     await onUpdateTask(task.id, updates);
