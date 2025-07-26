@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Zap, Trash2, Pencil, ArrowUp, ArrowDown, Wand2, Loader2 } from 'lucide-react';
+import { Check, Zap, Trash2, Pencil, ArrowUp, ArrowDown, Wand2, Loader2, ChevronDown, CornerDownRight } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -42,7 +42,6 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
-import { ChevronDown, CornerDownRight } from 'lucide-react';
 import { useAppContext } from '@/context/app-context';
 import TaskList from './task-list';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
@@ -152,7 +151,7 @@ export default function TaskItem({
       title: 'Task deleted',
       description: `"${task.title}" has been removed.`,
     });
-  }
+  };
 
   const handleMove = (direction: 'up' | 'down') => {
     const neighbor = direction === 'up' ? neighborUp : neighborDown;
@@ -204,7 +203,7 @@ export default function TaskItem({
     setBreakdownResult(null);
   }
   
-  const itemContent = (
+  const mainTaskJsx = (
     <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
       {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 text-muted-foreground" />}
        <Checkbox
@@ -302,18 +301,18 @@ export default function TaskItem({
         </DropdownMenu>
         
         {hasSubtasks && (
-        <CollapsibleTrigger asChild>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-8 h-8" aria-label="Toggle subtasks" disabled={task.completed}>
-                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:-rotate-180" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>View Subtasks</p>
-            </TooltipContent>
-          </Tooltip>
-        </CollapsibleTrigger>
+          <CollapsibleTrigger asChild>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-8 h-8" aria-label="Toggle subtasks" disabled={task.completed}>
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:-rotate-180" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View Subtasks</p>
+              </TooltipContent>
+            </Tooltip>
+          </CollapsibleTrigger>
         )}
 
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -516,7 +515,7 @@ export default function TaskItem({
   if (hasSubtasks) {
     return (
       <Collapsible>
-        {itemContent}
+        {mainTaskJsx}
         <CollapsibleContent>
           <div className="pl-6 border-l-2 border-dashed ml-4">
             <TaskList
@@ -535,5 +534,5 @@ export default function TaskItem({
     );
   }
 
-  return itemContent;
+  return mainTaskJsx;
 }
