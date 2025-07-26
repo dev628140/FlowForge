@@ -295,7 +295,7 @@ export default function TaskItem({
                   setBreakdownResult(null);
                   setIsBreakdownDialogOpen(true);
                 }}>
-                  Breakdown
+                  Interactive Breakdown
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -447,15 +447,115 @@ export default function TaskItem({
         </AlertDialog>
         </TooltipProvider>
       </div>
+    </div>
+  );
+
+  if (hasSubtasks) {
+    return (
+      <Collapsible>
+        {mainTaskJsx}
+        <CollapsibleContent>
+          <div className="pl-6 border-l-2 border-dashed ml-4">
+            <TaskList
+              tasks={task.subtasks!}
+              onToggle={handleToggleSubtask}
+              onStartFocus={handleStartFocusSubtask}
+              onUpdateTask={onUpdateTask}
+              onSwap={onSwap}
+              isSubtaskList={true}
+              parentId={task.id}
+              listId={`subtasks-${task.id}`}
+            />
+          </div>
+        </CollapsibleContent>
+        
+        {/* AI Dialogs need to be outside the collapsible content to render correctly */}
+        <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>AI Summary of "{task.title}"</AlertDialogTitle>
+              <AlertDialogDescription>
+                {loadingAI ? (
+                  <div className="flex justify-center items-center p-4">
+                    <Loader2 className="animate-spin my-4" />
+                  </div>
+                ) : (
+                  summary
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setIsSummaryDialogOpen(false)}>Close</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+  
+        <Dialog open={isBreakdownDialogOpen} onOpenChange={setIsBreakdownDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Interactive Breakdown</DialogTitle>
+              <DialogDescription>
+                Tell the AI how to break down: <span className="font-semibold text-foreground">"{task.title}"</span>.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="breakdown-prompt" className="text-right">
+                  Instructions
+                </Label>
+                <Textarea
+                  id="breakdown-prompt"
+                  value={breakdownPrompt}
+                  onChange={(e) => setBreakdownPrompt(e.target.value)}
+                  className="col-span-3"
+                  placeholder="e.g., break this into 5 daily steps"
+                  disabled={loadingAI}
+                />
+              </div>
+              <Button onClick={handleBreakdown} disabled={loadingAI || !breakdownPrompt}>
+                {loadingAI && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Generate Breakdown
+              </Button>
+  
+              {breakdownResult && (
+                <div className="mt-4 space-y-2">
+                  <h4 className="font-medium">Generated Subtasks:</h4>
+                  <ul className="list-disc list-inside bg-muted/50 p-4 rounded-md text-sm max-h-40 overflow-y-auto">
+                    {breakdownResult.map((sub, i) => <li key={i}>{sub}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setIsBreakdownDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleFinalizeBreakdown} disabled={!breakdownResult || loadingAI}>
+                Add as Subtasks
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </Collapsible>
+    );
+  }
+
+  // This is for tasks without subtasks
+  return (
+    <>
+      {mainTaskJsx}
       
-       {/* AI Summary Dialog */}
+      {/* AI Dialogs need to be here as well for non-collapsible items */}
       <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>AI Summary of "{task.title}"</AlertDialogTitle>
             <AlertDialogDescription>
-              {loadingAI && <Loader2 className="animate-spin my-4 mx-auto" />}
-              {summary}
+              {loadingAI ? (
+                <div className="flex justify-center items-center p-4">
+                  <Loader2 className="animate-spin my-4" />
+                </div>
+              ) : (
+                summary
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -464,13 +564,12 @@ export default function TaskItem({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* AI Breakdown Dialog */}
       <Dialog open={isBreakdownDialogOpen} onOpenChange={setIsBreakdownDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Interactive Breakdown</DialogTitle>
             <DialogDescription>
-              Tell the AI how to break down the task: <span className="font-semibold text-foreground">"{task.title}"</span>.
+              Tell the AI how to break down: <span className="font-semibold text-foreground">"{task.title}"</span>.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -495,7 +594,7 @@ export default function TaskItem({
             {breakdownResult && (
               <div className="mt-4 space-y-2">
                 <h4 className="font-medium">Generated Subtasks:</h4>
-                <ul className="list-disc list-inside bg-muted/50 p-4 rounded-md text-sm">
+                <ul className="list-disc list-inside bg-muted/50 p-4 rounded-md text-sm max-h-40 overflow-y-auto">
                   {breakdownResult.map((sub, i) => <li key={i}>{sub}</li>)}
                 </ul>
               </div>
@@ -509,30 +608,7 @@ export default function TaskItem({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
-
-  if (hasSubtasks) {
-    return (
-      <Collapsible>
-        {mainTaskJsx}
-        <CollapsibleContent>
-          <div className="pl-6 border-l-2 border-dashed ml-4">
-            <TaskList
-              tasks={task.subtasks!}
-              onToggle={handleToggleSubtask}
-              onStartFocus={handleStartFocusSubtask}
-              onUpdateTask={onUpdateTask}
-              onSwap={onSwap}
-              isSubtaskList={true}
-              parentId={task.id}
-              listId={`subtasks-${task.id}`}
-            />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    );
-  }
-
-  return mainTaskJsx;
 }
+
