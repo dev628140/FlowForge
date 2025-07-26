@@ -29,26 +29,29 @@ export default function AllTasksPage() {
   const groupedTasks = React.useMemo(() => {
     const groups: { [key: string]: Task[] } = {};
 
-    const sortedByDate = [...tasks].sort((a, b) => {
-      const dateA = a.scheduledDate ? parseISO(a.scheduledDate).getTime() : Infinity;
-      const dateB = b.scheduledDate ? parseISO(b.scheduledDate).getTime() : Infinity;
-      if (dateA !== dateB) {
-        return dateA - dateB;
-      }
-      return (a.order || 0) - (b.order || 0);
+    // First, sort all tasks by completion status, then date, then order
+    const sortedTasks = [...tasks].sort((a, b) => {
+        // Sort by completion status first (incomplete tasks first)
+        if (a.completed !== b.completed) {
+            return a.completed ? 1 : -1;
+        }
+        // Then sort by scheduled date
+        const dateA = a.scheduledDate ? parseISO(a.scheduledDate).getTime() : Infinity;
+        const dateB = b.scheduledDate ? parseISO(b.scheduledDate).getTime() : Infinity;
+        if (dateA !== dateB) {
+            return dateA - dateB;
+        }
+        // Finally, sort by order
+        return (a.order || 0) - (b.order || 0);
     });
 
-    sortedByDate.forEach(task => {
+    sortedTasks.forEach(task => {
       const key = task.scheduledDate ? format(parseISO(task.scheduledDate), 'yyyy-MM-dd') : 'Unscheduled';
       if (!groups[key]) {
         groups[key] = [];
       }
       groups[key].push(task);
     });
-
-    for (const key in groups) {
-      groups[key].sort((a, b) => (a.order || 0) - (b.order || 0));
-    }
 
     return groups;
 
@@ -80,7 +83,13 @@ export default function AllTasksPage() {
               </div>
             </div>
             
-            {groupKeys.map(groupKey => {
+            {groupKeys.length === 0 && tasks.length === 0 ? (
+                <Card>
+                    <CardContent className="pt-6">
+                        <p className="text-center text-muted-foreground">You have no tasks yet. Go to the dashboard to add some!</p>
+                    </CardContent>
+                </Card>
+             ) : groupKeys.map(groupKey => {
               const groupTasks = groupedTasks[groupKey];
               return (
                 <Card key={groupKey}>

@@ -89,6 +89,15 @@ export default function TaskItem({
   const completedSubtasks = task.subtasks?.filter(st => st.completed).length || 0;
   const totalSubtasks = task.subtasks?.length || 0;
 
+  const sortedSubtasks = React.useMemo(() => {
+    return (task.subtasks || []).slice().sort((a, b) => {
+        if (a.completed !== b.completed) {
+            return a.completed ? 1 : -1;
+        }
+        return (a.order || 0) - (b.order || 0);
+    });
+  }, [task.subtasks]);
+
   const form = useForm<EditTaskFormValues>({
     resolver: zodResolver(editTaskFormSchema),
     defaultValues: {
@@ -383,7 +392,7 @@ export default function TaskItem({
         {isSubtasksOpen && hasSubtasks && (
             <div className="pl-6 border-l-2 border-dashed ml-4">
                 <TaskList
-                tasks={task.subtasks!}
+                tasks={sortedSubtasks}
                 onToggle={handleToggleSubtask}
                 onStartFocus={handleStartFocusSubtask}
                 onUpdateTask={onUpdateTask}

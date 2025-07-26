@@ -158,7 +158,17 @@ export default function DashboardPage() {
     setIsGeneralFocusMode(false);
   };
 
-  const todaysTasks = React.useMemo(() => tasks.filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate))).sort((a,b) => (a.order || 0) - (b.order || 0)), [tasks]);
+  const todaysTasks = React.useMemo(() => 
+    tasks
+        .filter(task => task.scheduledDate && isToday(parseISO(task.scheduledDate)))
+        .sort((a,b) => {
+            if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1;
+            }
+            return (a.order || 0) - (b.order || 0);
+        }), 
+    [tasks]
+  );
   
   const overdueTasks = tasks.filter(task => 
     !task.completed && 
