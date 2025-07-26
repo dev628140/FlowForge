@@ -30,9 +30,8 @@ export function SummarizeTaskDialog({ task, children }: SummarizeTaskDialogProps
 
   const handleOpenChange = async (open: boolean) => {
     setIsOpen(open);
-    if (open) {
+    if (open && !summary) { // Only fetch if opening and summary is not already loaded
       setLoading(true);
-      setSummary('');
       try {
         const result = await summarizeTask({ taskTitle: task.title, taskDescription: task.description });
         setSummary(result.summary);
@@ -42,6 +41,9 @@ export function SummarizeTaskDialog({ task, children }: SummarizeTaskDialogProps
       } finally {
         setLoading(false);
       }
+    } else if (!open) {
+        // Reset summary when closing so it refetches next time
+        setSummary('');
     }
   };
 
@@ -51,11 +53,11 @@ export function SummarizeTaskDialog({ task, children }: SummarizeTaskDialogProps
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>AI Summary of "{task.title}"</AlertDialogTitle>
-          <AlertDialogDescription className="py-4">
+          <AlertDialogDescription className="py-4 min-h-[6rem] flex items-center justify-center">
             {loading ? (
-              <div className="flex justify-center items-center">
+              <span className="flex justify-center items-center">
                 <Loader2 className="animate-spin" />
-              </div>
+              </span>
             ) : (
               summary
             )}
