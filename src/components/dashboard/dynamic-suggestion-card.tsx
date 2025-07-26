@@ -66,7 +66,7 @@ export default function DynamicSuggestionCard({ tasks, role }: DynamicSuggestion
     <Card className="bg-accent/20 border-accent/50">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-medium flex items-center gap-2">
-          <Lightbulb className="w-5 h-5 text-accent" />
+          <Lightbulb className="w-5 h-5 text-foreground" />
           Next Best Action
         </CardTitle>
         <Button variant="ghost" size="icon" onClick={fetchSuggestions} disabled={loading} className="h-8 w-8">
