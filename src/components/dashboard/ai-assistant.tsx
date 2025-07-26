@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/context/app-context';
 import { useOfflineStatus } from '@/hooks/use-offline-status';
 import type { Task, UserRole, AssistantMessage, ChatSession } from '@/lib/types';
-import { runAssistant, type AssistantOutput, type AssistantInput } from '@/ai/flows/assistant-flow';
+import { runAgent, type AgentOutput, type AgentInput } from '@/ai/flows/agent-flow';
 import { Badge } from '../ui/badge';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -77,7 +77,7 @@ const MainContent = ({
     isAvailable: boolean;
     history: AssistantMessage[];
     loading: boolean;
-    aiPlan: AssistantOutput | null;
+    aiPlan: AgentOutput | null;
     prompt: string;
     setPrompt: (p: string) => void;
     formRef: React.RefObject<HTMLFormElement>;
@@ -320,7 +320,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
   const { toast } = useToast();
   const [prompt, setPrompt] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [aiPlan, setAiPlan] = React.useState<AssistantOutput | null>(null);
+  const [aiPlan, setAiPlan] = React.useState<AgentOutput | null>(null);
   const isOffline = useOfflineStatus();
   
   const [activeChatId, setActiveChatId] = React.useState<string | null>(null);
@@ -418,7 +418,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     let currentChatId = activeChatId;
 
     try {
-      const assistantInput: AssistantInput = {
+      const agentInput: AgentInput = {
         history: newHistory,
         tasks: allTasks.map(t => ({
             id: t.id,
@@ -435,7 +435,7 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
         chatSessionId: currentChatId,
       };
       
-      const result = await runAssistant(assistantInput);
+      const result = await runAgent(agentInput);
 
       if (!result) {
         throw new Error("I received an unexpected response from the AI. It might have been empty or in the wrong format. Could you please try rephrasing your request?");
@@ -771,5 +771,3 @@ export default function AIAssistant({ allTasks, role }: AIAssistantProps) {
     </Card>
   );
 }
-
-    
