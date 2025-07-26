@@ -19,8 +19,13 @@ const InteractiveBreakdownInputSchema = z.object({
 });
 export type InteractiveBreakdownInput = z.infer<typeof InteractiveBreakdownInputSchema>;
 
+const SubtaskSchema = z.object({
+    title: z.string().describe('The title of the subtask.'),
+    description: z.string().optional().describe('An optional brief description for the subtask.'),
+});
+
 const InteractiveBreakdownOutputSchema = z.object({
-  subtasks: z.array(z.string()).describe('A list of actionable subtasks based on the user\'s instructions.'),
+  subtasks: z.array(SubtaskSchema).describe('A list of actionable subtasks based on the user\'s instructions.'),
 });
 export type InteractiveBreakdownOutput = z.infer<typeof InteractiveBreakdownOutputSchema>;
 

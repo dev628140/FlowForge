@@ -20,6 +20,11 @@ import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
 
+interface Subtask {
+    title: string;
+    description?: string;
+}
+
 interface BreakdownTaskDialogProps {
   task: Task;
   children: React.ReactNode;
@@ -29,7 +34,7 @@ export function BreakdownTaskDialog({ task, children }: BreakdownTaskDialogProps
   const [isOpen, setIsOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [breakdownPrompt, setBreakdownPrompt] = React.useState('');
-  const [breakdownResult, setBreakdownResult] = React.useState<string[] | null>(null);
+  const [breakdownResult, setBreakdownResult] = React.useState<Subtask[] | null>(null);
 
   const { handleAddSubtasks } = useAppContext();
   const { toast } = useToast();
@@ -54,8 +59,8 @@ export function BreakdownTaskDialog({ task, children }: BreakdownTaskDialogProps
 
   const handleFinalizeBreakdown = async () => {
     if (!breakdownResult) return;
-    const subtasks = breakdownResult.map((title) => ({ title }));
-    await handleAddSubtasks(task.id, subtasks);
+    // The handleAddSubtasks function already expects the correct format
+    await handleAddSubtasks(task.id, breakdownResult);
     toast({ title: 'Subtasks Added!', description: 'The generated breakdown has been added to your task.' });
     setIsOpen(false);
     setBreakdownPrompt('');
@@ -103,7 +108,7 @@ export function BreakdownTaskDialog({ task, children }: BreakdownTaskDialogProps
               <h4 className="font-medium">Generated Subtasks:</h4>
               <ul className="list-disc list-inside bg-muted/50 p-4 rounded-md text-sm max-h-40 overflow-y-auto">
                 {breakdownResult.map((sub, i) => (
-                  <li key={i}>{sub}</li>
+                  <li key={i}>{sub.title}</li>
                 ))}
               </ul>
             </div>
