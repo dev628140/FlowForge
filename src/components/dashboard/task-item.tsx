@@ -149,7 +149,7 @@ export default function TaskItem({
     }
   };
   
-  const taskContent = (
+  const mainTaskJsx = (
     <div className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors", isSubtask && "pl-6")}>
       {isSubtask && <CornerDownRight className="h-4 w-4 mr-2 text-muted-foreground" />}
        <Checkbox
@@ -397,7 +397,7 @@ export default function TaskItem({
   if (hasSubtasks) {
     return (
       <Collapsible>
-        {taskContent}
+        {mainTaskJsx}
         <CollapsibleContent>
           <div className="pl-6 border-l-2 border-dashed ml-4">
             <TaskList
@@ -416,6 +416,5 @@ export default function TaskItem({
     );
   }
 
-  return taskContent;
+  return mainTaskJsx;
 }
-
