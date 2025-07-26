@@ -48,6 +48,7 @@ import TaskList from './task-list';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { summarizeTask } from '@/ai/flows/summarize-task';
 import { interactiveBreakdown } from '@/ai/flows/interactive-breakdown-flow';
+import { Label } from '@/components/ui/label';
 
 
 const editTaskFormSchema = z.object({
