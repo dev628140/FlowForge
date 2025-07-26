@@ -37,7 +37,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { textToSpeech } from '@/ai/flows/tts-flow';
-import { runAssistant, type AssistantOutput, type AssistantInput } from '@/ai/flows/assistant-flow';
+import { runAgent, type AgentOutput, type AgentInput } from '@/ai/flows/agent-flow';
 import { runPlanner, type PlannerOutput, type PlannerInput } from '@/ai/flows/planner-flow';
 import TextareaAutosize from 'react-textarea-autosize';
 
@@ -78,7 +78,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
     const [history, setHistory] = React.useState<AssistantMessage[]>([]);
     const [prompt, setPrompt] = React.useState('');
     const [loading, setLoading] = React.useState(false);
-    const [currentPlan, setCurrentPlan] = React.useState<AssistantOutput | PlannerOutput | null>(null);
+    const [currentPlan, setCurrentPlan] = React.useState<AgentOutput | PlannerOutput | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
     const [isVoiceMode, setIsVoiceMode] = React.useState(false);
 
@@ -228,16 +228,16 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
                     title = `${mode.charAt(0).toUpperCase() + mode.slice(1)}: ${finalPrompt.substring(0, 25)}...`;
                 }
             } else {
-                 const assistantInput: AssistantInput = {
+                 const agentInput: AgentInput = {
                     history: newHistory,
-                    tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate })),
+                    tasks: tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed, scheduledDate: t.scheduledDate, description: t.description, subtasks: t.subtasks, scheduledTime: t.scheduledTime, order: t.order })),
                     role: userRole,
                     date: format(new Date(), 'yyyy-MM-dd'),
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     chatSessionId: currentChatId,
                 };
                 
-                result = await runAssistant(assistantInput);
+                result = await runAgent(agentInput);
                 if (result.title) {
                     title = result.title;
                 }
@@ -322,7 +322,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({ mode }) => {
 
         setLoading(true);
         try {
-            // Handle AssistantOutput
+            // Handle AgentOutput
             if ('tasksToAdd' in currentPlan && currentPlan.tasksToAdd) {
                 await handleAddTasks(currentPlan.tasksToAdd);
             }
@@ -888,7 +888,7 @@ export default function AIAssistantPage() {
                         <TabsContent value="breakdown" className="h-full m-0">
                            <ChatPane mode="breakdown" />
                         </TabsContent>
-                        <TabsContent value="suggester" className="h-full m-t-0">
+                        <TabsContent value="suggester" className="h-full m-0">
                             <ChatPane mode="suggester" />
                         </TabsContent>
                     </CardContent>
