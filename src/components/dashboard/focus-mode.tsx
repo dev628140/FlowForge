@@ -23,7 +23,7 @@ const MAX_BREAK = 30;
 const DEFAULT_FOCUS = 25;
 const DEFAULT_BREAK = 5;
 
-const SVG_SIZE = 220;
+const SVG_SIZE = 218;
 const STROKE_WIDTH = 15;
 const RADIUS = (SVG_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -145,7 +145,7 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-[31.75rem] m-4 p-6 md:p-8 text-center flex flex-col items-center relative">
+      <div className="bg-card border rounded-xl shadow-2xl w-full max-w-[31.5rem] m-4 p-6 md:p-8 text-center flex flex-col items-center relative">
         <Button variant="ghost" size="icon" className="absolute top-4 right-4" onClick={onClose}>
             <X className="h-5 w-5" />
             <span className="sr-only">Close Focus Mode</span>
