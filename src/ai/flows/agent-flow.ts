@@ -174,11 +174,17 @@ const agentFlow = ai.defineFlow(
     outputSchema: AgentOutputSchema,
   },
   async (input) => {
-
     const { output } = await agentPrompt(input);
     if (!output) {
       // This case handles content filtering or other generation errors.
-      throw new Error("The AI was unable to generate a response. This may be due to content safety filters. Please try rephrasing your request.");
+      return {
+        response: "I'm sorry, I was unable to generate a response for that request. This might be due to content safety filters. Please try rephrasing your request, or ask me something else.",
+        tasksToAdd: null,
+        tasksToDelete: null,
+        tasksToUpdate: null,
+        subtasksToAdd: null,
+        title: null,
+      };
     }
     return output;
   }
