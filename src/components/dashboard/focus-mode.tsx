@@ -23,7 +23,7 @@ const MAX_BREAK = 30;
 const DEFAULT_FOCUS = 25;
 const DEFAULT_BREAK = 5;
 
-const SVG_SIZE = 300;
+const SVG_SIZE = 250;
 const STROKE_WIDTH = 15;
 const RADIUS = (SVG_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
