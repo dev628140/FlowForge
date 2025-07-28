@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 interface FocusModeProps {
   task?: Task;
@@ -22,6 +23,10 @@ const MAX_BREAK = 30;
 const DEFAULT_FOCUS = 25;
 const DEFAULT_BREAK = 5;
 
+const SVG_SIZE = 300;
+const STROKE_WIDTH = 15;
+const RADIUS = (SVG_SIZE - STROKE_WIDTH) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export default function FocusMode({ task, onClose, onComplete }: FocusModeProps) {
   const [focusDuration, setFocusDuration] = React.useState(DEFAULT_FOCUS * 60);
@@ -43,15 +48,12 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
     const acquireLock = async () => {
       if ('wakeLock' in navigator && isMounted && document.visibilityState === 'visible') {
         try {
-          // If a lock already exists, release it before acquiring a new one.
           if (wakeLockRef.current) {
             await wakeLockRef.current.release();
             wakeLockRef.current = null;
           }
           wakeLockRef.current = await navigator.wakeLock.request('screen');
         } catch (err: any) {
-            // This can happen if the feature is disallowed by a permissions policy.
-            // We can safely ignore it.
             if(err.name === 'NotAllowedError') {
               console.log("Screen Wake Lock is not allowed by the current permissions policy.");
             } else {
@@ -68,7 +70,6 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
         }
     }
     
-    // Acquire lock immediately on mount
     acquireLock();
     
     const handleVisibilityChange = () => {
@@ -79,13 +80,12 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Cleanup on unmount
     return () => {
       isMounted = false;
       releaseLock();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []); // Empty dependency array ensures this runs only on mount and unmount
+  }, []);
 
 
   React.useEffect(() => {
@@ -96,17 +96,16 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
         setTimeLeft(time => time - 1);
       }, 1000);
     } else if (timeLeft === 0 && isActive) {
-      // Timer reached zero while active
       const sound = isBreak ? '/sounds/success.mp3' : '/sounds/bell.mp3';
       new Audio(sound).play().catch(e => console.error("Audio play failed", e));
       
-      if (isBreak) { // Break just ended
+      if (isBreak) {
         setIsBreak(false);
         setTimeLeft(focusDuration);
         if (!autoStartFocus) {
           setIsActive(false);
         }
-      } else { // Focus session just ended
+      } else {
         setIsBreak(true);
         setCyclesCompleted(c => c + 1);
         setTimeLeft(breakDuration);
@@ -140,6 +139,10 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  const duration = isBreak ? breakDuration : focusDuration;
+  const progress = (timeLeft / duration);
+  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-card border rounded-xl shadow-2xl w-full max-w-lg m-4 p-6 md:p-8 text-center flex flex-col items-center relative">
@@ -155,8 +158,33 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
 
         {!isBreak && <h1 className="text-xl md:text-2xl font-bold font-headline mb-4 text-card-foreground">{task?.title || "Focus Session"}</h1>}
         
-        <div className="font-mono font-bold text-6xl sm:text-7xl md:text-8xl text-card-foreground my-4">
-          {formatTime(timeLeft)}
+        <div className="relative my-4" style={{ width: SVG_SIZE, height: SVG_SIZE }}>
+            <svg width={SVG_SIZE} height={SVG_SIZE} viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`} className="-rotate-90">
+                <circle
+                    cx={SVG_SIZE / 2}
+                    cy={SVG_SIZE / 2}
+                    r={RADIUS}
+                    stroke="hsl(var(--muted))"
+                    strokeWidth={STROKE_WIDTH}
+                    fill="transparent"
+                    className="text-gray-700"
+                />
+                <circle
+                    cx={SVG_SIZE / 2}
+                    cy={SVG_SIZE / 2}
+                    r={RADIUS}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={STROKE_WIDTH}
+                    fill="transparent"
+                    strokeLinecap="round"
+                    strokeDasharray={CIRCUMFERENCE}
+                    strokeDashoffset={strokeDashoffset}
+                    className="transition-all duration-300"
+                />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+                <span className="font-mono font-bold text-5xl text-card-foreground">{formatTime(timeLeft)}</span>
+            </div>
         </div>
         
         <div className="flex items-center gap-4 mb-6">
@@ -181,12 +209,13 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
                 step={5}
                 value={[focusDuration / 60]}
                 onValueChange={(value) => {
-                    setFocusDuration(value[0] * 60);
+                    const newDuration = value[0] * 60;
+                    setFocusDuration(newDuration);
                     if (!isActive && !isBreak) {
-                        setTimeLeft(value[0] * 60);
+                        setTimeLeft(newDuration);
                     }
                 }}
-                disabled={isActive}
+                disabled={isActive && !isBreak}
               />
             </div>
              <div className="space-y-3">
@@ -198,12 +227,13 @@ export default function FocusMode({ task, onClose, onComplete }: FocusModeProps)
                 step={5}
                 value={[breakDuration / 60]}
                 onValueChange={(value) => {
-                    setBreakDuration(value[0] * 60);
+                    const newDuration = value[0] * 60;
+                    setBreakDuration(newDuration);
                      if (!isActive && isBreak) {
-                        setTimeLeft(value[0] * 60);
+                        setTimeLeft(newDuration);
                     }
                 }}
-                disabled={isActive}
+                disabled={isActive && isBreak}
               />
             </div>
              <div className="flex flex-col sm:flex-row justify-around items-center gap-4 pt-2">
