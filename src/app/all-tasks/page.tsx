@@ -73,7 +73,7 @@ export default function AllTasksPage() {
   return (
      <div className="relative min-h-screen w-full">
         <div className="p-4 md:p-6 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-slide-in-down">
               <div className="space-y-1">
                 <h1 className="text-3xl font-bold font-headline flex items-center gap-2">
                     <ListTodo className="w-8 h-8" />
@@ -84,15 +84,15 @@ export default function AllTasksPage() {
             </div>
             
             {groupKeys.length === 0 && tasks.length === 0 ? (
-                <Card>
+                <Card className="animate-fade-in-up">
                     <CardContent className="pt-6">
                         <p className="text-center text-muted-foreground">You have no tasks yet. Go to the dashboard to add some!</p>
                     </CardContent>
                 </Card>
-             ) : groupKeys.map(groupKey => {
+             ) : groupKeys.map((groupKey, index) => {
               const groupTasks = groupedTasks[groupKey];
               return (
-                <Card key={groupKey}>
+                <Card key={groupKey} className="animate-fade-in-up" style={{ animationDelay: `${index * 0.1}s` }}>
                     <CardHeader>
                         <CardTitle>{getGroupTitle(groupKey)}</CardTitle>
                     </CardHeader>

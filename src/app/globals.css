@@ -111,9 +111,9 @@
   }
 
   .red-dark {
-    --background: 0 0% 4%;
+    --background: 0 0% 2%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 4%;
+    --card: 0 0% 2%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 8%;
     --popover-foreground: 0 0% 98%;
@@ -174,4 +174,36 @@
   top: -10%;
   opacity: 0;
   animation: confetti-fall 3s linear forwards;
+}
+
+@layer utilities {
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-in-down {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s ease-out forwards;
+  }
+  
+  .animate-slide-in-down {
+    animation: slide-in-down 0.5s ease-out forwards;
+  }
 }

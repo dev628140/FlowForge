@@ -866,7 +866,7 @@ export default function AIAssistantPage() {
     const isMobile = useIsMobile();
     return (
         <div className="h-full flex flex-col">
-            <header className="px-4 md:px-6 py-4 flex-shrink-0">
+            <header className="px-4 md:px-6 py-4 flex-shrink-0 animate-slide-in-down">
                 <div className="flex items-center gap-2">
                     <BrainCircuit className="w-8 h-8 text-primary" />
                     <h1 className="text-3xl font-bold font-headline">AI Assistant Hub</h1>
@@ -875,12 +875,12 @@ export default function AIAssistantPage() {
             </header>
 
             <Tabs defaultValue="planner" className="w-full flex-grow flex flex-col px-4 md:px-6 pb-4">
-                <TabsList className={cn("grid w-full h-auto", isMobile ? "grid-cols-1" : "grid-cols-3")}>
+                <TabsList className={cn("grid w-full h-auto animate-fade-in-up", isMobile ? "grid-cols-1" : "grid-cols-3")} style={{ animationDelay: '0.1s' }}>
                     <TabsTrigger value="planner" className="py-2 sm:py-1.5"><Wand2 className="mr-2"/> AI Task Planner</TabsTrigger>
                     <TabsTrigger value="breakdown" className="py-2 sm:py-1.5"><ListChecks className="mr-2"/> Task Breakdown</TabsTrigger>
                     <TabsTrigger value="suggester" className="py-2 sm:py-1.5"><Lightbulb className="mr-2"/> Smart Suggestions</TabsTrigger>
                 </TabsList>
-                <Card className="mt-4 flex-grow">
+                <Card className="mt-4 flex-grow animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                     <CardContent className="p-0 h-full overflow-hidden">
                         <TabsContent value="planner" className="h-full m-0">
                             <ChatPane mode="planner" />

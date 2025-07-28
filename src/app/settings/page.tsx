@@ -90,10 +90,10 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <h1 className="text-3xl font-bold font-headline">Settings</h1>
+      <h1 className="text-3xl font-bold font-headline animate-slide-in-down">Settings</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="animate-fade-in-up">
             <CardHeader>
             <CardTitle>Profile</CardTitle>
             <CardDescription>Update your name and email address.</CardDescription>
@@ -128,7 +128,7 @@ export default function SettingsPage() {
             </CardContent>
         </Card>
         
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
             <CardHeader>
             <CardTitle>Change Password</CardTitle>
             <CardDescription>Enter a new password below.</CardDescription>

@@ -60,14 +60,16 @@ export default function IntegrationsPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="text-3xl font-bold font-headline mb-2">Smart Integrations</h1>
-      <p className="text-muted-foreground mb-6">Connect FlowForge to your favorite apps to centralize your workflow.</p>
+      <div className="animate-slide-in-down">
+        <h1 className="text-3xl font-bold font-headline mb-2">Smart Integrations</h1>
+        <p className="text-muted-foreground mb-6">Connect FlowForge to your favorite apps to centralize your workflow.</p>
+      </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {integrations.map(integration => {
+        {integrations.map((integration, index) => {
           const isConnected = isClient && connected.has(integration.name);
           return (
-            <Card key={integration.name} className={cn('transition-all', isConnected && 'border-primary/50 shadow-lg')}>
+            <Card key={integration.name} className={cn('transition-all animate-fade-in-up', isConnected && 'border-primary/50 shadow-lg')} style={{ animationDelay: `${index * 0.05}s` }}>
               <CardHeader className="flex flex-row items-center gap-4">
                  <Image 
                   src={`https://placehold.co/40x40.png`} 

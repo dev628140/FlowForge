@@ -63,7 +63,7 @@ export default function DynamicSuggestionCard({ tasks, role }: DynamicSuggestion
   const currentSuggestion = hasSuggestions ? suggestions[currentSuggestionIndex] : null;
 
   return (
-    <Card className="bg-accent/20 border-accent/50">
+    <Card className="bg-accent/20 border-accent/50 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-medium flex items-center gap-2">
           <Lightbulb className="w-5 h-5 text-foreground" />

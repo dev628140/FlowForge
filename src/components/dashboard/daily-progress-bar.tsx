@@ -29,7 +29,7 @@ export default function DailyProgressBar({ tasks }: DailyProgressBarProps) {
   }
 
   return (
-    <Card>
+    <Card className="animate-fade-in-up">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-medium">Daily Progress</CardTitle>
         <CardDescription>{`You've completed ${tasks.filter(t => t.completed).length} of ${tasks.length} tasks today.`}</CardDescription>

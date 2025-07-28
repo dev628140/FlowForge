@@ -191,7 +191,7 @@ export default function DashboardPage() {
     <div className="relative min-h-screen w-full">
       <Confetti active={showConfetti} />
       <div className="p-4 md:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-slide-in-down">
           <h1 className="text-3xl font-bold font-headline flex items-center gap-2">
             <LayoutDashboard className="w-8 h-8" />
             Dashboard
@@ -215,7 +215,7 @@ export default function DashboardPage() {
             <DailyProgressBar tasks={todaysTasks} />
             
             {overdueTasks.length > 0 && (
-              <Card className="border-destructive/50">
+              <Card className="border-destructive/50 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
               <CardHeader>
                   <CardTitle className="flex items-center justify-between text-destructive">
                   <div className="flex items-center gap-2">
@@ -321,7 +321,7 @@ export default function DashboardPage() {
               </Card>
             )}
 
-            <Card className="flex flex-col h-[578px]">
+            <Card className="flex flex-col h-[578px] animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
               <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 flex-shrink-0">
                 <div className="flex-1">
                     <CardTitle className="flex items-center gap-2">
@@ -532,7 +532,7 @@ export default function DashboardPage() {
 
             <DynamicSuggestionCard tasks={todaysTasks} role={userRole} />
             
-            <div className="w-full h-[600px]">
+            <div className="w-full h-[600px] animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
                 <AIAssistant allTasks={tasks} role={userRole} />
             </div>
         </div>

@@ -86,7 +86,7 @@ export default function SchedulePage() {
 
     return (
         <div className="p-4 md:p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4 animate-slide-in-down">
                 <div>
                     <h1 className="text-3xl font-bold font-headline mb-1">Weekly Schedule</h1>
                     <p className="text-muted-foreground">View and manage your tasks for the week. Only unscheduled tasks will be added.</p>
@@ -126,8 +126,8 @@ export default function SchedulePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-                {weekDays.map(day => (
-                    <Card key={day.toString()} className="h-full flex flex-col">
+                {weekDays.map((day, index) => (
+                    <Card key={day.toString()} className="h-full flex flex-col animate-fade-in-up" style={{ animationDelay: `${index * 0.05}s` }}>
                         <CardHeader className="p-4">
                             <CardTitle className="text-sm font-medium">{format(day, 'EEE')}</CardTitle>
                             <CardDescription className="text-xs">{format(day, 'MMM d')}</CardDescription>
