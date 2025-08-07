@@ -228,8 +228,8 @@ export default function DashboardPage() {
                   <CardDescription>Tasks that are past their due date.</CardDescription>
               </CardHeader>
               <CardContent>
-                  <ScrollArea className="max-h-48 pr-4">
-                    <div className="space-y-2">
+                  <ScrollArea className="max-h-48">
+                    <div className="space-y-2 pr-4">
                     {overdueTasks.map(task => {
                         const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
                         return (
@@ -555,3 +555,4 @@ export default function DashboardPage() {
   );
 
     
+
