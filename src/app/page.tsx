@@ -228,8 +228,8 @@ export default function DashboardPage() {
                   <CardDescription>Tasks that are past their due date.</CardDescription>
               </CardHeader>
               <CardContent>
-                  <div className="max-h-48 overflow-y-auto pr-2">
-                    <div className="space-y-2">
+                  <div className="max-h-48 overflow-y-auto">
+                    <div className="space-y-2 pr-2">
                     {overdueTasks.map(task => {
                         const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
                         return (
@@ -242,7 +242,7 @@ export default function DashboardPage() {
                                 {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
                                 </p>
                             </div>
-                            <div className={cn("flex items-center transition-opacity")}>
+                            <div className={cn("flex items-center")}>
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
@@ -553,8 +553,4 @@ export default function DashboardPage() {
       )}
     </div>
   );
-
-    
-
-
-
+}
