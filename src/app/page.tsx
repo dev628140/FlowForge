@@ -228,8 +228,8 @@ export default function DashboardPage() {
                   <CardDescription>Tasks that are past their due date.</CardDescription>
               </CardHeader>
               <CardContent>
-                  <ScrollArea className="max-h-48">
-                    <div className="space-y-2 pr-4">
+                  <div className="max-h-48 overflow-y-auto pr-2">
+                    <div className="space-y-2">
                     {overdueTasks.map(task => {
                         const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
                         return (
@@ -242,7 +242,7 @@ export default function DashboardPage() {
                                 {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
                                 </p>
                             </div>
-                            <div className={cn("flex items-center opacity-0 transition-opacity group-hover:opacity-100")}>
+                            <div className={cn("flex items-center transition-opacity")}>
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
@@ -319,7 +319,7 @@ export default function DashboardPage() {
                         )
                     })}
                     </div>
-                  </ScrollArea>
+                  </div>
               </CardContent>
               </Card>
             )}
@@ -555,5 +555,6 @@ export default function DashboardPage() {
   );
 
     
+
 
 
