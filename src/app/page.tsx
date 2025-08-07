@@ -59,6 +59,7 @@ import DynamicSuggestionCard from '@/components/dashboard/dynamic-suggestion-car
 import { Label } from '@/components/ui/label';
 import AIAssistant from '@/components/dashboard/ai-assistant';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const taskFormSchema = z.object({
@@ -227,96 +228,98 @@ export default function DashboardPage() {
                   <CardDescription>Tasks that are past their due date.</CardDescription>
               </CardHeader>
               <CardContent>
-                  <div className="space-y-2">
-                  {overdueTasks.map(task => {
-                      const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
-                      return (
-                      <div key={task.id} className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
-                          <div className="flex-1">
-                              <span className={cn("font-medium text-card-foreground")}>
-                              {task.title}
-                              </span>
-                              <p className="text-xs text-destructive">
-                              {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
-                              </p>
-                          </div>
-                          <div className={cn("flex items-center opacity-0 transition-opacity group-hover:opacity-100")}>
-                              <TooltipProvider>
-                                  <Tooltip>
-                                      <TooltipTrigger asChild>
-                                          <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="hover:bg-primary/10 hover:text-primary"
-                                              aria-label={`Reschedule task ${task.title} to today`}
-                                              onClick={() => onReschedule(task)}
-                                          >
-                                              <CalendarPlus className="h-4 w-4" />
-                                          </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent><p>Reschedule to Today</p></TooltipContent>
-                                  </Tooltip>
-                                  <Popover>
+                  <ScrollArea className="max-h-48 pr-4">
+                    <div className="space-y-2">
+                    {overdueTasks.map(task => {
+                        const daysOverdue = differenceInDays(startOfToday(), parseISO(task.scheduledDate!));
+                        return (
+                        <div key={task.id} className={cn("flex items-center group p-2 rounded-md hover:bg-muted/50 transition-colors")}>
+                            <div className="flex-1">
+                                <span className={cn("font-medium text-card-foreground")}>
+                                {task.title}
+                                </span>
+                                <p className="text-xs text-destructive">
+                                {daysOverdue > 0 ? `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue` : 'Due today'}
+                                </p>
+                            </div>
+                            <div className={cn("flex items-center opacity-0 transition-opacity group-hover:opacity-100")}>
+                                <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="hover:bg-primary/10 hover:text-primary"
-                                                    aria-label={`Schedule task ${task.title}`}
-                                                >
-                                                    <CalendarIcon className="h-4 w-4" />
-                                                </Button>
-                                            </PopoverTrigger>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="hover:bg-primary/10 hover:text-primary"
+                                                aria-label={`Reschedule task ${task.title} to today`}
+                                                onClick={() => onReschedule(task)}
+                                            >
+                                                <CalendarPlus className="h-4 w-4" />
+                                            </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent><p>Schedule to a specific date</p></TooltipContent>
+                                        <TooltipContent><p>Reschedule to Today</p></TooltipContent>
                                     </Tooltip>
-                                    <PopoverContent className="w-auto p-0">
-                                      <CalendarPicker
-                                        mode="single"
-                                        onSelect={(date) => {
-                                          if (date) onReschedule(task, date);
-                                        }}
-                                        initialFocus
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                  <AlertDialog>
+                                    <Popover>
                                       <Tooltip>
                                           <TooltipTrigger asChild>
-                                          <AlertDialogTrigger asChild>
-                                          <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="hover:bg-destructive/10 hover:text-destructive"
-                                              aria-label={`Delete task ${task.title}`}
-                                          >
-                                              <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                          </AlertDialogTrigger>
+                                              <PopoverTrigger asChild>
+                                                  <Button
+                                                      variant="ghost"
+                                                      size="icon"
+                                                      className="hover:bg-primary/10 hover:text-primary"
+                                                      aria-label={`Schedule task ${task.title}`}
+                                                  >
+                                                      <CalendarIcon className="h-4 w-4" />
+                                                  </Button>
+                                              </PopoverTrigger>
                                           </TooltipTrigger>
-                                          <TooltipContent><p>Delete Task</p></TooltipContent>
+                                          <TooltipContent><p>Schedule to a specific date</p></TooltipContent>
                                       </Tooltip>
-                                      <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                          This action cannot be undone. This will permanently delete the task "{task.title}".
-                                          </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                  </AlertDialog>
-                              </TooltipProvider>
-                          </div>
-                      </div>
-                      )
-                  })}
-                  </div>
+                                      <PopoverContent className="w-auto p-0">
+                                        <CalendarPicker
+                                          mode="single"
+                                          onSelect={(date) => {
+                                            if (date) onReschedule(task, date);
+                                          }}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                    <AlertDialog>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                            <AlertDialogTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="hover:bg-destructive/10 hover:text-destructive"
+                                                aria-label={`Delete task ${task.title}`}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                            </AlertDialogTrigger>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Delete Task</p></TooltipContent>
+                                        </Tooltip>
+                                        <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete the task "{task.title}".
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDelete(task)}>Continue</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TooltipProvider>
+                            </div>
+                        </div>
+                        )
+                    })}
+                    </div>
+                  </ScrollArea>
               </CardContent>
               </Card>
             )}
@@ -550,4 +553,5 @@ export default function DashboardPage() {
       )}
     </div>
   );
-}
+
+    
